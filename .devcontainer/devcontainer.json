@@ -7,7 +7,8 @@
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
   "mounts": [
     "source=/mnt/cephfs/exam-system,target=/cephfs/exam-system,type=bind",
-    "source=${localWorkspaceFolder}/.devcontainer/ssh-config,target=/home/vscode/.ssh/config,type=bind,consistency=cached"
+    "source=${localWorkspaceFolder}/.devcontainer/ssh-config,target=/home/vscode/.ssh/config,type=bind,consistency=cached",
+    "source=/home/kris/.ssh/id_ed25519,target=/home/vscode/.ssh/id_ed25519,type=bind,consistency=cached"
   ],
   "remoteUser": "vscode",
   "updateRemoteUserUID": true,

@@ -2,7 +2,8 @@
 FROM node:20-bookworm
 
 # Install sudo and SSH client
-RUN apt-get update && apt-get install -y sudo openssh-client && \
+RUN apt-get update && apt-get install -y sudo openssh-client \
+    jq redis-tools sudo apt install iputils-ping && \
     rm -rf /var/lib/apt/lists/*
 
 # Create vscode user with UID/GID 1001 to match host user
@@ -16,9 +17,6 @@ RUN mkdir -p /home/vscode/.ssh && \
 
 # Copy SSH config
 COPY ssh-config /home/vscode/.ssh/config
-
-# Copy SSH key
-# COPY id_ed25519 /home/vscode/.ssh/id_ed25519
 
 # Set correct ownership for vscode user directories
 RUN chown -R vscode:vscode /home/vscode && \
