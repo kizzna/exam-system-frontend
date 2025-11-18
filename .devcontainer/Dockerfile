@@ -18,11 +18,11 @@ RUN mkdir -p /home/vscode/.ssh && \
 COPY ssh-config /home/vscode/.ssh/config
 
 # Copy SSH key
-COPY id_ed25519 /home/vscode/.ssh/id_ed25519
+# COPY id_ed25519 /home/vscode/.ssh/id_ed25519
 
 # Set correct ownership for vscode user directories
 RUN chown -R vscode:vscode /home/vscode && \
-    chmod 600 /home/vscode/.ssh/config /home/vscode/.ssh/id_ed25519
+    chmod 600 /home/vscode/.ssh/config 
 
 # Install pnpm globally
 RUN npm install -g pnpm
