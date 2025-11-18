@@ -6,7 +6,7 @@
 set -e
 
 # Configuration
-LOCAL_DIR="/home/kris/exam-system-frontend"
+LOCAL_DIR="/workspace"
 CEPHFS_BASE="/cephfs/exam-system/frontend"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 RELEASE_DIR="$CEPHFS_BASE/releases/dev-$TIMESTAMP"
@@ -51,13 +51,15 @@ if [ "$BUILD" = true ]; then
 fi
 
 # Prepare rsync command
-RSYNC_CMD="rsync -avz --progress"
+RSYNC_CMD="rsync -av --progress"
 RSYNC_CMD="$RSYNC_CMD --exclude=node_modules"
 RSYNC_CMD="$RSYNC_CMD --exclude=.git"
 RSYNC_CMD="$RSYNC_CMD --exclude=.next"
 RSYNC_CMD="$RSYNC_CMD --exclude=.env.local"
 RSYNC_CMD="$RSYNC_CMD --exclude=tests"
 RSYNC_CMD="$RSYNC_CMD --exclude=playwright-report"
+# exclude pnpm store directory if it exists
+RSYNC_CMD="$RSYNC_CMD --exclude=.pnpm-store"
 
 if [ "$DRY_RUN" = true ]; then
   RSYNC_CMD="$RSYNC_CMD --dry-run"
@@ -72,6 +74,9 @@ fi
 # Sync files
 echo "Syncing files..."
 $RSYNC_CMD "$LOCAL_DIR/" "$RELEASE_DIR/"
+#echo "Syncing files in parallel..."
+#cd "$LOCAL_DIR"
+#ls -A | parallel -j8 rsync -av --progress --relative {} "$RELEASE_DIR/"
 
 # Update symlink to current
 if [ "$DRY_RUN" = false ]; then
@@ -81,7 +86,25 @@ fi
 
 echo ""
 echo "=== Sync Complete ==="
-echo "To deploy:"
-echo "  ssh gt-omr-web-1"
-echo "  pm2 restart exam-system-frontend"
+
+# Install dependencies on server if not in dry-run mode
+if [ "$DRY_RUN" = false ]; then
+  echo ""
+  echo "Installing production dependencies on server..."
+  
+  if ssh gt-omr-web-1 "cd /cephfs/exam-system/frontend/current && pnpm install --prod --frozen-lockfile" 2>/dev/null; then
+    echo "✓ Dependencies installed successfully"
+  else
+    echo "⚠ Warning: Could not install dependencies on server"
+    echo "Please run manually:"
+    echo "  ssh gt-omr-web-1 'cd /cephfs/exam-system/frontend/current && pnpm install --prod'"
+  fi
+fi
+
+echo ""
+echo "To deploy/restart application:"
+echo "  ssh gt-omr-web-1 'pm2 reload exam-system-frontend'"
+echo ""
+echo "Or use the automated deployment:"
+echo "  ./deployment/remote-deploy.sh gt-omr-web-1"
 echo ""

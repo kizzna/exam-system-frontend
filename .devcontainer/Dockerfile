@@ -3,8 +3,11 @@ FROM node:20-bookworm
 
 # Install sudo and SSH client
 RUN apt-get update && apt-get install -y sudo openssh-client \
-    jq redis-tools sudo apt install iputils-ping && \
+    default-mysql-client jq redis-tools iputils-ping rsync tzdata parallel net-tools && \
     rm -rf /var/lib/apt/lists/*
+
+# Set the timezone
+ENV TZ="Asia/Bangkok"
 
 # Create vscode user with UID/GID 1001 to match host user
 RUN groupadd -g 1001 vscode && \
@@ -17,6 +20,9 @@ RUN mkdir -p /home/vscode/.ssh && \
 
 # Copy SSH config
 COPY ssh-config /home/vscode/.ssh/config
+
+# Copy .my.cnf if exists
+COPY .my.cnf /home/vscode/.my.cnf
 
 # Set correct ownership for vscode user directories
 RUN chown -R vscode:vscode /home/vscode && \
