@@ -1,0 +1,31 @@
+# SSH config for dev container (Alpine-compatible)
+
+Host gt-omr-*
+    User ubuntu
+    Port 22
+    IdentityFile ~/.ssh/id_ed25519
+
+Host github.com
+    AddKeysToAgent yes
+    IdentityFile ~/.ssh/id_ed25519
+
+Host db1
+    User root
+
+# Removed incompatible ssh-dss settings for Alpine
+Host true
+    Hostname true
+    HostKeyAlgorithms +ssh-rsa
+    PubkeyAcceptedAlgorithms +ssh-rsa
+    User kris
+    Port 9729
+
+Host omr1 omr1.gt
+    Hostname omr1.gt
+    User root
+    IdentityFile ~/.ssh/id_ed25519
+
+Host *
+    ControlMaster auto
+    ControlPath ~/.ssh/%r@%h-%p
+    ControlPersist yes
