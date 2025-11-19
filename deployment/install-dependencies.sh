@@ -50,6 +50,8 @@ apt-get upgrade -y
 
 echo ""
 echo -e "${BLUE}=== Step 2: Install Prerequisites ===${NC}"
+apt-get install libbz2-1.0=1.0.8-5.1 -y --allow-downgrades # Specific version for compatibility
+apt-get install bzip2 -y
 apt-get install -y \
     curl \
     wget \
@@ -69,22 +71,21 @@ if command -v node &> /dev/null; then
     
     # Check if it's version 20
     if [[ "$NODE_VERSION" == v20* ]]; then
-        echo -e "${GREEN}✓ Node.js 20 LTS is already installed${NC}"
+        echo -e "${GREEN}✓ Node.js 20 LTS is already installed, skipping installation${NC}"
+        SKIP_NODE=true
     else
         echo -e "${YELLOW}Warning: Installed version is not Node.js 20${NC}"
-        read -p "Reinstall Node.js 20 LTS? (y/N) " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            # Remove old Node.js
-            apt-get remove -y nodejs npm
-            apt-get autoremove -y
-        else
-            echo "Skipping Node.js installation"
-        fi
+        echo "Upgrading to Node.js 20 LTS..."
+        # Remove old Node.js
+        apt-get remove -y nodejs npm
+        apt-get autoremove -y
+        SKIP_NODE=false
     fi
+else
+    SKIP_NODE=false
 fi
 
-if ! command -v node &> /dev/null || [[ ! "$NODE_VERSION" == v20* ]]; then
+if [ "$SKIP_NODE" = false ]; then
     echo "Installing Node.js 20 LTS..."
     
     # Add NodeSource repository
@@ -105,52 +106,33 @@ echo -e "${BLUE}=== Step 4: Install pnpm ===${NC}"
 
 if command -v pnpm &> /dev/null; then
     PNPM_VERSION=$(pnpm -v)
-    echo -e "${YELLOW}pnpm is already installed: $PNPM_VERSION${NC}"
-    read -p "Reinstall pnpm? (y/N) " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        npm uninstall -g pnpm
-        npm install -g pnpm@latest
-    fi
+    echo -e "${GREEN}✓ pnpm is already installed: $PNPM_VERSION (skipping)${NC}"
 else
     echo "Installing pnpm..."
     npm install -g pnpm@latest
+    PNPM_VERSION=$(pnpm -v)
+    echo -e "${GREEN}✓ pnpm installed: $PNPM_VERSION${NC}"
 fi
-
-PNPM_VERSION=$(pnpm -v)
-echo -e "${GREEN}✓ pnpm installed: $PNPM_VERSION${NC}"
 
 echo ""
 echo -e "${BLUE}=== Step 5: Install PM2 ===${NC}"
 
 if command -v pm2 &> /dev/null; then
     PM2_VERSION=$(pm2 -v)
-    echo -e "${YELLOW}PM2 is already installed: $PM2_VERSION${NC}"
-    read -p "Reinstall PM2? (y/N) " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        npm uninstall -g pm2
-        npm install -g pm2@latest
-    fi
+    echo -e "${GREEN}✓ PM2 is already installed: $PM2_VERSION (skipping)${NC}"
 else
     echo "Installing PM2..."
     npm install -g pm2@latest
+    PM2_VERSION=$(pm2 -v)
+    echo -e "${GREEN}✓ PM2 installed: $PM2_VERSION${NC}"
 fi
-
-PM2_VERSION=$(pm2 -v)
-echo -e "${GREEN}✓ PM2 installed: $PM2_VERSION${NC}"
-
-# Configure PM2 startup
-echo "Configuring PM2 startup..."
-pm2 startup systemd -u www-data --hp /var/www || true
-echo -e "${GREEN}✓ PM2 startup configured${NC}"
 
 echo ""
 echo -e "${BLUE}=== Step 6: Install Nginx ===${NC}"
 
 if command -v nginx &> /dev/null; then
     NGINX_VERSION=$(nginx -v 2>&1 | cut -d'/' -f2)
-    echo -e "${YELLOW}Nginx is already installed: $NGINX_VERSION${NC}"
+    echo -e "${GREEN}✓ Nginx is already installed: $NGINX_VERSION (skipping)${NC}"
 else
     echo "Installing Nginx..."
     apt-get install -y nginx

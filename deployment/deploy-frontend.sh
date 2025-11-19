@@ -21,6 +21,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Parse arguments
 SKIP_DEPS=false
 SKIP_BUILD=false
+BUILD=false
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -32,9 +33,13 @@ while [[ $# -gt 0 ]]; do
       SKIP_BUILD=true
       shift
       ;;
+    --build)
+      BUILD=true
+      shift
+      ;;
     *)
       echo "Unknown option: $1"
-      echo "Usage: $0 [--skip-deps] [--skip-build]"
+      echo "Usage: $0 [--skip-deps] [--skip-build] [--build]"
       exit 1
       ;;
   esac
@@ -160,24 +165,56 @@ fi
 
 echo ""
 
-# Step 4: Install Node.js dependencies
+# Step 4: Install Node.js dependencies and build
 if [ "$SKIP_BUILD" = false ]; then
-    echo -e "${BLUE}═══ Step 4: Installing Node.js Dependencies ═══${NC}"
+    echo -e "${BLUE}═══ Step 4: Installing Dependencies and Building ═══${NC}"
     
     cd "$CEPHFS_BASE/current"
     
-    echo "Running: pnpm install --prod --frozen-lockfile"
-    
-    # Run as www-data user if possible
-    if id "www-data" &>/dev/null; then
-        sudo -u www-data pnpm install --prod --frozen-lockfile
+    # Install all dependencies (including devDependencies for build)
+    echo "Installing dependencies..."
+    if [ "$BUILD" = true ]; then
+        echo "Running: pnpm install --frozen-lockfile (all dependencies for build)"
+        pnpm install --frozen-lockfile
     else
+        echo "Running: pnpm install --prod --frozen-lockfile (production only)"
         pnpm install --prod --frozen-lockfile
     fi
     
     echo -e "${GREEN}✓ Dependencies installed${NC}"
+    
+    # Build if requested
+    if [ "$BUILD" = true ]; then
+        echo ""
+        echo "Building Next.js application..."
+        pnpm build
+        echo -e "${GREEN}✓ Build complete${NC}"
+        
+        # Copy static files for standalone mode
+        echo ""
+        echo "Setting up standalone server..."
+        if [ -d ".next/standalone" ]; then
+            # Copy static files
+            cp -r .next/static .next/standalone/.next/
+            
+            # Copy public folder if it exists
+            if [ -d "public" ]; then
+                cp -r public .next/standalone/
+            fi
+            
+            echo -e "${GREEN}✓ Standalone server ready${NC}"
+        else
+            echo -e "${YELLOW}⚠ Standalone mode not configured in next.config.mjs${NC}"
+        fi
+        
+        # After build, remove devDependencies to save space
+        echo ""
+        echo "Removing devDependencies..."
+        pnpm install --prod --frozen-lockfile || true  # Ignore husky prepare script error
+        echo -e "${GREEN}✓ DevDependencies removed${NC}"
+    fi
 else
-    echo -e "${YELLOW}⊘ Skipping dependency installation${NC}"
+    echo -e "${YELLOW}⊘ Skipping dependency installation and build${NC}"
 fi
 
 echo ""
@@ -251,19 +288,26 @@ echo -e "${BLUE}═══ Step 7: Starting Application with PM2 ═══${NC}"
 
 cd "$CEPHFS_BASE/current"
 
+# Set PM2_HOME to local directory (owned by www-data)
+export PM2_HOME="$LOCAL_ROOT/pm2"
+
+# Ensure PM2_HOME directory exists with correct permissions
+sudo mkdir -p "$PM2_HOME"
+sudo chown -R www-data:www-data "$PM2_HOME"
+
 # Check if PM2 process exists
-if pm2 describe exam-system-frontend &>/dev/null; then
+if sudo -u www-data PM2_HOME="$PM2_HOME" pm2 describe exam-system-frontend &>/dev/null; then
     echo "Application is already running, reloading..."
     
     # Use reload for zero-downtime restart
-    pm2 reload exam-system-frontend
+    sudo -u www-data PM2_HOME="$PM2_HOME" pm2 reload exam-system-frontend
     echo -e "${GREEN}✓ Application reloaded${NC}"
 else
     echo "Starting application for the first time..."
     
-    # Start with ecosystem config
-    if [ -f "ecosystem.config.js" ]; then
-        pm2 start ecosystem.config.js
+    # Use ecosystem config from LOCAL_ROOT
+    if [ -f "$LOCAL_ROOT/ecosystem.config.js" ]; then
+        sudo -u www-data PM2_HOME="$PM2_HOME" pm2 start "$LOCAL_ROOT/ecosystem.config.js"
     else
         echo -e "${RED}Error: ecosystem.config.js not found${NC}"
         exit 1
@@ -273,11 +317,62 @@ else
 fi
 
 # Save PM2 process list
-pm2 save
+sudo -u www-data PM2_HOME="$PM2_HOME" pm2 save
 
 # Show PM2 status
 echo ""
-pm2 status
+sudo -u www-data PM2_HOME="$PM2_HOME" pm2 status
+
+echo ""
+
+# Configure systemd service for auto-start
+echo "Configuring PM2 systemd service..."
+
+# Create systemd service file
+cat > /etc/systemd/system/pm2-www-data.service << EOF
+[Unit]
+Description=PM2 process manager
+Documentation=https://pm2.keymetrics.io/
+After=network.target
+
+[Service]
+Type=forking
+User=www-data
+LimitNOFILE=infinity
+LimitNPROC=infinity
+LimitCORE=infinity
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=PM2_HOME=/opt/exam-system-frontend/pm2
+PIDFile=/opt/exam-system-frontend/pm2/pm2.pid
+ExecStart=/usr/bin/pm2 resurrect
+ExecReload=/usr/bin/pm2 reload all
+ExecStop=/usr/bin/pm2 kill
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Reload systemd and enable service
+systemctl daemon-reload
+systemctl enable pm2-www-data.service
+echo -e "${GREEN}✓ PM2 systemd service configured${NC}"
+
+# Configure ubuntu user's bashrc for PM2
+if ! grep -q 'PM2_HOME=/opt/exam-system-frontend/pm2' /home/ubuntu/.bashrc 2>/dev/null; then
+    echo "Configuring ubuntu user's bashrc for PM2..."
+    cat >> /home/ubuntu/.bashrc << 'BASHRC'
+
+# PM2 Configuration for exam-system-frontend
+export PM2_HOME=/opt/exam-system-frontend/pm2
+alias pm2='sudo -u www-data PM2_HOME=/opt/exam-system-frontend/pm2 pm2'
+BASHRC
+    chown ubuntu:ubuntu /home/ubuntu/.bashrc
+    echo -e "${GREEN}✓ Ubuntu user's bashrc configured${NC}"
+else
+    echo -e "${GREEN}✓ Ubuntu user's bashrc already configured${NC}"
+fi
 
 echo ""
 

@@ -2,11 +2,15 @@
 
 ## One-Command Deployment
 
+**IMPORTANT:** All builds happen on the server, not in the dev container. The dev container is only for writing code and syncing to the server.
+
 ### First Time Setup
 
 ```bash
 ./deployment/remote-deploy.sh gt-omr-web-1 --build
 ```
+
+This will sync code and build on the server.
 
 ### Update Code (Fast)
 
@@ -14,11 +18,15 @@
 ./deployment/remote-deploy.sh gt-omr-web-1 --skip-deps
 ```
 
+Use this when only code changed, dependencies are already installed.
+
 ### Update with Rebuild
 
 ```bash
 ./deployment/remote-deploy.sh gt-omr-web-1 --build
 ```
+
+Use this when dependencies changed or you need a fresh build.
 
 ## Manual Deployment Steps
 

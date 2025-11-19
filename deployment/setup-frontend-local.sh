@@ -103,14 +103,13 @@ cat > "$LOCAL_ROOT/ecosystem.config.js" << 'EOFPM2'
 module.exports = {
   apps: [{
     name: 'exam-system-frontend',
-    script: 'node_modules/.bin/next',
-    args: 'start',
+    script: '.next/standalone/server.js',
     
     // Use symlink to shared code
     cwd: '/opt/exam-system-frontend/current',
     
-    // Cluster mode for load balancing
-    instances: 4,
+    // Cluster mode - PM2 will run multiple instances
+    instances: 'max', // Use all available CPU cores
     exec_mode: 'cluster',
     
     // Environment variables
@@ -118,6 +117,7 @@ module.exports = {
       NODE_ENV: 'production',
       PORT: 3000,
       NEXT_PUBLIC_API_URL: 'http://10.10.24.131:8000',
+      HOSTNAME: '0.0.0.0',
       
       // Local paths
       LOG_DIR: '/opt/exam-system-frontend/logs',
@@ -139,7 +139,7 @@ module.exports = {
     merge_logs: true,
     
     // Resource limits
-    max_memory_restart: '2G',
+    max_memory_restart: '4G',
     
     // Restart policy
     autorestart: true,
@@ -150,12 +150,10 @@ module.exports = {
     watch: false,
     
     // Graceful shutdown
-    kill_timeout: 5000,
-    wait_ready: true,
-    listen_timeout: 10000
+    kill_timeout: 5000
   }]
 };
-EOF
+EOFPM2
     echo -e "${GREEN}  ✓ Created ecosystem.config.js${NC}"
 else
     echo -e "${YELLOW}  ! ecosystem.config.js already exists, skipping${NC}"

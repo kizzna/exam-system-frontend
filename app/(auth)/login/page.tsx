@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -10,7 +10,7 @@ import { useAuthStore } from '@/lib/stores/auth-store';
 import { loginSchema } from '@/lib/utils/validation';
 import { LoginRequest } from '@/lib/types/auth';
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirect = searchParams.get('redirect') || '/dashboard';
@@ -44,59 +44,69 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="bg-card rounded-lg shadow-lg p-8">
-      <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold mb-2">Welcome Back</h1>
+    <div className="rounded-lg bg-card p-8 shadow-lg">
+      <div className="mb-8 text-center">
+        <h1 className="mb-2 text-3xl font-bold">Welcome Back</h1>
         <p className="text-muted-foreground">Sign in to your account</p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         {error && (
-          <div className="bg-destructive/10 border border-destructive text-destructive px-4 py-3 rounded">
+          <div className="rounded border border-destructive bg-destructive/10 px-4 py-3 text-destructive">
             {error}
           </div>
         )}
 
         <div>
-          <label htmlFor="username" className="block text-sm font-medium mb-2">
+          <label htmlFor="username" className="mb-2 block text-sm font-medium">
             Username
           </label>
           <input
             {...register('username')}
             id="username"
             type="text"
-            className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+            className="w-full rounded-md border border-input px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring"
             placeholder="Enter your username"
           />
           {errors.username && (
-            <p className="text-destructive text-sm mt-1">{errors.username.message}</p>
+            <p className="mt-1 text-sm text-destructive">{errors.username.message}</p>
           )}
         </div>
 
         <div>
-          <label htmlFor="password" className="block text-sm font-medium mb-2">
+          <label htmlFor="password" className="mb-2 block text-sm font-medium">
             Password
           </label>
           <input
             {...register('password')}
             id="password"
             type="password"
-            className="w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+            className="w-full rounded-md border border-input px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring"
             placeholder="Enter your password"
           />
           {errors.password && (
-            <p className="text-destructive text-sm mt-1">{errors.password.message}</p>
+            <p className="mt-1 text-sm text-destructive">{errors.password.message}</p>
           )}
         </div>
 
         <button
           type="submit"
           disabled={loginMutation.isPending}
-          className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full rounded-md bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {loginMutation.isPending ? 'Signing in...' : 'Sign In'}
         </button>
       </form>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={<div className="rounded-lg bg-card p-8 text-center shadow-lg">Loading...</div>}
+    >
+      <LoginForm />
+    </Suspense>
   );
 }

@@ -103,14 +103,8 @@ if [ ! -f "$SYNC_SCRIPT" ]; then
     exit 1
 fi
 
-# Build arguments for sync script
-SYNC_ARGS=""
-if [ "$BUILD" = true ]; then
-    SYNC_ARGS="$SYNC_ARGS --build"
-fi
-
 echo "Running sync script..."
-bash "$SYNC_SCRIPT" $SYNC_ARGS
+bash "$SYNC_SCRIPT"
 
 echo -e "${GREEN}✓ Code synced to CephFS${NC}"
 echo ""
@@ -121,6 +115,9 @@ echo -e "${BLUE}═══ Step 4: Running Deployment on Server ═══${NC}"
 DEPLOY_ARGS=""
 if [ "$SKIP_DEPS" = true ]; then
     DEPLOY_ARGS="$DEPLOY_ARGS --skip-deps"
+fi
+if [ "$BUILD" = true ]; then
+    DEPLOY_ARGS="$DEPLOY_ARGS --build"
 fi
 
 echo "Executing deployment script on $SERVER..."
