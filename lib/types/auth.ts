@@ -21,17 +21,19 @@ export interface RefreshTokenRequest {
 }
 
 export interface UserInfo {
-  id: string;
+  user_id: number;
   username: string;
   email: string;
   full_name: string;
-  roles: string[];
-  permissions: string[];
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
+  is_admin: boolean;
+  role_hierarchy: number; // 0=global admin, 1=order, 2=region, 3=org
+  school_id: number | null;
+  class_id: number | null;
 }
 
 export interface User extends UserInfo {
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
   last_login?: string;
 }

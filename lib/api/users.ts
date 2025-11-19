@@ -1,34 +1,44 @@
 import apiClient from './client';
-import { User, CreateUserRequest, UpdateUserRequest, UserListParams } from '../types/users';
-import { PaginatedResponse } from '../types/api';
+import {
+  User,
+  CreateUserRequest,
+  UpdateUserRequest,
+  UserListParams,
+  UserListResponse,
+} from '../types/users';
 
 export const usersApi = {
-  getUsers: async (params?: UserListParams): Promise<PaginatedResponse<User>> => {
-    const response = await apiClient.get<PaginatedResponse<User>>('/users', { params });
+  getUsers: async (params?: UserListParams): Promise<UserListResponse> => {
+    const response = await apiClient.get<UserListResponse>('/api/users', { params });
     return response.data;
   },
 
-  getUser: async (id: string): Promise<User> => {
-    const response = await apiClient.get<User>(`/users/${id}`);
+  getUser: async (userId: number): Promise<User> => {
+    const response = await apiClient.get<User>(`/api/users/${userId}`);
     return response.data;
   },
 
   createUser: async (data: CreateUserRequest): Promise<User> => {
-    const response = await apiClient.post<User>('/users', data);
+    const response = await apiClient.post<User>('/api/users', data);
     return response.data;
   },
 
-  updateUser: async (id: string, data: UpdateUserRequest): Promise<User> => {
-    const response = await apiClient.patch<User>(`/users/${id}`, data);
+  updateUser: async (userId: number, data: UpdateUserRequest): Promise<User> => {
+    const response = await apiClient.patch<User>(`/api/users/${userId}`, data);
     return response.data;
   },
 
-  deleteUser: async (id: string): Promise<void> => {
-    await apiClient.delete(`/users/${id}`);
+  deleteUser: async (userId: number): Promise<{ success: boolean; message: string }> => {
+    const response = await apiClient.delete<{ success: boolean; message: string }>(
+      `/api/users/${userId}`
+    );
+    return response.data;
   },
 
-  assignRoles: async (id: string, roles: string[]): Promise<User> => {
-    const response = await apiClient.post<User>(`/users/${id}/roles`, { roles });
+  changePassword: async (userId: number, newPassword: string): Promise<{ message: string }> => {
+    const response = await apiClient.post<{ message: string }>(`/api/users/${userId}/password`, {
+      new_password: newPassword,
+    });
     return response.data;
   },
 };

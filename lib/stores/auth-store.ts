@@ -35,17 +35,20 @@ export const useAuthStore = create<AuthState>()(
 
       isAdmin: () => {
         const state = get();
-        return state.user?.roles?.includes('admin') || false;
+        return state.user?.is_admin || false;
       },
 
       hasPermission: (permission) => {
+        // TODO: Implement when permissions API is available
         const state = get();
-        return state.user?.permissions?.includes(permission) || false;
+        return state.user?.is_admin || false;
       },
 
       hasRole: (role) => {
+        // TODO: Implement when roles API is available
         const state = get();
-        return state.user?.roles?.includes(role) || false;
+        if (role === 'admin') return state.user?.is_admin || false;
+        return false;
       },
     }),
     {

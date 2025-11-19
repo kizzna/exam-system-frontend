@@ -1,6 +1,6 @@
 // App constants
 export const APP_NAME = 'Exam Management System';
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://gt-omr-api-1:8000';
 
 // Pagination
 export const DEFAULT_PAGE_SIZE = 20;

@@ -79,14 +79,14 @@ apiClient.interceptors.response.use(
 
       try {
         // Attempt to refresh the token
-        const response = await axios.post(`${API_BASE_URL}/auth/refresh`, {
+        const response = await axios.post(`${API_BASE_URL}/api/auth/refresh`, {
           refresh_token: refreshToken,
         });
 
-        const { access_token } = response.data;
+        const { access_token, refresh_token: new_refresh_token } = response.data;
 
-        // Update the store with new access token
-        useAuthStore.getState().setTokens(access_token, refreshToken);
+        // Update the store with new tokens
+        useAuthStore.getState().setTokens(access_token, new_refresh_token);
 
         // Update the authorization header
         if (originalRequest.headers) {
