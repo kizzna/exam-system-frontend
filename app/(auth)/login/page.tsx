@@ -29,9 +29,14 @@ function LoginForm() {
   const loginMutation = useMutation({
     mutationFn: authApi.login,
     onSuccess: (data) => {
+      // Set user first, then tokens (important for cookie sync)
       setUser(data.user);
       setTokens(data.access_token, data.refresh_token);
-      router.push(redirect);
+
+      // Small delay to ensure state is updated before navigation
+      setTimeout(() => {
+        router.push(redirect);
+      }, 100);
     },
     onError: (err: any) => {
       setError(err.response?.data?.detail || 'Login failed. Please try again.');

@@ -1,0 +1,33 @@
+#!/bin/bash
+# Quick status check for all frontend servers
+
+echo "=== Frontend Server Status ==="
+echo ""
+
+for server in gt-omr-web-{1..3}; do
+  echo "📍 $server"
+  
+  # Get PM2 count
+  count=$(ssh $server 'sudo -u www-data PM2_HOME=/opt/exam-system-frontend/pm2 pm2 jlist 2>/dev/null | grep -c "exam-system-frontend"' || echo "0")
+  online=$(ssh $server 'sudo -u www-data PM2_HOME=/opt/exam-system-frontend/pm2 pm2 jlist 2>/dev/null | grep -o "\"status\":\"online\"" | wc -l' || echo "0")
+  
+  echo "  PM2: $online/$count instances online"
+  
+  # Check HTTP
+  http_code=$(curl -s -o /dev/null -w "%{http_code}" http://$server.gt/ 2>/dev/null)
+  if [ "$http_code" = "200" ]; then
+    echo "  HTTP: ✓ Accessible (200)"
+  else
+    echo "  HTTP: ✗ Status $http_code"
+  fi
+  
+  echo ""
+done
+
+echo "=== API Status ==="
+api_code=$(curl -s -o /dev/null -w "%{http_code}" http://gt-omr-api-1.gt:8000/health 2>/dev/null)
+if [ "$api_code" = "405" ] || [ "$api_code" = "200" ]; then
+  echo "  ✓ API accessible"
+else
+  echo "  ✗ API not accessible (HTTP $api_code)"
+fi

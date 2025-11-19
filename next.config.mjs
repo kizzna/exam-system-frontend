@@ -12,6 +12,10 @@ const nextConfig = {
         protocol: 'http',
         hostname: 'gt-omr-api-1',
       },
+      {
+        protocol: 'http',
+        hostname: 'gt-omr-api-1.gt',
+      },
     ],
   },
   async rewrites() {

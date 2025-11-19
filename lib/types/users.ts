@@ -28,9 +28,11 @@ export interface UpdateUserRequest {
   email?: string;
   full_name?: string;
   is_active?: boolean;
+  is_admin?: boolean;
+  hierarchy_level?: 'global' | 'order' | 'region' | 'organization';
+  hierarchy_id?: number | null;
   school_id?: number | null;
   class_id?: number | null;
-  role_hierarchy?: number;
 }
 
 export interface UserListParams {

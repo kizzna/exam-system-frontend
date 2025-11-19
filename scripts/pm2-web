@@ -1,0 +1,40 @@
+#!/bin/bash
+# PM2 wrapper script for frontend servers
+# Usage: ./scripts/pm2-web <server> <pm2-command>
+# Example: ./scripts/pm2-web gt-omr-web-1 list
+#          ./scripts/pm2-web gt-omr-web-1 logs exam-system-frontend
+#          ./scripts/pm2-web all restart exam-system-frontend
+
+set -e
+
+if [ $# -lt 2 ]; then
+  echo "Usage: $0 <server|all> <pm2-command> [args...]"
+  echo ""
+  echo "Examples:"
+  echo "  $0 gt-omr-web-1 list"
+  echo "  $0 gt-omr-web-1 logs exam-system-frontend"
+  echo "  $0 gt-omr-web-1 restart exam-system-frontend"
+  echo "  $0 all status"
+  echo "  $0 all reload exam-system-frontend"
+  echo ""
+  exit 1
+fi
+
+SERVER="$1"
+shift
+PM2_CMD="$@"
+
+# PM2 command wrapper for www-data user
+PM2_WRAPPER='sudo -u www-data PM2_HOME=/opt/exam-system-frontend/pm2 pm2'
+
+if [ "$SERVER" = "all" ]; then
+  # Run on all servers
+  for srv in gt-omr-web-{1..3}; do
+    echo "=== $srv ==="
+    ssh "$srv" "$PM2_WRAPPER $PM2_CMD" 2>&1 | grep -v "^$" || true
+    echo ""
+  done
+else
+  # Run on specific server
+  ssh "$SERVER" "$PM2_WRAPPER $PM2_CMD"
+fi
