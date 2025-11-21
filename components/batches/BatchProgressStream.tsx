@@ -1,0 +1,181 @@
+/**
+ * BatchProgressStream Component
+ * Real-time batch progress visualization with SSE
+ */
+
+'use client';
+
+import { useBatchStream, type ProcessingStage } from '@/lib/hooks/use-batch-stream';
+import { Card } from '@/components/ui/card';
+import { useEffect, useRef } from 'react';
+
+interface BatchProgressStreamProps {
+  batchId: string;
+  onComplete?: () => void;
+}
+
+const STAGE_LABELS: Record<ProcessingStage, string> = {
+  uploading: 'Uploading Chunks',
+  extracting: 'Extracting ZIP',
+  organizing_qr: 'Organizing by QR Codes',
+  processing_sheets: 'Processing Sheets',
+  collecting_results: 'Collecting Results',
+  generating_csv: 'Generating CSV Files',
+  loading_database: 'Loading to Database',
+  cleanup: 'Cleanup',
+  completed: 'Completed',
+  failed: 'Failed',
+};
+
+const STAGE_COLORS: Record<ProcessingStage, string> = {
+  uploading: 'text-blue-600',
+  extracting: 'text-purple-600',
+  organizing_qr: 'text-indigo-600',
+  processing_sheets: 'text-green-600',
+  collecting_results: 'text-orange-600',
+  generating_csv: 'text-pink-600',
+  loading_database: 'text-red-600',
+  cleanup: 'text-gray-600',
+  completed: 'text-green-700',
+  failed: 'text-red-700',
+};
+
+function formatDuration(seconds: number): string {
+  if (seconds < 60) {
+    return `${seconds}s`;
+  }
+  const minutes = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${minutes}m ${secs}s`;
+}
+
+export function BatchProgressStream({ batchId, onComplete }: BatchProgressStreamProps) {
+  const { events, currentEvent, isConnected, isComplete, error } = useBatchStream(batchId);
+  const logEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when new events arrive
+  useEffect(() => {
+    logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [events.length]);
+
+  // Call onComplete callback when batch completes
+  useEffect(() => {
+    if (isComplete && onComplete) {
+      onComplete();
+    }
+  }, [isComplete, onComplete]);
+
+  if (!batchId) {
+    return null;
+  }
+
+  return (
+    <Card className="p-6">
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="font-semibold">Processing Progress</h3>
+        <div className="flex items-center gap-2">
+          {isConnected && !isComplete && (
+            <div className="flex items-center gap-2 text-sm text-green-600">
+              <div className="h-2 w-2 animate-pulse rounded-full bg-green-600" />
+              Live
+            </div>
+          )}
+          {isComplete && !error && (
+            <div className="text-sm font-medium text-green-600">✓ Complete</div>
+          )}
+          {error && <div className="text-sm font-medium text-red-600">✗ Failed</div>}
+        </div>
+      </div>
+
+      {/* Current Stage Summary */}
+      {currentEvent && !isComplete && (
+        <div className="mb-4 rounded-lg bg-blue-50 p-4">
+          <div className="mb-2 flex items-center justify-between">
+            <div className={`font-medium ${STAGE_COLORS[currentEvent.stage]}`}>
+              {STAGE_LABELS[currentEvent.stage]}
+            </div>
+            <div className="text-sm text-gray-600">
+              {formatDuration(currentEvent.elapsed_seconds)}
+            </div>
+          </div>
+          <div className="mb-2 text-sm text-gray-700">{currentEvent.message}</div>
+          <div className="flex items-center gap-4 text-xs text-gray-600">
+            <div>Progress: {currentEvent.progress_percentage.toFixed(1)}%</div>
+            {currentEvent.sheets_total > 0 && (
+              <div>
+                Sheets: {currentEvent.sheets_processed.toLocaleString()} /{' '}
+                {currentEvent.sheets_total.toLocaleString()}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Activity Log */}
+      <div className="space-y-1">
+        <div className="text-sm font-medium text-gray-700">Activity Log</div>
+        <div className="max-h-96 overflow-y-auto rounded-lg border border-gray-200 bg-gray-50 p-3">
+          {events.length === 0 ? (
+            <div className="py-8 text-center">
+              {isConnected ? (
+                <div className="text-sm text-gray-500">Waiting for progress updates...</div>
+              ) : isComplete ? (
+                <div className="space-y-2">
+                  <div className="text-sm font-medium text-green-600">
+                    ✓ Batch completed successfully
+                  </div>
+                  <div className="text-xs text-gray-400">
+                    The batch finished processing before the stream connected.
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <div className="text-sm text-gray-500">No progress events available.</div>
+                  <div className="text-xs text-gray-400">
+                    The backend may not have published progress events yet.
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {events.map((event, index) => (
+                <div key={index} className="flex gap-3 text-sm">
+                  <div className="flex-shrink-0 font-mono text-xs text-gray-500">
+                    {new Date(event.timestamp).toLocaleTimeString()}
+                  </div>
+                  <div className="flex-shrink-0 font-mono text-xs text-gray-400">
+                    {formatDuration(event.elapsed_seconds)}
+                  </div>
+                  <div className={`flex-1 ${STAGE_COLORS[event.stage]}`}>
+                    <span className="font-medium">[{STAGE_LABELS[event.stage]}]</span>{' '}
+                    {event.message}
+                  </div>
+                  {event.progress_percentage > 0 && (
+                    <div className="flex-shrink-0 text-xs text-gray-500">
+                      {event.progress_percentage.toFixed(0)}%
+                    </div>
+                  )}
+                </div>
+              ))}
+              <div ref={logEndRef} />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Error Details */}
+      {error && (
+        <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4">
+          <div className="mb-1 font-medium text-red-900">Error</div>
+          <div className="text-sm text-red-700">{error}</div>
+        </div>
+      )}
+
+      {/* Connection Status */}
+      {!isConnected && !isComplete && (
+        <div className="mt-4 text-center text-sm text-gray-500">Reconnecting to stream...</div>
+      )}
+    </Card>
+  );
+}

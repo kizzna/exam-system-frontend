@@ -1,49 +1,139 @@
-import apiClient from './client';
-import { Batch, CreateBatchRequest, BatchUploadProgress } from '../types/batches';
-import { PaginatedResponse } from '../types/api';
+/**
+ * Batch API Service
+ * Phase 2: Backend-compatible batch operations
+ */
 
-export const batchesApi = {
-  getBatches: async (params?: { page?: number; size?: number }): Promise<PaginatedResponse<Batch>> => {
-    const response = await apiClient.get<PaginatedResponse<Batch>>('/batches', { params });
-    return response.data;
-  },
+import type {
+  Batch,
+  BatchProgress,
+  BatchStatusResponse,
+  ListBatchesParams,
+  ListBatchesResponse,
+} from '../types/batches';
+import { useAuthStore } from '../stores/auth-store';
 
-  getBatch: async (id: string): Promise<Batch> => {
-    const response = await apiClient.get<Batch>(`/batches/${id}`);
-    return response.data;
-  },
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://gt-omr-api-1:8000';
 
-  createBatch: async (data: CreateBatchRequest): Promise<Batch> => {
-    const response = await apiClient.post<Batch>('/batches', data);
-    return response.data;
-  },
+/**
+ * Get auth token from Zustand store
+ */
+function getAuthHeader(): HeadersInit {
+  const token = useAuthStore.getState().accessToken;
 
-  uploadChunk: async (
-    batchId: string,
-    chunk: Blob,
-    chunkIndex: number,
-    totalChunks: number,
-    fileName: string
-  ): Promise<BatchUploadProgress> => {
-    const formData = new FormData();
-    formData.append('chunk', chunk);
-    formData.append('chunk_index', chunkIndex.toString());
-    formData.append('total_chunks', totalChunks.toString());
-    formData.append('file_name', fileName);
+  if (!token) {
+    throw new Error('No authentication token found. Please log in.');
+  }
 
-    const response = await apiClient.post<BatchUploadProgress>(
-      `/batches/${batchId}/upload`,
-      formData,
-      {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      }
-    );
-    return response.data;
-  },
+  return {
+    Authorization: `Bearer ${token}`,
+  };
+}
 
-  deleteBatch: async (id: string): Promise<void> => {
-    await apiClient.delete(`/batches/${id}`);
-  },
+/**
+ * Handle API response errors
+ */
+async function handleResponse<T>(response: Response): Promise<T> {
+  if (!response.ok) {
+    let errorMessage = `Request failed with status ${response.status}`;
+
+    try {
+      const error = await response.json();
+      errorMessage = error.message || error.detail || errorMessage;
+    } catch {
+      errorMessage = response.statusText || errorMessage;
+    }
+
+    throw new Error(errorMessage);
+  }
+
+  // Handle 204 No Content
+  if (response.status === 204) {
+    return {} as T;
+  }
+
+  return response.json();
+}
+
+/**
+ * Get batch progress (lightweight polling endpoint)
+ */
+export async function getBatchProgress(batchId: string): Promise<BatchProgress> {
+  const response = await fetch(`${API_URL}/api/batches/${batchId}/progress`, {
+    headers: getAuthHeader(),
+  });
+
+  return handleResponse<BatchProgress>(response);
+}
+
+/**
+ * Get detailed batch status
+ */
+export async function getBatchStatus(
+  batchId: string,
+  includeSheets: boolean = false,
+  limit: number = 100
+): Promise<BatchStatusResponse> {
+  const params = new URLSearchParams({
+    include_sheets: includeSheets.toString(),
+    limit: limit.toString(),
+  });
+
+  const response = await fetch(`${API_URL}/api/batches/${batchId}/status?${params}`, {
+    headers: getAuthHeader(),
+  });
+
+  const data = await handleResponse<BatchStatusResponse>(response);
+  console.log('[Batches API] getBatchStatus response:', data);
+  return data;
+}
+
+/**
+ * List batches with pagination and filtering
+ */
+export async function listBatches(params: ListBatchesParams = {}): Promise<ListBatchesResponse> {
+  const { status, page = 1, page_size = 50, offset = (page - 1) * page_size } = params;
+
+  const queryParams = new URLSearchParams({
+    page_size: page_size.toString(),
+    offset: offset.toString(),
+  });
+
+  if (status) {
+    queryParams.append('status', status);
+  }
+
+  const response = await fetch(`${API_URL}/api/batches/?${queryParams}`, {
+    headers: getAuthHeader(),
+  });
+
+  const data = await handleResponse<ListBatchesResponse>(response);
+
+  // Debug logging
+  if (data.batches && data.batches.length > 0) {
+    console.log('[Batches API] Sample batch data:', data.batches[0]);
+  }
+
+  return data;
+}
+
+/**
+ * Delete batch (admin only)
+ */
+export async function deleteBatch(batchId: string): Promise<void> {
+  const response = await fetch(`${API_URL}/api/batches/${batchId}`, {
+    method: 'DELETE',
+    headers: getAuthHeader(),
+  });
+
+  return handleResponse<void>(response);
+}
+
+/**
+ * Batch API client
+ */
+export const batchesAPI = {
+  getProgress: getBatchProgress,
+  getStatus: getBatchStatus,
+  list: listBatches,
+  delete: deleteBatch,
 };
