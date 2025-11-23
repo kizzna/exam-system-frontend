@@ -5,6 +5,7 @@
 
 'use client';
 
+import React from 'react';
 import { useBatchStatus } from '@/lib/hooks/use-batches';
 import { BatchStatusBadge } from './BatchStatusBadge';
 import { BatchProgressStream } from './BatchProgressStream';
@@ -20,6 +21,11 @@ interface BatchDetailsCardProps {
 
 export function BatchDetailsCard({ batchId, isAdmin = false }: BatchDetailsCardProps) {
   const { data: batch, isLoading, error, refetch } = useBatchStatus(batchId, false);
+  const [isRecovering, setIsRecovering] = React.useState(false);
+  const [recoveryMessage, setRecoveryMessage] = React.useState<{
+    type: 'success' | 'error';
+    text: string;
+  } | null>(null);
 
   // Debug logging
   console.log('[BatchDetailsCard] Rendering with:', {
@@ -35,6 +41,37 @@ export function BatchDetailsCard({ batchId, isAdmin = false }: BatchDetailsCardP
     isLoading,
     error,
   });
+
+  const handleRecover = async () => {
+    setIsRecovering(true);
+    setRecoveryMessage(null);
+
+    try {
+      const { recoverBatch } = await import('@/lib/api/batches');
+      const result = await recoverBatch(batchId);
+
+      if (result.success && result.sheets_recovered > 0) {
+        setRecoveryMessage({
+          type: 'success',
+          text: `Recovery successful! Saved ${result.sheets_recovered.toLocaleString()} sheets and ${result.answers_recovered.toLocaleString()} answers.`,
+        });
+        // Refresh batch data to show updated status
+        setTimeout(() => refetch(), 1000);
+      } else {
+        setRecoveryMessage({
+          type: 'error',
+          text: result.message || 'No data found to recover.',
+        });
+      }
+    } catch (err) {
+      setRecoveryMessage({
+        type: 'error',
+        text: err instanceof Error ? err.message : 'Failed to trigger recovery.',
+      });
+    } finally {
+      setIsRecovering(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -81,8 +118,10 @@ export function BatchDetailsCard({ batchId, isAdmin = false }: BatchDetailsCardP
         </div>
       </Card>
 
-      {/* Progress (SSE-based real-time streaming) */}
-      <BatchProgressStream batchId={batchId} onComplete={() => refetch()} />
+      {/* Progress (SSE-based real-time streaming) - Only for active batches */}
+      {!['completed', 'failed'].includes(batch.status) && (
+        <BatchProgressStream batchId={batchId} onComplete={() => refetch()} />
+      )}
 
       {/* Batch Information */}
       <Card className="p-6">
@@ -273,12 +312,43 @@ export function BatchDetailsCard({ batchId, isAdmin = false }: BatchDetailsCardP
         </div>
       </Card>
 
+      {/* Recovery Message */}
+      {recoveryMessage && (
+        <Card
+          className={`p-6 ${
+            recoveryMessage.type === 'success'
+              ? 'border-green-200 bg-green-50'
+              : 'border-yellow-200 bg-yellow-50'
+          }`}
+        >
+          <div
+            className={`text-sm ${
+              recoveryMessage.type === 'success' ? 'text-green-800' : 'text-yellow-800'
+            }`}
+          >
+            {recoveryMessage.text}
+          </div>
+        </Card>
+      )}
+
       {/* Actions */}
       <Card className="p-6">
         <div className="flex items-center gap-4">
           <Link href="/dashboard/batches">
             <Button variant="outline">Back to Batches</Button>
           </Link>
+
+          {/* Recovery Button - Only shown for failed batches */}
+          {batch.status === 'failed' && (
+            <Button
+              onClick={handleRecover}
+              disabled={isRecovering}
+              className="bg-blue-600 hover:bg-blue-700"
+              title="Attempt to recover processed results from temporary storage"
+            >
+              {isRecovering ? 'Recovering...' : 'Recover Results'}
+            </Button>
+          )}
         </div>
       </Card>
     </div>

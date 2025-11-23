@@ -169,6 +169,14 @@ export function BatchProgressStream({ batchId, onComplete }: BatchProgressStream
         <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4">
           <div className="mb-1 font-medium text-red-900">Error</div>
           <div className="text-sm text-red-700">{error}</div>
+          {error.includes('Session expired') && (
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-3 rounded bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700"
+            >
+              Refresh Page
+            </button>
+          )}
         </div>
       )}
 

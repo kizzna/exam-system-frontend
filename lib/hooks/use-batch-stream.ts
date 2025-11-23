@@ -93,6 +93,16 @@ export function useBatchStream(batchId: string | null) {
               isConnected: true,
               error: null,
             }));
+          } else if (response.status === 401) {
+            // Unauthorized - session expired, stop retrying
+            console.error('[SSE] Session expired (401). Please refresh the page.');
+            setState((prev) => ({
+              ...prev,
+              error: 'Session expired. Please refresh the page to continue.',
+              isConnected: false,
+            }));
+            abortController.abort();
+            throw new Error('Session expired');
           } else if (response.status >= 400 && response.status < 500 && response.status !== 429) {
             // Client error - don't retry
             const errorText = await response.text();
@@ -148,11 +158,20 @@ export function useBatchStream(batchId: string | null) {
 
         onerror: (error) => {
           console.error('[SSE] Connection error:', error);
+
+          // If we have a session expired error, don't retry
+          const currentState = state;
+          if (currentState.error?.includes('Session expired')) {
+            console.log('[SSE] Not retrying due to session expiry');
+            abortController.abort();
+            return;
+          }
+
           setState((prev) => ({
             ...prev,
             isConnected: false,
           }));
-          // Don't throw - let it retry
+          // Don't throw - let it retry for other errors
         },
 
         onclose: () => {

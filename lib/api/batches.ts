@@ -3,6 +3,7 @@
  * Phase 2: Backend-compatible batch operations
  */
 
+import apiClient from './client';
 import type {
   Batch,
   BatchProgress,
@@ -10,59 +11,13 @@ import type {
   ListBatchesParams,
   ListBatchesResponse,
 } from '../types/batches';
-import { useAuthStore } from '../stores/auth-store';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://gt-omr-api-1:8000';
-
-/**
- * Get auth token from Zustand store
- */
-function getAuthHeader(): HeadersInit {
-  const token = useAuthStore.getState().accessToken;
-
-  if (!token) {
-    throw new Error('No authentication token found. Please log in.');
-  }
-
-  return {
-    Authorization: `Bearer ${token}`,
-  };
-}
-
-/**
- * Handle API response errors
- */
-async function handleResponse<T>(response: Response): Promise<T> {
-  if (!response.ok) {
-    let errorMessage = `Request failed with status ${response.status}`;
-
-    try {
-      const error = await response.json();
-      errorMessage = error.message || error.detail || errorMessage;
-    } catch {
-      errorMessage = response.statusText || errorMessage;
-    }
-
-    throw new Error(errorMessage);
-  }
-
-  // Handle 204 No Content
-  if (response.status === 204) {
-    return {} as T;
-  }
-
-  return response.json();
-}
 
 /**
  * Get batch progress (lightweight polling endpoint)
  */
 export async function getBatchProgress(batchId: string): Promise<BatchProgress> {
-  const response = await fetch(`${API_URL}/api/batches/${batchId}/progress`, {
-    headers: getAuthHeader(),
-  });
-
-  return handleResponse<BatchProgress>(response);
+  const response = await apiClient.get<BatchProgress>(`/api/batches/${batchId}/progress`);
+  return response.data;
 }
 
 /**
@@ -73,18 +28,15 @@ export async function getBatchStatus(
   includeSheets: boolean = false,
   limit: number = 100
 ): Promise<BatchStatusResponse> {
-  const params = new URLSearchParams({
-    include_sheets: includeSheets.toString(),
-    limit: limit.toString(),
+  const response = await apiClient.get<BatchStatusResponse>(`/api/batches/${batchId}/status`, {
+    params: {
+      include_sheets: includeSheets,
+      limit: limit,
+    },
   });
 
-  const response = await fetch(`${API_URL}/api/batches/${batchId}/status?${params}`, {
-    headers: getAuthHeader(),
-  });
-
-  const data = await handleResponse<BatchStatusResponse>(response);
-  console.log('[Batches API] getBatchStatus response:', data);
-  return data;
+  console.log('[Batches API] getBatchStatus response:', response.data);
+  return response.data;
 }
 
 /**
@@ -93,39 +45,45 @@ export async function getBatchStatus(
 export async function listBatches(params: ListBatchesParams = {}): Promise<ListBatchesResponse> {
   const { status, page = 1, page_size = 50, offset = (page - 1) * page_size } = params;
 
-  const queryParams = new URLSearchParams({
-    page_size: page_size.toString(),
-    offset: offset.toString(),
+  const response = await apiClient.get<ListBatchesResponse>('/api/batches/', {
+    params: {
+      page_size,
+      offset,
+      ...(status && { status }),
+    },
   });
-
-  if (status) {
-    queryParams.append('status', status);
-  }
-
-  const response = await fetch(`${API_URL}/api/batches/?${queryParams}`, {
-    headers: getAuthHeader(),
-  });
-
-  const data = await handleResponse<ListBatchesResponse>(response);
 
   // Debug logging
-  if (data.batches && data.batches.length > 0) {
-    console.log('[Batches API] Sample batch data:', data.batches[0]);
+  if (response.data.batches && response.data.batches.length > 0) {
+    console.log('[Batches API] Sample batch data:', response.data.batches[0]);
   }
 
-  return data;
+  return response.data;
 }
 
 /**
  * Delete batch (admin only)
  */
 export async function deleteBatch(batchId: string): Promise<void> {
-  const response = await fetch(`${API_URL}/api/batches/${batchId}`, {
-    method: 'DELETE',
-    headers: getAuthHeader(),
-  });
+  await apiClient.delete(`/api/batches/${batchId}`);
+}
 
-  return handleResponse<void>(response);
+/**
+ * Recovery response interface
+ */
+export interface RecoverBatchResponse {
+  success: boolean;
+  message: string;
+  sheets_recovered: number;
+  answers_recovered: number;
+}
+
+/**
+ * Recover batch from Redis buffer (for failed/timeout batches)
+ */
+export async function recoverBatch(batchId: string): Promise<RecoverBatchResponse> {
+  const response = await apiClient.post<RecoverBatchResponse>(`/api/batches/${batchId}/recover`);
+  return response.data;
 }
 
 /**
@@ -136,4 +94,5 @@ export const batchesAPI = {
   getStatus: getBatchStatus,
   list: listBatches,
   delete: deleteBatch,
+  recover: recoverBatch,
 };
