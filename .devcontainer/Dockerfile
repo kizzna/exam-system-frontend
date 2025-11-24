@@ -1,10 +1,43 @@
-# Use official Node.js image with Debian (best compatibility with devcontainers)
+# ============================================================================
+# Dev Container for Next.js 15 + Node.js 20 LTS
+# ============================================================================
+# Base: Debian 12 (Bookworm) with Node.js 20 LTS
+# Purpose: Development environment for exam-system-frontend
+# ============================================================================
+
 FROM node:20-bookworm
 
-# Install sudo and SSH client
-RUN apt-get update && apt-get install -y sudo openssh-client \
-    default-mysql-client jq redis-tools iputils-ping rsync tzdata parallel net-tools && \
-    rm -rf /var/lib/apt/lists/*
+# Install system dependencies and development tools
+# - sudo: Allow vscode user to run privileged commands
+# - git: Version control (essential for development)
+# - openssh-client: SSH access to remote servers
+# - default-mysql-client: Database access
+# - jq: JSON processing
+# - redis-tools: Redis CLI for cache management
+# - iputils-ping: Network diagnostics
+# - rsync: File synchronization
+# - tzdata: Timezone support
+# - parallel: Parallel command execution
+# - net-tools: Network utilities
+# - curl, wget: HTTP clients
+# - vim, nano: Text editors for quick edits
+RUN apt-get update && apt-get install -y \
+    sudo \
+    git \
+    openssh-client \
+    default-mysql-client \
+    jq \
+    redis-tools \
+    iputils-ping \
+    rsync \
+    tzdata \
+    parallel \
+    net-tools \
+    curl \
+    wget \
+    vim \
+    nano \
+    && rm -rf /var/lib/apt/lists/*
 
 # Set the timezone
 ENV TZ="Asia/Bangkok"
@@ -28,8 +61,10 @@ COPY .my.cnf /home/vscode/.my.cnf
 RUN chown -R vscode:vscode /home/vscode && \
     chmod 600 /home/vscode/.ssh/config 
 
-# Install pnpm globally
-RUN npm install -g pnpm
+# Install pnpm globally (latest version)
+# pnpm is the package manager used for this project
+# It's faster and more disk-efficient than npm
+RUN npm install -g pnpm@latest
 
 # Set working directory
 WORKDIR /workspace
