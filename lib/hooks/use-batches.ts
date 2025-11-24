@@ -84,6 +84,34 @@ export function useBatchStatus(
 }
 
 /**
+ * Hook: Check if batch is recoverable
+ */
+export function useRecoverable(batchId: string | null, enabled: boolean = false) {
+  return useQuery({
+    queryKey: [...batchQueryKeys.details(), batchId, 'recoverable'],
+    queryFn: () => batchesAPI.checkRecoverable(batchId!),
+    enabled: enabled && !!batchId,
+    staleTime: 0, // Always check fresh
+  });
+}
+
+/**
+ * Hook: Cancel batch processing
+ */
+export function useCancelBatch() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (batchId: string) => batchesAPI.cancel(batchId),
+    onSuccess: (data, batchId) => {
+      // Invalidate batch details and list
+      queryClient.invalidateQueries({ queryKey: batchQueryKeys.detail(batchId) });
+      queryClient.invalidateQueries({ queryKey: batchQueryKeys.lists() });
+    },
+  });
+}
+
+/**
  * Hook: Upload batch with chunking support
  */
 export function useBatchUpload() {
@@ -97,14 +125,16 @@ export function useBatchUpload() {
       taskId,
       notes,
       onProgress,
+      signal,
     }: {
       file: File;
       uploadType: UploadType;
       taskId: string | null;
       notes: string | null;
       onProgress: (progress: ChunkUploadProgress) => void;
+      signal?: AbortSignal;
     }) => {
-      return uploadFile(file, uploadType, taskId, notes, onProgress);
+      return uploadFile(file, uploadType, taskId, notes, onProgress, signal);
     },
     onSuccess: (data) => {
       // Invalidate batch lists to show new batch
@@ -131,13 +161,15 @@ export function useImagesUpload() {
       taskId,
       notes,
       onProgress,
+      signal,
     }: {
       files: File[];
       taskId: string;
       notes: string | null;
       onProgress: (progress: ChunkUploadProgress) => void;
+      signal?: AbortSignal;
     }) => {
-      return uploadImages(files, taskId, notes, onProgress);
+      return uploadImages(files, taskId, notes, onProgress, signal);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: batchQueryKeys.lists() });

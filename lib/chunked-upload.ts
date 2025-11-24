@@ -32,7 +32,8 @@ async function uploadDirect(
   uploadType: UploadType,
   taskId: string | null,
   notes: string | null,
-  onProgress: (progress: ChunkUploadProgress) => void
+  onProgress: (progress: ChunkUploadProgress) => void,
+  signal?: AbortSignal
 ): Promise<{ batch_id: string }> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -86,7 +87,15 @@ async function uploadDirect(
     });
 
     xhr.addEventListener('error', () => reject(new Error('Network error during upload')));
+    xhr.addEventListener('error', () => reject(new Error('Network error during upload')));
     xhr.addEventListener('abort', () => reject(new Error('Upload aborted')));
+
+    if (signal) {
+      signal.addEventListener('abort', () => {
+        xhr.abort();
+        reject(new Error('Upload cancelled by user'));
+      });
+    }
 
     const token = getAuthToken();
     if (!token) {
@@ -108,7 +117,8 @@ async function uploadInChunks(
   uploadType: UploadType,
   taskId: string | null,
   notes: string | null,
-  onProgress: (progress: ChunkUploadProgress) => void
+  onProgress: (progress: ChunkUploadProgress) => void,
+  signal?: AbortSignal
 ): Promise<{ batch_id: string }> {
   const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
   let uploadId: string | null = null;
@@ -120,6 +130,9 @@ async function uploadInChunks(
 
   // Upload each chunk
   for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+    if (signal?.aborted) {
+      throw new Error('Upload cancelled by user');
+    }
     const start = chunkIndex * CHUNK_SIZE;
     const end = Math.min(start + CHUNK_SIZE, file.size);
     const chunk = file.slice(start, end);
@@ -240,7 +253,8 @@ export async function uploadFile(
   uploadType: UploadType,
   taskId: string | null,
   notes: string | null,
-  onProgress: (progress: ChunkUploadProgress) => void
+  onProgress: (progress: ChunkUploadProgress) => void,
+  signal?: AbortSignal
 ): Promise<{ batch_id: string }> {
   // Validate inputs
   if (!file) {
@@ -263,9 +277,9 @@ export async function uploadFile(
   );
 
   if (needsChunking) {
-    return uploadInChunks(file, uploadType, taskId, notes, onProgress);
+    return uploadInChunks(file, uploadType, taskId, notes, onProgress, signal);
   } else {
-    return uploadDirect(file, uploadType, taskId, notes, onProgress);
+    return uploadDirect(file, uploadType, taskId, notes, onProgress, signal);
   }
 }
 
@@ -282,7 +296,8 @@ export async function uploadImages(
   files: File[],
   taskId: string,
   notes: string | null,
-  onProgress: (progress: ChunkUploadProgress) => void
+  onProgress: (progress: ChunkUploadProgress) => void,
+  signal?: AbortSignal
 ): Promise<{ batch_id: string }> {
   if (!files || files.length === 0) {
     throw new Error('No files provided');
@@ -352,7 +367,15 @@ export async function uploadImages(
     });
 
     xhr.addEventListener('error', () => reject(new Error('Network error during upload')));
+    xhr.addEventListener('error', () => reject(new Error('Network error during upload')));
     xhr.addEventListener('abort', () => reject(new Error('Upload aborted')));
+
+    if (signal) {
+      signal.addEventListener('abort', () => {
+        xhr.abort();
+        reject(new Error('Upload cancelled by user'));
+      });
+    }
 
     const token = getAuthToken();
     if (!token) {

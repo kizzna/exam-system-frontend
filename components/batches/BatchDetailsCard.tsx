@@ -6,7 +6,7 @@
 'use client';
 
 import React from 'react';
-import { useBatchStatus } from '@/lib/hooks/use-batches';
+import { useBatchStatus, useRecoverable, useCancelBatch } from '@/lib/hooks/use-batches';
 import { BatchStatusBadge } from './BatchStatusBadge';
 import { BatchProgressStream } from './BatchProgressStream';
 import { DeleteBatchButton } from './DeleteBatchButton';
@@ -21,6 +21,8 @@ interface BatchDetailsCardProps {
 
 export function BatchDetailsCard({ batchId, isAdmin = false }: BatchDetailsCardProps) {
   const { data: batch, isLoading, error, refetch } = useBatchStatus(batchId, false);
+  const { data: recoveryData } = useRecoverable(batchId, batch?.status === 'failed');
+  const cancelBatch = useCancelBatch();
   const [isRecovering, setIsRecovering] = React.useState(false);
   const [recoveryMessage, setRecoveryMessage] = React.useState<{
     type: 'success' | 'error';
@@ -32,11 +34,11 @@ export function BatchDetailsCard({ batchId, isAdmin = false }: BatchDetailsCardP
     batchId,
     batch: batch
       ? {
-          batch_id: batch.batch_id,
-          status: batch.status,
-          total_sheets: batch.total_sheets,
-          processed_sheets: batch.processed_sheets,
-        }
+        batch_id: batch.batch_id,
+        status: batch.status,
+        total_sheets: batch.total_sheets,
+        processed_sheets: batch.processed_sheets,
+      }
       : undefined,
     isLoading,
     error,
@@ -70,6 +72,16 @@ export function BatchDetailsCard({ batchId, isAdmin = false }: BatchDetailsCardP
       });
     } finally {
       setIsRecovering(false);
+    }
+  };
+
+  const handleCancel = async () => {
+    if (!confirm('Are you sure you want to cancel processing?')) return;
+
+    try {
+      await cancelBatch.mutateAsync(batchId);
+    } catch (err) {
+      alert('Failed to cancel batch');
     }
   };
 
@@ -315,16 +327,14 @@ export function BatchDetailsCard({ batchId, isAdmin = false }: BatchDetailsCardP
       {/* Recovery Message */}
       {recoveryMessage && (
         <Card
-          className={`p-6 ${
-            recoveryMessage.type === 'success'
+          className={`p-6 ${recoveryMessage.type === 'success'
               ? 'border-green-200 bg-green-50'
               : 'border-yellow-200 bg-yellow-50'
-          }`}
+            }`}
         >
           <div
-            className={`text-sm ${
-              recoveryMessage.type === 'success' ? 'text-green-800' : 'text-yellow-800'
-            }`}
+            className={`text-sm ${recoveryMessage.type === 'success' ? 'text-green-800' : 'text-yellow-800'
+              }`}
           >
             {recoveryMessage.text}
           </div>
@@ -338,15 +348,26 @@ export function BatchDetailsCard({ batchId, isAdmin = false }: BatchDetailsCardP
             <Button variant="outline">Back to Batches</Button>
           </Link>
 
-          {/* Recovery Button - Only shown for failed batches */}
-          {batch.status === 'failed' && (
+          {/* Recovery Button - Only shown if recoverable */}
+          {batch.status === 'failed' && recoveryData?.is_recoverable && (
             <Button
               onClick={handleRecover}
               disabled={isRecovering}
               className="bg-blue-600 hover:bg-blue-700"
-              title="Attempt to recover processed results from temporary storage"
+              title={`Recover ${recoveryData.recoverable_sheets_count} sheets`}
             >
               {isRecovering ? 'Recovering...' : 'Recover Results'}
+            </Button>
+          )}
+
+          {/* Cancel Button - Only for active batches */}
+          {['processing', 'validating', 'reprocessing'].includes(batch.status) && (
+            <Button
+              variant="destructive"
+              onClick={handleCancel}
+              disabled={cancelBatch.isPending}
+            >
+              {cancelBatch.isPending ? 'Cancelling...' : 'Cancel Processing'}
             </Button>
           )}
         </div>

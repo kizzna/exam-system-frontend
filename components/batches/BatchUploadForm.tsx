@@ -31,6 +31,7 @@ export function BatchUploadForm() {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<ChunkUploadProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [abortController, setAbortController] = useState<AbortController | null>(null);
 
   // Validation
   const taskIdRequired = uploadType === 'zip_no_qr' || uploadType === 'images';
@@ -71,6 +72,9 @@ export function BatchUploadForm() {
     setError(null);
     setUploadProgress(null);
 
+    const controller = new AbortController();
+    setAbortController(controller);
+
     try {
       let result;
 
@@ -81,6 +85,7 @@ export function BatchUploadForm() {
           taskId,
           notes: notes || null,
           onProgress: (progress) => setUploadProgress(progress),
+          signal: controller.signal,
         });
       } else if (file) {
         // Upload single file (ZIP)
@@ -90,6 +95,7 @@ export function BatchUploadForm() {
           taskId: taskIdRequired ? taskId : null,
           notes: notes || null,
           onProgress: (progress) => setUploadProgress(progress),
+          signal: controller.signal,
         });
       }
 
@@ -100,6 +106,18 @@ export function BatchUploadForm() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed');
       setUploading(false);
+    } finally {
+      setAbortController(null);
+    }
+  };
+
+  const handleCancelUpload = () => {
+    if (abortController) {
+      abortController.abort();
+      setAbortController(null);
+      setUploading(false);
+      setError('Upload cancelled by user');
+      setUploadProgress(null);
     }
   };
 
@@ -291,6 +309,13 @@ export function BatchUploadForm() {
           <Button onClick={handleUpload} disabled={!isValid() || uploading} className="flex-1">
             {uploading ? 'Uploading...' : 'Upload Batch'}
           </Button>
+
+          {uploading && uploadType === 'zip_with_qr' && (
+            <Button variant="destructive" onClick={handleCancelUpload}>
+              Cancel Upload
+            </Button>
+          )}
+
           {!uploading && (file || files.length > 0) && (
             <Button variant="outline" onClick={handleReset}>
               Clear

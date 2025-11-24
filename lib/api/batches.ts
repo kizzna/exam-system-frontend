@@ -95,4 +95,31 @@ export const batchesAPI = {
   list: listBatches,
   delete: deleteBatch,
   recover: recoverBatch,
+  checkRecoverable,
+  cancel: cancelBatch,
 };
+
+/**
+ * Check if batch data is recoverable
+ */
+export async function checkRecoverable(batchId: string): Promise<{
+  batch_uuid: string;
+  has_progress_data: boolean;
+  recoverable_sheets_count: number;
+  total_sheets_count: number;
+  is_recoverable: boolean;
+}> {
+  const response = await apiClient.get(`/api/batches/${batchId}/recoverable`);
+  return response.data;
+}
+
+/**
+ * Cancel batch processing
+ */
+export async function cancelBatch(batchId: string): Promise<{
+  success: boolean;
+  message: string;
+}> {
+  const response = await apiClient.post(`/api/batches/${batchId}/cancel`);
+  return response.data;
+}
