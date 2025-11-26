@@ -3,7 +3,9 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { usersApi } from '@/lib/api/users';
+import { masterDataApi } from '@/lib/api/master-data';
 import { User, CreateUserRequest, UpdateUserRequest } from '@/lib/types/users';
+import { ScopeManager } from '@/components/users/scope-manager';
 import { useAuth } from '@/lib/providers/auth-provider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +20,7 @@ import {
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Pencil, Trash2, Key, ChevronLeft, ChevronRight } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function UsersPage() {
   const { isAdmin } = useAuth();
@@ -31,7 +34,15 @@ export default function UsersPage() {
     email: '',
     password: '',
     full_name: '',
-    role_hierarchy: 3,
+    is_admin: false,
+    scopes: [],
+  });
+
+  // Fetch evaluation centers
+  const { data: evalCenters } = useQuery({
+    queryKey: ['evaluation-centers'],
+    queryFn: masterDataApi.getEvaluationCenters,
+    enabled: isAdmin,
   });
 
   // Fetch users with pagination
@@ -45,9 +56,13 @@ export default function UsersPage() {
   const createMutation = useMutation({
     mutationFn: usersApi.createUser,
     onSuccess: () => {
+      toast.success('User created successfully');
       queryClient.invalidateQueries({ queryKey: ['users'] });
       setIsCreateDialogOpen(false);
       resetForm();
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || 'Failed to create user');
     },
   });
 
@@ -56,9 +71,13 @@ export default function UsersPage() {
     mutationFn: ({ userId, data }: { userId: number; data: UpdateUserRequest }) =>
       usersApi.updateUser(userId, data),
     onSuccess: () => {
+      toast.success('User updated successfully');
       queryClient.invalidateQueries({ queryKey: ['users'] });
       setIsEditDialogOpen(false);
       setSelectedUser(null);
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || 'Failed to update user');
     },
   });
 
@@ -66,7 +85,11 @@ export default function UsersPage() {
   const deleteMutation = useMutation({
     mutationFn: usersApi.deleteUser,
     onSuccess: () => {
+      toast.success('User deleted successfully');
       queryClient.invalidateQueries({ queryKey: ['users'] });
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.detail || 'Failed to delete user');
     },
   });
 
@@ -76,7 +99,8 @@ export default function UsersPage() {
       email: '',
       password: '',
       full_name: '',
-      role_hierarchy: 3,
+      is_admin: false,
+      scopes: [],
     });
   };
 
@@ -98,6 +122,8 @@ export default function UsersPage() {
       email: formData.email || selectedUser.email,
       full_name: formData.full_name || selectedUser.full_name,
       is_active: selectedUser.is_active,
+      is_admin: formData.is_admin,
+      scopes: formData.scopes,
     };
 
     updateMutation.mutate({ userId: selectedUser.user_id, data: updateData });
@@ -164,22 +190,20 @@ export default function UsersPage() {
                       <TableCell>{user.email}</TableCell>
                       <TableCell>
                         <span
-                          className={`inline-flex rounded px-2 py-1 text-xs ${
-                            user.is_admin
-                              ? 'bg-purple-100 text-purple-800'
-                              : 'bg-blue-100 text-blue-800'
-                          }`}
+                          className={`inline-flex rounded px-2 py-1 text-xs ${user.is_admin
+                            ? 'bg-purple-100 text-purple-800'
+                            : 'bg-blue-100 text-blue-800'
+                            }`}
                         >
-                          {user.is_admin ? 'Admin' : user.hierarchy_level}
+                          {user.is_admin ? 'Global Admin' : (user.scopes?.length > 0 ? `${user.scopes.length} Scopes` : 'Standard User')}
                         </span>
                       </TableCell>
                       <TableCell>
                         <span
-                          className={`inline-flex rounded px-2 py-1 text-xs ${
-                            user.is_active
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-gray-100 text-gray-800'
-                          }`}
+                          className={`inline-flex rounded px-2 py-1 text-xs ${user.is_active
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-gray-100 text-gray-800'
+                            }`}
                         >
                           {user.is_active ? 'Active' : 'Inactive'}
                         </span>
@@ -290,21 +314,35 @@ export default function UsersPage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="role_hierarchy">Role Hierarchy</Label>
-                  <select
-                    id="role_hierarchy"
-                    value={formData.role_hierarchy}
-                    onChange={(e) =>
-                      setFormData({ ...formData, role_hierarchy: parseInt(e.target.value) })
-                    }
-                    className="w-full rounded-md border border-input px-3 py-2"
-                  >
-                    <option value={0}>Global Admin</option>
-                    <option value={1}>Order</option>
-                    <option value={2}>Region</option>
-                    <option value={3}>Organization</option>
-                  </select>
+                  <Label>Role</Label>
+                  <div className="flex gap-4 mt-2">
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        name="role"
+                        checked={formData.is_admin}
+                        onChange={() => setFormData({ ...formData, is_admin: true, scopes: [] })}
+                      />
+                      <span>Global Admin</span>
+                    </label>
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        name="role"
+                        checked={!formData.is_admin}
+                        onChange={() => setFormData({ ...formData, is_admin: false })}
+                      />
+                      <span>Standard User</span>
+                    </label>
+                  </div>
                 </div>
+
+                {!formData.is_admin && (
+                  <ScopeManager
+                    scopes={formData.scopes}
+                    onChange={(scopes) => setFormData({ ...formData, scopes })}
+                  />
+                )}
                 <div className="flex justify-end gap-2">
                   <Button
                     type="button"
@@ -318,6 +356,87 @@ export default function UsersPage() {
                   </Button>
                   <Button type="submit" disabled={createMutation.isPending}>
                     {createMutation.isPending ? 'Creating...' : 'Create User'}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Edit User Dialog */}
+      {isEditDialogOpen && selectedUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle>Edit User: {selectedUser.username}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleUpdateUser} className="space-y-4">
+                <div>
+                  <Label htmlFor="edit-email">Email</Label>
+                  <Input
+                    id="edit-email"
+                    type="email"
+                    defaultValue={selectedUser.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-full_name">Full Name</Label>
+                  <Input
+                    id="edit-full_name"
+                    defaultValue={selectedUser.full_name}
+                    onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label>Role</Label>
+                  <div className="flex gap-4 mt-2">
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        name="edit-role"
+                        checked={formData.is_admin}
+                        onChange={() => setFormData({ ...formData, is_admin: true, scopes: [] })}
+                      />
+                      <span>Global Admin</span>
+                    </label>
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="radio"
+                        name="edit-role"
+                        checked={!formData.is_admin}
+                        onChange={() => setFormData({ ...formData, is_admin: false })}
+                      />
+                      <span>Standard User</span>
+                    </label>
+                  </div>
+                </div>
+
+                {!formData.is_admin && (
+                  <ScopeManager
+                    scopes={formData.scopes}
+                    onChange={(scopes) => setFormData({ ...formData, scopes })}
+                  />
+                )}
+
+                <div className="flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setIsEditDialogOpen(false);
+                      setSelectedUser(null);
+                      resetForm();
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={updateMutation.isPending}>
+                    {updateMutation.isPending ? 'Updating...' : 'Update User'}
                   </Button>
                 </div>
               </form>

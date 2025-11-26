@@ -1,3 +1,5 @@
+import { UserScope } from './auth';
+
 // User types
 export interface User {
   user_id: number;
@@ -6,8 +8,7 @@ export interface User {
   full_name: string;
   is_active: boolean;
   is_admin: boolean;
-  hierarchy_level: 'global' | 'order' | 'region' | 'organization';
-  hierarchy_id: number | null;
+  scopes: UserScope[];
   last_login_at: string | null;
   login_count: number;
   created_at: string;
@@ -19,9 +20,8 @@ export interface CreateUserRequest {
   email: string; // Valid email, unique
   password: string; // Min 8 chars
   full_name: string; // 1-100 chars
-  school_id?: number | null;
-  class_id?: number | null;
-  role_hierarchy: number; // 0-3 (0=global, 1=order, 2=region, 3=org)
+  is_admin: boolean;
+  scopes: UserScope[];
 }
 
 export interface UpdateUserRequest {
@@ -29,10 +29,7 @@ export interface UpdateUserRequest {
   full_name?: string;
   is_active?: boolean;
   is_admin?: boolean;
-  hierarchy_level?: 'global' | 'order' | 'region' | 'organization';
-  hierarchy_id?: number | null;
-  school_id?: number | null;
-  class_id?: number | null;
+  scopes?: UserScope[];
 }
 
 export interface UserListParams {

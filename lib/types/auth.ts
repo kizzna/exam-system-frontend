@@ -4,6 +4,19 @@ export interface LoginRequest {
   password: string;
 }
 
+export interface ScopeFilter {
+  class_levels?: number[];
+  exam_centers_include?: number[];
+  exam_centers_ranges?: { start: number; end: number }[];
+  snr_id_list?: number[];
+}
+
+export interface UserScope {
+  scope_type: 'global' | 'eval_center' | 'snr_authority';
+  scope_id: number;
+  filters: ScopeFilter;
+}
+
 export interface LoginResponse {
   access_token: string;
   refresh_token: string;
@@ -29,6 +42,7 @@ export interface UserInfo {
   role_hierarchy: number; // 0=global admin, 1=order, 2=region, 3=org
   school_id: number | null;
   class_id: number | null;
+  scopes: UserScope[];
 }
 
 export interface User extends UserInfo {
