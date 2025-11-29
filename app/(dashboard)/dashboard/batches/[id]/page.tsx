@@ -1,4 +1,5 @@
 import { BatchDetailsCard } from '@/components/batches/BatchDetailsCard';
+import { BatchStatsCard } from '@/components/batches/BatchStatsCard';
 
 interface BatchDetailsPageProps {
     params: Promise<{
@@ -15,6 +16,7 @@ export default async function BatchDetailsPage({ params }: BatchDetailsPageProps
                 <h1 className="text-3xl font-bold">Batch Details</h1>
             </div>
             <BatchDetailsCard batchId={id} />
+            <BatchStatsCard batchId={id} />
         </div>
     );
 }

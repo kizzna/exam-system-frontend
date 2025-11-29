@@ -124,6 +124,7 @@ export function useBatchUpload() {
       uploadType,
       taskId,
       notes,
+      profileId,
       onProgress,
       signal,
     }: {
@@ -131,10 +132,11 @@ export function useBatchUpload() {
       uploadType: UploadType;
       taskId: string | null;
       notes: string | null;
+      profileId: number | null;
       onProgress: (progress: ChunkUploadProgress) => void;
       signal?: AbortSignal;
     }) => {
-      return uploadFile(file, uploadType, taskId, notes, onProgress, signal);
+      return uploadFile(file, uploadType, taskId, notes, profileId, onProgress, signal);
     },
     onSuccess: (data) => {
       // Invalidate batch lists to show new batch
@@ -160,16 +162,18 @@ export function useImagesUpload() {
       files,
       taskId,
       notes,
+      profileId,
       onProgress,
       signal,
     }: {
       files: File[];
       taskId: string;
       notes: string | null;
+      profileId: number | null;
       onProgress: (progress: ChunkUploadProgress) => void;
       signal?: AbortSignal;
     }) => {
-      return uploadImages(files, taskId, notes, onProgress, signal);
+      return uploadImages(files, taskId, notes, profileId, onProgress, signal);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: batchQueryKeys.lists() });

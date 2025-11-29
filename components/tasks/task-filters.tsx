@@ -7,12 +7,26 @@ import { masterDataApi } from '@/lib/api/master-data';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Button } from '@/components/ui/button';
+import { Filter } from 'lucide-react';
 
 export interface TaskFiltersState {
     eval_center_id?: number;
     processing_status?: string;
     class_level?: number;
     exam_center_code?: number;
+    latest_batch_id?: number;
+    task_id?: string;
+    class_group?: number;
+    error_count?: number;
+    err_duplicate_sheets_count?: number;
+    err_low_answer_count?: number;
+    err_student_id_count?: number;
+    err_exam_center_id_count?: number;
+    err_class_group_count?: number;
+    err_class_level_count?: number;
 }
 
 interface TaskFiltersProps {
@@ -63,69 +77,207 @@ export function TaskFilters({ filters, onFilterChange }: TaskFiltersProps) {
         }
     };
 
+    const handleClassGroupChange = (value: string) => {
+        onFilterChange({ ...filters, class_group: value === 'all' ? undefined : parseInt(value) });
+    };
+
     return (
-        <div className="grid gap-4 rounded-lg border p-4 md:grid-cols-3">
-            <div className="space-y-2">
-                <Label htmlFor="eval-center">Evaluation Center</Label>
-                <Select
-                    value={filters.eval_center_id?.toString() || 'all'}
-                    onValueChange={handleEvalCenterChange}
-                    disabled={!!lockedEvalCenterId}
-                >
-                    <SelectTrigger id="eval-center">
-                        <SelectValue placeholder="Select Evaluation Center" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">All Centers</SelectItem>
-                        {evalCenters?.map((center) => (
-                            <SelectItem key={center.id} value={center.id.toString()}>
-                                {center.name} ({center.code})
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+        <div className="grid gap-4 rounded-lg border p-4">
+            {/* Row 1: Evaluation Center & Task ID */}
+            <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                    <Label htmlFor="eval-center">กองงานตรวจข้อสอบ</Label>
+                    <Select
+                        value={filters.eval_center_id?.toString() || 'all'}
+                        onValueChange={handleEvalCenterChange}
+                        disabled={!!lockedEvalCenterId}
+                    >
+                        <SelectTrigger id="eval-center">
+                            <SelectValue placeholder="Select Evaluation Center" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">ทั้งหมด</SelectItem>
+                            {evalCenters?.map((center) => (
+                                <SelectItem key={center.id} value={center.id.toString()}>
+                                    {center.name}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                <div className="space-y-2">
+                    <Label htmlFor="task-id">รหัสสนาม</Label>
+                    <Input
+                        id="task-id"
+                        placeholder="ค้นหาด้วยรหัสสนาม (เช่น 102...)"
+                        value={filters.task_id || ''}
+                        onChange={(e) => onFilterChange({ ...filters, task_id: e.target.value || undefined })}
+                    />
+                </div>
             </div>
 
-            <div className="space-y-2">
-                <Label htmlFor="status">Status</Label>
-                <Select
-                    value={filters.processing_status || 'all'}
-                    onValueChange={handleStatusChange}
-                >
-                    <SelectTrigger id="status">
-                        <SelectValue placeholder="Select Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">All Statuses</SelectItem>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="assigned">Assigned</SelectItem>
-                        <SelectItem value="complete">Complete</SelectItem>
-                        <SelectItem value="graded">Graded</SelectItem>
-                        <SelectItem value="exported">Exported</SelectItem>
-                    </SelectContent>
-                </Select>
-            </div>
+            {/* Row 2: Class Level, Class Group, Status */}
+            <div className="grid gap-4 md:grid-cols-4">
+                <div className="space-y-2">
+                    <Label htmlFor="class-level">ชั้น</Label>
+                    <Select
+                        value={filters.class_level?.toString() || 'all'}
+                        onValueChange={(val) => handleClassLevelChange(val === 'all' ? 0 : parseInt(val), val !== 'all')}
+                    >
+                        <SelectTrigger id="class-level">
+                            <SelectValue placeholder="ทุกชั้น" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">ทุกชั้น</SelectItem>
+                            <SelectItem value="1">ตรี</SelectItem>
+                            <SelectItem value="2">โท</SelectItem>
+                            <SelectItem value="3">เอก</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
 
-            <div className="space-y-2">
-                <Label>Class</Label>
-                <div className="flex flex-wrap gap-4 pt-2">
-                    {[1, 2, 3].map((level) => {
-                        const isAllowed = !allowedClassLevels || allowedClassLevels.includes(level);
-                        if (!isAllowed) return null;
+                <div className="space-y-2">
+                    <Label htmlFor="class-group">ช่วงชั้น</Label>
+                    <Select
+                        value={filters.class_group?.toString() || 'all'}
+                        onValueChange={handleClassGroupChange}
+                    >
+                        <SelectTrigger id="class-group">
+                            <SelectValue placeholder="ทุกช่วงชั้น" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">ทุกช่วงชั้น</SelectItem>
+                            <SelectItem value="1">ประถม</SelectItem>
+                            <SelectItem value="2">มัธยม</SelectItem>
+                            <SelectItem value="3">อุดม</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
 
-                        return (
-                            <div key={level} className="flex items-center space-x-2">
-                                <Checkbox
-                                    id={`class-${level}`}
-                                    checked={filters.class_level === level}
-                                    onCheckedChange={(checked) => handleClassLevelChange(level, checked as boolean)}
-                                />
-                                <Label htmlFor={`class-${level}`} className="text-sm font-normal">
-                                    Class {level}
-                                </Label>
+                <div className="space-y-2 md:col-span-1">
+                    <Label htmlFor="status">Status</Label>
+                    <Select
+                        value={filters.processing_status || 'all'}
+                        onValueChange={handleStatusChange}
+                    >
+                        <SelectTrigger id="status" className="w-full">
+                            <SelectValue placeholder="Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All</SelectItem>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="assigned">Assigned</SelectItem>
+                            <SelectItem value="complete">Complete</SelectItem>
+                            <SelectItem value="graded">Graded</SelectItem>
+                            <SelectItem value="exported">Exported</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                {/* Advanced Filters Popover */}
+                <div className="flex items-end">
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button variant="outline" className="w-full">
+                                <Filter className="mr-2 h-4 w-4" />
+                                Advanced Filters
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80 p-4">
+                            <div className="grid gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="batch-id">Latest Batch ID</Label>
+                                    <Input
+                                        id="batch-id"
+                                        type="number"
+                                        placeholder="e.g. 123"
+                                        value={filters.latest_batch_id || ''}
+                                        onChange={(e) => onFilterChange({ ...filters, latest_batch_id: e.target.value ? parseInt(e.target.value) : undefined })}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="error-count">Min Error Count</Label>
+                                    <Input
+                                        id="error-count"
+                                        type="number"
+                                        placeholder="> 0"
+                                        value={filters.error_count || ''}
+                                        onChange={(e) => onFilterChange({ ...filters, error_count: e.target.value ? parseInt(e.target.value) : undefined })}
+                                    />
+                                </div>
+                                {/* Specific Errors */}
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div className="space-y-1">
+                                        <Label htmlFor="err-dup" className="text-xs">Dup Sheets</Label>
+                                        <Input
+                                            id="err-dup"
+                                            type="number"
+                                            className="h-8"
+                                            placeholder="> 0"
+                                            value={filters.err_duplicate_sheets_count || ''}
+                                            onChange={(e) => onFilterChange({ ...filters, err_duplicate_sheets_count: e.target.value ? parseInt(e.target.value) : undefined })}
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label htmlFor="err-low" className="text-xs">Low Ans</Label>
+                                        <Input
+                                            id="err-low"
+                                            type="number"
+                                            className="h-8"
+                                            placeholder="> 0"
+                                            value={filters.err_low_answer_count || ''}
+                                            onChange={(e) => onFilterChange({ ...filters, err_low_answer_count: e.target.value ? parseInt(e.target.value) : undefined })}
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label htmlFor="err-sid" className="text-xs">Student ID</Label>
+                                        <Input
+                                            id="err-sid"
+                                            type="number"
+                                            className="h-8"
+                                            placeholder="> 0"
+                                            value={filters.err_student_id_count || ''}
+                                            onChange={(e) => onFilterChange({ ...filters, err_student_id_count: e.target.value ? parseInt(e.target.value) : undefined })}
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label htmlFor="err-center" className="text-xs">Center ID</Label>
+                                        <Input
+                                            id="err-center"
+                                            type="number"
+                                            className="h-8"
+                                            placeholder="> 0"
+                                            value={filters.err_exam_center_id_count || ''}
+                                            onChange={(e) => onFilterChange({ ...filters, err_exam_center_id_count: e.target.value ? parseInt(e.target.value) : undefined })}
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label htmlFor="err-grp" className="text-xs">Group</Label>
+                                        <Input
+                                            id="err-grp"
+                                            type="number"
+                                            className="h-8"
+                                            placeholder="> 0"
+                                            value={filters.err_class_group_count || ''}
+                                            onChange={(e) => onFilterChange({ ...filters, err_class_group_count: e.target.value ? parseInt(e.target.value) : undefined })}
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label htmlFor="err-lvl" className="text-xs">Level</Label>
+                                        <Input
+                                            id="err-lvl"
+                                            type="number"
+                                            className="h-8"
+                                            placeholder="> 0"
+                                            value={filters.err_class_level_count || ''}
+                                            onChange={(e) => onFilterChange({ ...filters, err_class_level_count: e.target.value ? parseInt(e.target.value) : undefined })}
+                                        />
+                                    </div>
+                                </div>
                             </div>
-                        );
-                    })}
+                        </PopoverContent>
+                    </Popover>
                 </div>
             </div>
         </div>

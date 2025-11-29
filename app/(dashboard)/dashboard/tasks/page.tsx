@@ -6,6 +6,8 @@ import { tasksApi } from '@/lib/api/tasks';
 import { TaskFilters, TaskFiltersState } from '@/components/tasks/task-filters';
 import { TaskList } from '@/components/tasks/task-list';
 import { AssignTasksDialog } from '@/components/tasks/assign-tasks-dialog';
+import { TaskStatsSummary } from '@/components/tasks/task-stats-summary';
+import { TaskStats } from '@/lib/types/tasks';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/providers/auth-provider';
 import { Plus, UserMinus } from 'lucide-react';
@@ -42,6 +44,12 @@ export default function TasksPage() {
 
   const tasks = data?.items || [];
   const pageCount = data?.pages || 0;
+
+  // Fetch task stats
+  const { data: stats, isLoading: isLoadingStats } = useQuery({
+    queryKey: ['tasks-stats', filters],
+    queryFn: () => tasksApi.getTaskStats(filters),
+  });
 
   const selectedTaskIds = useMemo(() => {
     // Map row selection to task IDs
@@ -106,6 +114,8 @@ export default function TasksPage() {
           </div>
         )}
       </div>
+
+      <TaskStatsSummary stats={stats} isLoading={isLoadingStats} />
 
       <TaskFilters filters={filters} onFilterChange={handleFilterChange} />
 

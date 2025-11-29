@@ -10,7 +10,16 @@ import type {
   BatchStatusResponse,
   ListBatchesParams,
   ListBatchesResponse,
+  BatchStats,
 } from '../types/batches';
+
+/**
+ * Get batch statistics
+ */
+export async function getBatchStats(batchId: string): Promise<BatchStats> {
+  const response = await apiClient.get<BatchStats>(`/api/batches/${batchId}/stats`);
+  return response.data;
+}
 
 /**
  * Get batch progress (lightweight polling endpoint)

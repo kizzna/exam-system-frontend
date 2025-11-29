@@ -5,6 +5,7 @@ export interface PaginatedResponse<T> {
   page: number;
   size: number;
   pages: number;
+  stats?: any; // Using any for now to avoid circular deps or complex generics, or define specific stats type
 }
 
 export interface ApiError {

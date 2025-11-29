@@ -32,6 +32,7 @@ async function uploadDirect(
   uploadType: UploadType,
   taskId: string | null,
   notes: string | null,
+  profileId: number | null,
   onProgress: (progress: ChunkUploadProgress) => void,
   signal?: AbortSignal
 ): Promise<{ batch_id: string }> {
@@ -52,6 +53,9 @@ async function uploadDirect(
     }
     if (notes) {
       formData.append('notes', notes);
+    }
+    if (profileId) {
+      formData.append('profile_id', profileId.toString());
     }
 
     // Track upload progress
@@ -117,6 +121,7 @@ async function uploadInChunks(
   uploadType: UploadType,
   taskId: string | null,
   notes: string | null,
+  profileId: number | null,
   onProgress: (progress: ChunkUploadProgress) => void,
   signal?: AbortSignal
 ): Promise<{ batch_id: string }> {
@@ -165,6 +170,9 @@ async function uploadInChunks(
         if (notes && isLastChunk) {
           // Only send notes with final chunk
           formData.append('notes', notes);
+        }
+        if (profileId && isLastChunk) {
+          formData.append('profile_id', profileId.toString());
         }
 
         const token = getAuthToken();
@@ -253,6 +261,7 @@ export async function uploadFile(
   uploadType: UploadType,
   taskId: string | null,
   notes: string | null,
+  profileId: number | null,
   onProgress: (progress: ChunkUploadProgress) => void,
   signal?: AbortSignal
 ): Promise<{ batch_id: string }> {
@@ -277,9 +286,9 @@ export async function uploadFile(
   );
 
   if (needsChunking) {
-    return uploadInChunks(file, uploadType, taskId, notes, onProgress, signal);
+    return uploadInChunks(file, uploadType, taskId, notes, profileId, onProgress, signal);
   } else {
-    return uploadDirect(file, uploadType, taskId, notes, onProgress, signal);
+    return uploadDirect(file, uploadType, taskId, notes, profileId, onProgress, signal);
   }
 }
 
@@ -296,6 +305,7 @@ export async function uploadImages(
   files: File[],
   taskId: string,
   notes: string | null,
+  profileId: number | null,
   onProgress: (progress: ChunkUploadProgress) => void,
   signal?: AbortSignal
 ): Promise<{ batch_id: string }> {
@@ -332,6 +342,9 @@ export async function uploadImages(
     formData.append('task_id', taskId);
     if (notes) {
       formData.append('notes', notes);
+    }
+    if (profileId) {
+      formData.append('profile_id', profileId.toString());
     }
 
     // Track upload progress

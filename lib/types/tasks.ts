@@ -27,9 +27,29 @@ export interface Task {
   actual_sheet_count: number;
   assigned_user_id: number | null;
   error_count: number;
+  latest_batch_id?: number;
+  err_duplicate_sheets_count?: number;
+  err_low_answer_count?: number;
+  err_student_id_count?: number;
+  err_exam_center_id_count?: number;
+  err_class_group_count?: number;
+  err_class_level_count?: number;
   created_at: string;
   access_source?: string;
-  user_role?: string;
+
+}
+
+export interface TaskStats {
+  registered_total: number;
+  present_total: number;
+  actual_sheets_total: number;
+  error_total: number;
+  err_duplicate_sheets_total: number;
+  err_low_answer_total: number;
+  err_student_id_total: number;
+  err_exam_center_id_total: number;
+  err_class_level_total: number;
+  err_class_group_total: number;
 }
 
 export interface CreateTaskRequest {

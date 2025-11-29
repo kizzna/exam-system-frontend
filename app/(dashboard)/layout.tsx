@@ -22,6 +22,7 @@ const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Menu },
   { name: 'Users', href: '/dashboard/users', icon: Users },
   { name: 'Batches', href: '/dashboard/batches', icon: Upload },
+  { name: 'Profiles', href: '/dashboard/profiles', icon: Upload },
   { name: 'Tasks', href: '/dashboard/tasks', icon: CheckSquare },
   { name: 'Review', href: '/dashboard/review', icon: FileText },
   { name: 'Grading', href: '/dashboard/grading/answer-keys', icon: GraduationCap },
@@ -39,9 +40,8 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     <div className="min-h-screen bg-background">
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border transform transition-transform duration-200 ease-in-out ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border transform transition-transform duration-200 ease-in-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
       >
         <div className="flex flex-col h-full">
           <div className="p-6 border-b border-border">
@@ -57,11 +57,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                 <Link
                   key={item.name}
                   href={item.href}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isActive
+                  className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive
                       ? 'bg-primary text-primary-foreground'
                       : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                  }`}
+                    }`}
                 >
                   <Icon className="h-5 w-5" />
                   {item.name}

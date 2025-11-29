@@ -172,3 +172,15 @@ export interface ChunkMetadata {
   filename: string; // Original filename
   is_final_chunk: boolean; // True for last chunk
 }
+
+export interface BatchStats {
+  registered_total: number;
+  sheets_total: number;
+  error_total: number;
+  err_duplicate_sheets_total: number;
+  err_low_answer_total: number;
+  err_student_id_total: number;
+  err_center_code_total: number;
+  err_class_group_total: number;
+  err_class_level_total: number;
+}

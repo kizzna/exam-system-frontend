@@ -60,26 +60,40 @@ const columns: ColumnDef<Task>[] = [
         enableSorting: false,
         enableHiding: false,
     },
-    {
-        accessorKey: 'task_id',
-        header: 'ID',
-        cell: ({ row }) => <div className="font-medium">{row.getValue('task_id')}</div>,
-    },
+    // {
+    //     accessorKey: 'task_id',
+    //     header: 'Task ID',
+    //     cell: ({ row }) => <div className="font-medium">{row.getValue('task_id')}</div>,
+    // },
     {
         accessorKey: 'exam_center_code',
-        header: 'Exam Center',
+        header: 'รหัสสนาม',
     },
     {
         id: 'class',
-        header: 'Class',
+        header: 'ชั้น',
         cell: ({ row }) => {
             const task = row.original;
-            return `Level ${task.class_level} / Group ${task.class_group}`;
+            const level_id = task.class_level;
+            // map level_id to thai name: 1 -> ตรี, 2 -> โท, 3 -> เอก
+            const level_name = level_id === 1 ? 'ตรี' : level_id === 2 ? 'โท' : level_id === 3 ? 'เอก' : '';
+            return level_name;
+        },
+    },
+    {
+        id: 'group',
+        header: 'ช่วงชั้น',
+        cell: ({ row }) => {
+            const task = row.original;
+            const group_id = task.class_group;
+            // map group_id to thai name: 1 -> ประถม, 2 -> มัธยม, 3 -> อุดม
+            const group_name = group_id === 1 ? 'ประถม' : group_id === 2 ? 'มัธยม' : group_id === 3 ? 'อุดม' : '';
+            return group_name;
         },
     },
     {
         accessorKey: 'processing_status',
-        header: 'Status',
+        header: 'สถานะ',
         cell: ({ row }) => {
             const status = row.getValue('processing_status') as string;
             return (
@@ -91,7 +105,7 @@ const columns: ColumnDef<Task>[] = [
     },
     {
         id: 'progress',
-        header: 'Progress (Reg/Pres/Act)',
+        header: 'ส่ง/คง/สแกน',
         cell: ({ row }) => {
             const task = row.original;
             return `${task.registered_amount} / ${task.present_amount} / ${task.actual_sheet_count}`;
@@ -99,13 +113,77 @@ const columns: ColumnDef<Task>[] = [
     },
     {
         accessorKey: 'assigned_user_id',
-        header: 'Assigned To',
+        header: 'ผู้รับผิดชอบ',
         cell: ({ row }) => row.getValue('assigned_user_id') || '-',
     },
+    // {
+    //     accessorKey: 'created_at',
+    //     header: 'สร้างเมื่อ',
+    //     cell: ({ row }) => new Date(row.getValue('created_at')).toLocaleDateString(),
+    // },
+    // {
+    //     accessorKey: 'latest_batch_id',
+    //     header: 'Batch ID',
+    //     cell: ({ row }) => {
+    //         const id = row.getValue('latest_batch_id');
+    //         return id ? <div className="font-mono text-xs">{id as string}</div> : '-';
+    //     },
+    // },
     {
-        accessorKey: 'created_at',
-        header: 'Created At',
-        cell: ({ row }) => new Date(row.getValue('created_at')).toLocaleDateString(),
+        accessorKey: 'error_count',
+        header: 'ปัญหา',
+        cell: ({ row }) => {
+            const count = row.getValue('error_count') as number;
+            return count > 0 ? <Badge variant="destructive" className="rounded-full">{count}</Badge> : '-';
+        },
+    },
+    {
+        accessorKey: 'err_duplicate_sheets_count',
+        header: 'ซ้ำ',
+        cell: ({ row }) => {
+            const count = row.original.err_duplicate_sheets_count || 0;
+            return count > 0 ? <Badge className="bg-orange-500 hover:bg-orange-600 rounded-full">{count}</Badge> : null;
+        },
+    },
+    {
+        accessorKey: 'err_low_answer_count',
+        header: '< 140',
+        cell: ({ row }) => {
+            const count = row.original.err_low_answer_count || 0;
+            return count > 0 ? <Badge className="bg-yellow-500 hover:bg-yellow-600 rounded-full">{count}</Badge> : null;
+        },
+    },
+    {
+        accessorKey: 'err_student_id_count',
+        header: 'เลขที่ผิด',
+        cell: ({ row }) => {
+            const count = row.original.err_student_id_count || 0;
+            return count > 0 ? <Badge variant="destructive" className="rounded-full">{count}</Badge> : null;
+        },
+    },
+    {
+        accessorKey: 'err_exam_center_id_count',
+        header: 'รหัสสนามผิด',
+        cell: ({ row }) => {
+            const count = row.original.err_exam_center_id_count || 0;
+            return count > 0 ? <Badge className="bg-purple-500 hover:bg-purple-600 rounded-full">{count}</Badge> : null;
+        },
+    },
+    {
+        accessorKey: 'err_class_level_count',
+        header: 'ชั้นผิด',
+        cell: ({ row }) => {
+            const count = row.original.err_class_level_count || 0;
+            return count > 0 ? <Badge className="bg-blue-500 hover:bg-blue-600 rounded-full">{count}</Badge> : null;
+        },
+    },
+    {
+        accessorKey: 'err_class_group_count',
+        header: 'ช่วงชั้นผิด',
+        cell: ({ row }) => {
+            const count = row.original.err_class_group_count || 0;
+            return count > 0 ? <Badge className="bg-stone-500 hover:bg-stone-600 rounded-full">{count}</Badge> : null;
+        },
     },
 ];
 

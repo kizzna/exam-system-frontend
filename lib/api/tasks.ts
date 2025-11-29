@@ -1,5 +1,5 @@
 import apiClient from './client';
-import { Task, CreateTaskRequest, TaskAssignmentRequest, TaskDistributionRequest } from '../types/tasks';
+import { Task, CreateTaskRequest, TaskAssignmentRequest, TaskDistributionRequest, TaskStats } from '../types/tasks';
 import { PaginatedResponse } from '../types/api';
 
 export const tasksApi = {
@@ -11,10 +11,41 @@ export const tasksApi = {
     hon_id?: number;
     parent_part_id?: number;
     ss_snr_id?: number;
+
+    latest_batch_id?: number;
+    task_id?: string;
+    class_group?: number;
+    error_count?: number;
+    err_duplicate_sheets_count?: number;
+    err_low_answer_count?: number;
+    err_student_id_count?: number;
+    err_exam_center_id_count?: number;
+    err_class_group_count?: number;
+    err_class_level_count?: number;
     page?: number;
     size?: number;
   }): Promise<PaginatedResponse<Task>> => {
     const response = await apiClient.get<PaginatedResponse<Task>>('/tasks/', { params });
+    return response.data;
+  },
+
+  getTaskStats: async (params?: {
+    eval_center_id?: number;
+    processing_status?: string;
+    class_level?: number;
+    exam_center_code?: number;
+    latest_batch_id?: number;
+    task_id?: string;
+    class_group?: number;
+    error_count?: number;
+    err_duplicate_sheets_count?: number;
+    err_low_answer_count?: number;
+    err_student_id_count?: number;
+    err_exam_center_id_count?: number;
+    err_class_group_count?: number;
+    err_class_level_count?: number;
+  }): Promise<TaskStats> => {
+    const response = await apiClient.get<TaskStats>('/tasks/stats', { params });
     return response.data;
   },
 

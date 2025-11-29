@@ -8,11 +8,20 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useBatchUpload, useImagesUpload } from '@/lib/hooks/use-batches';
+import { useQuery } from '@tanstack/react-query';
+import { profilesAPI } from '@/lib/api/profiles';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import type { UploadType, ChunkUploadProgress } from '@/lib/types/batches';
 
 export function BatchUploadForm() {
@@ -26,6 +35,25 @@ export function BatchUploadForm() {
   const [files, setFiles] = useState<File[]>([]);
   const [taskId, setTaskId] = useState('');
   const [notes, setNotes] = useState('');
+  const [profileId, setProfileId] = useState<string>('');
+
+  // Fetch profiles
+  const { data: profiles = [] } = useQuery({
+    queryKey: ['profiles'],
+    queryFn: profilesAPI.getAll,
+  });
+
+  // Set default profile
+  if (!profileId && profiles.length > 0) {
+    const defaultProfile = profiles.find((p) => p.is_default);
+    if (defaultProfile) {
+      setProfileId(defaultProfile.id.toString());
+    } else {
+      // If no default profile, select the first one or handle as needed
+      // For now, we'll select the first one if available
+      setProfileId(profiles[0].id.toString());
+    }
+  }
 
   // Upload progress state
   const [uploading, setUploading] = useState(false);
@@ -84,6 +112,7 @@ export function BatchUploadForm() {
           files,
           taskId,
           notes: notes || null,
+          profileId: profileId ? parseInt(profileId) : null,
           onProgress: (progress) => setUploadProgress(progress),
           signal: controller.signal,
         });
@@ -94,6 +123,7 @@ export function BatchUploadForm() {
           uploadType,
           taskId: taskIdRequired ? taskId : null,
           notes: notes || null,
+          profileId: profileId ? parseInt(profileId) : null,
           onProgress: (progress) => setUploadProgress(progress),
           signal: controller.signal,
         });
@@ -127,6 +157,15 @@ export function BatchUploadForm() {
     setFiles([]);
     setTaskId('');
     setNotes('');
+    // Reset profile to default
+    const defaultProfile = profiles.find((p) => p.is_default);
+    if (defaultProfile) {
+      setProfileId(defaultProfile.id.toString());
+    } else if (profiles.length > 0) {
+      setProfileId(profiles[0].id.toString());
+    } else {
+      setProfileId('');
+    }
     setError(null);
     setUploadProgress(null);
     setUploading(false);
@@ -237,6 +276,26 @@ export function BatchUploadForm() {
               )}
             </div>
           )}
+        </div>
+
+        {/* Profile Selection */}
+        <div className="space-y-2">
+          <Label htmlFor="profile">Processing Profile</Label>
+          <Select value={profileId} onValueChange={setProfileId}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select a profile" />
+            </SelectTrigger>
+            <SelectContent>
+              {profiles.map((profile) => (
+                <SelectItem key={profile.id} value={profile.id.toString()}>
+                  {profile.name} {profile.is_default && '(Default)'}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Select the configuration profile to use for processing this batch.
+          </p>
         </div>
 
         {/* Task ID (conditional) */}
