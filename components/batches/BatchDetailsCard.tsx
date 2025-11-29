@@ -7,6 +7,7 @@
 
 import React from 'react';
 import { useBatchStatus, useRecoverable, useCancelBatch } from '@/lib/hooks/use-batches';
+import { useQueryClient } from '@tanstack/react-query';
 import { BatchStatusBadge } from './BatchStatusBadge';
 import { BatchProgressStream } from './BatchProgressStream';
 import { DeleteBatchButton } from './DeleteBatchButton';
@@ -23,7 +24,10 @@ export function BatchDetailsCard({ batchId, isAdmin = false }: BatchDetailsCardP
   const { data: batch, isLoading, error, refetch } = useBatchStatus(batchId, false);
   const { data: recoveryData } = useRecoverable(batchId, batch?.status === 'failed');
   const cancelBatch = useCancelBatch();
+  const queryClient = useQueryClient();
   const [isRecovering, setIsRecovering] = React.useState(false);
+  // Keep stream open even if status becomes completed, until we explicitly close it or leave
+  const [keepStreamOpen, setKeepStreamOpen] = React.useState(false);
   const [recoveryMessage, setRecoveryMessage] = React.useState<{
     type: 'success' | 'error';
     text: string;
@@ -130,9 +134,29 @@ export function BatchDetailsCard({ batchId, isAdmin = false }: BatchDetailsCardP
         </div>
       </Card>
 
-      {/* Progress (SSE-based real-time streaming) - Only for active batches */}
-      {!['completed', 'failed'].includes(batch.status) && (
-        <BatchProgressStream batchId={batchId} onComplete={() => refetch()} />
+      {/* Progress (SSE-based real-time streaming) - Only for active batches or when finishing up */}
+      {(!['completed', 'failed'].includes(batch.status) || keepStreamOpen) && (
+        <BatchProgressStream
+          batchId={batchId}
+          onComplete={() => {
+            // 1. Refresh batch details to update status to 'completed'
+            refetch();
+            // 2. Refresh stats to show final numbers
+            queryClient.invalidateQueries({ queryKey: ['batch-stats', batchId] });
+            // 3. Keep stream open for a moment to show completion state, then close
+            // Actually, we can just let the user close it or leave it open showing "Completed"
+            // But since the design hides it on completion, let's just ensure we don't hide it PREMATURELY.
+            // If we set keepStreamOpen to false immediately, it might flicker.
+            // Let's leave it true so the "Completed" state in BatchProgressStream is visible.
+            // The user can navigate away or we can provide a close button in the stream component if needed.
+            // For now, let's just NOT set it to false immediately to allow the "Completed" message to be seen.
+            // However, if we want it to eventually hide or match the "active batches" logic, we might need a timeout or user action.
+            // Given the UI hides it for completed batches, maybe we should just let it stay visible until page refresh or navigation?
+            // Or better: The BatchProgressStream shows a "Completed" state. It's useful info.
+            // Let's keep it open.
+            setKeepStreamOpen(true);
+          }}
+        />
       )}
 
       {/* Batch Information */}
@@ -328,8 +352,8 @@ export function BatchDetailsCard({ batchId, isAdmin = false }: BatchDetailsCardP
       {recoveryMessage && (
         <Card
           className={`p-6 ${recoveryMessage.type === 'success'
-              ? 'border-green-200 bg-green-50'
-              : 'border-yellow-200 bg-yellow-50'
+            ? 'border-green-200 bg-green-50'
+            : 'border-yellow-200 bg-yellow-50'
             }`}
         >
           <div
