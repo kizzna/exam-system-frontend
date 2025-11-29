@@ -83,9 +83,9 @@ export function TaskFilters({ filters, onFilterChange }: TaskFiltersProps) {
 
     return (
         <div className="grid gap-4 rounded-lg border p-4">
-            {/* Row 1: Evaluation Center & Task ID */}
-            <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
+            {/* Row 1: Evaluation Center, Task ID, Class Level, Class Group, Status */}
+            <div className="grid gap-4 md:grid-cols-12">
+                <div className="space-y-2 col-span-12 md:col-span-4">
                     <Label htmlFor="eval-center">กองงานตรวจข้อสอบ</Label>
                     <Select
                         value={filters.eval_center_id?.toString() || 'all'}
@@ -106,24 +106,21 @@ export function TaskFilters({ filters, onFilterChange }: TaskFiltersProps) {
                     </Select>
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-2 col-span-12 md:col-span-2">
                     <Label htmlFor="task-id">รหัสสนาม</Label>
                     <Input
                         id="task-id"
-                        placeholder="ค้นหาด้วยรหัสสนาม (เช่น 102...)"
+                        placeholder="ค้นหา..."
                         value={filters.task_id || ''}
                         onChange={(e) => onFilterChange({ ...filters, task_id: e.target.value || undefined })}
                     />
                 </div>
-            </div>
 
-            {/* Row 2: Class Level, Class Group, Status */}
-            <div className="grid gap-4 md:grid-cols-4">
-                <div className="space-y-2">
+                <div className="space-y-2 col-span-12 md:col-span-2">
                     <Label htmlFor="class-level">ชั้น</Label>
                     <Select
                         value={filters.class_level?.toString() || 'all'}
-                        onValueChange={(val) => handleClassLevelChange(val === 'all' ? 0 : parseInt(val), val !== 'all')}
+                        onValueChange={(val) => onFilterChange({ ...filters, class_level: val === 'all' ? undefined : parseInt(val) })}
                     >
                         <SelectTrigger id="class-level">
                             <SelectValue placeholder="ทุกชั้น" />
@@ -137,7 +134,7 @@ export function TaskFilters({ filters, onFilterChange }: TaskFiltersProps) {
                     </Select>
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-2 col-span-12 md:col-span-2">
                     <Label htmlFor="class-group">ช่วงชั้น</Label>
                     <Select
                         value={filters.class_group?.toString() || 'all'}
@@ -155,7 +152,7 @@ export function TaskFilters({ filters, onFilterChange }: TaskFiltersProps) {
                     </Select>
                 </div>
 
-                <div className="space-y-2 md:col-span-1">
+                <div className="space-y-2 col-span-12 md:col-span-2">
                     <Label htmlFor="status">Status</Label>
                     <Select
                         value={filters.processing_status || 'all'}
@@ -174,38 +171,31 @@ export function TaskFilters({ filters, onFilterChange }: TaskFiltersProps) {
                         </SelectContent>
                     </Select>
                 </div>
+            </div>
 
-                {/* Advanced Filters Popover */}
+            {/* Row 2: Min Error Count */}
+            <div className="flex flex-wrap items-end gap-4">
+                <div className="space-y-2 w-40">
+                    <Label htmlFor="error-count">เฉพาะที่มีปัญหาอย่างน้อย...</Label>
+                    <Input
+                        id="error-count"
+                        type="number"
+                        placeholder="> 0"
+                        value={filters.error_count || ''}
+                        onChange={(e) => onFilterChange({ ...filters, error_count: e.target.value ? parseInt(e.target.value) : undefined })}
+                    />
+                </div>
+
                 <div className="flex items-end">
                     <Popover>
                         <PopoverTrigger asChild>
-                            <Button variant="outline" className="w-full">
+                            <Button variant="outline">
                                 <Filter className="mr-2 h-4 w-4" />
                                 Advanced Filters
                             </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-80 p-4">
                             <div className="grid gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="batch-id">Latest Batch ID</Label>
-                                    <Input
-                                        id="batch-id"
-                                        type="number"
-                                        placeholder="e.g. 123"
-                                        value={filters.latest_batch_id || ''}
-                                        onChange={(e) => onFilterChange({ ...filters, latest_batch_id: e.target.value ? parseInt(e.target.value) : undefined })}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="error-count">Min Error Count</Label>
-                                    <Input
-                                        id="error-count"
-                                        type="number"
-                                        placeholder="> 0"
-                                        value={filters.error_count || ''}
-                                        onChange={(e) => onFilterChange({ ...filters, error_count: e.target.value ? parseInt(e.target.value) : undefined })}
-                                    />
-                                </div>
                                 {/* Specific Errors */}
                                 <div className="grid grid-cols-2 gap-2">
                                     <div className="space-y-1">
@@ -274,10 +264,22 @@ export function TaskFilters({ filters, onFilterChange }: TaskFiltersProps) {
                                             onChange={(e) => onFilterChange({ ...filters, err_class_level_count: e.target.value ? parseInt(e.target.value) : undefined })}
                                         />
                                     </div>
+
                                 </div>
                             </div>
                         </PopoverContent>
                     </Popover>
+                </div>
+
+                <div className="space-y-2 w-40">
+                    <Label htmlFor="batch-id">ค้นหาจาก Batch ID</Label>
+                    <Input
+                        id="batch-id"
+                        type="number"
+                        placeholder="e.g. 123"
+                        value={filters.latest_batch_id || ''}
+                        onChange={(e) => onFilterChange({ ...filters, latest_batch_id: e.target.value ? parseInt(e.target.value) : undefined })}
+                    />
                 </div>
             </div>
         </div>

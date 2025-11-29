@@ -5,6 +5,9 @@ import { DataTable } from '@/components/ui/data-table';
 import { ColumnDef, PaginationState, OnChangeFn, RowSelectionState } from '@tanstack/react-table';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
+import { SearchCheck } from 'lucide-react';
 
 interface TaskListProps {
     tasks: Task[];
@@ -130,6 +133,18 @@ const columns: ColumnDef<Task>[] = [
     //     },
     // },
     {
+        id: 'review',
+        header: 'ตรวจ',
+        cell: ({ row }) => (
+            <Button variant="outline" size="sm" className="h-8 border-primary text-primary hover:bg-primary hover:text-primary-foreground" asChild>
+                <Link href={`/dashboard/tasks/${row.original.task_id}/review`}>
+                    <SearchCheck className="mr-2 h-4 w-4" />
+                    ตรวจ
+                </Link>
+            </Button>
+        ),
+    },
+    {
         accessorKey: 'error_count',
         header: 'ปัญหา',
         cell: ({ row }) => {
@@ -147,7 +162,7 @@ const columns: ColumnDef<Task>[] = [
     },
     {
         accessorKey: 'err_low_answer_count',
-        header: '< 140',
+        header: '< 141',
         cell: ({ row }) => {
             const count = row.original.err_low_answer_count || 0;
             return count > 0 ? <Badge className="bg-yellow-500 hover:bg-yellow-600 rounded-full">{count}</Badge> : null;

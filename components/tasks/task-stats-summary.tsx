@@ -26,18 +26,18 @@ export function TaskStatsSummary({ stats, isLoading }: TaskStatsSummaryProps) {
     return (
         <Card className="mb-6">
             <CardContent className="p-4">
-                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                     {/* Set 1: Progress */}
                     <div className="flex flex-wrap items-center gap-6">
-                        <div className="space-y-1">
+                        <div className="flex flex-col items-center gap-1">
                             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">สมัครสอบ</span>
                             <div className="text-2xl font-bold">{stats.registered_total.toLocaleString()}</div>
                         </div>
-                        <div className="space-y-1">
+                        <div className="flex flex-col items-center gap-1">
                             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">เข้าสอบ</span>
                             <div className="text-2xl font-bold">{stats.present_total.toLocaleString()}</div>
                         </div>
-                        <div className="space-y-1">
+                        <div className="flex flex-col items-center gap-1">
                             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">จำนวนสแกน</span>
                             <div className="text-2xl font-bold text-blue-600">{stats.actual_sheets_total.toLocaleString()}</div>
                         </div>
@@ -47,8 +47,8 @@ export function TaskStatsSummary({ stats, isLoading }: TaskStatsSummaryProps) {
                     <Separator orientation="horizontal" className="md:hidden" />
 
                     {/* Set 2: Errors */}
-                    <div className="flex flex-1 flex-wrap gap-4">
-                        <div className="space-y-1 mr-4">
+                    <div className="flex flex-wrap items-center gap-6">
+                        <div className="flex flex-col items-center gap-1">
                             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">จำนวนปัญหา</span>
                             <div className="flex items-center gap-2">
                                 <span className="text-2xl font-bold text-red-600">{stats.error_total.toLocaleString()}</span>
@@ -60,14 +60,42 @@ export function TaskStatsSummary({ stats, isLoading }: TaskStatsSummaryProps) {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-3 lg:flex lg:flex-1 lg:items-center lg:justify-end lg:gap-4">
-                            <StatItem label="ซ้ำ" value={stats.err_duplicate_sheets_total} color="bg-orange-500" />
-                            <StatItem label="อ่านได้ < 140" value={stats.err_low_answer_total} color="bg-yellow-500" />
-                            <StatItem label="เลขที่ผิด" value={stats.err_student_id_total} color="bg-red-500" />
-                            <StatItem label="รหัสสนามผิด" value={stats.err_exam_center_id_total} color="bg-purple-500" />
-                            <StatItem label="ชั้นผิด" value={stats.err_class_level_total} color="bg-blue-500" />
-                            <StatItem label="ช่วงชั้นผิด" value={stats.err_class_group_total} color="bg-stone-500" />
-                        </div>
+                        {stats.err_duplicate_sheets_total > 0 && (
+                            <div className="flex flex-col items-center gap-1">
+                                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">ซ้ำ</span>
+                                <div className="text-2xl font-bold text-orange-500">{stats.err_duplicate_sheets_total.toLocaleString()}</div>
+                            </div>
+                        )}
+                        {stats.err_low_answer_total > 0 && (
+                            <div className="flex flex-col items-center gap-1">
+                                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">อ่านได้ {'<'} 141</span>
+                                <div className="text-2xl font-bold text-yellow-500">{stats.err_low_answer_total.toLocaleString()}</div>
+                            </div>
+                        )}
+                        {stats.err_student_id_total > 0 && (
+                            <div className="flex flex-col items-center gap-1">
+                                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">เลขที่ผิด</span>
+                                <div className="text-2xl font-bold text-red-500">{stats.err_student_id_total.toLocaleString()}</div>
+                            </div>
+                        )}
+                        {stats.err_exam_center_id_total > 0 && (
+                            <div className="flex flex-col items-center gap-1">
+                                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">รหัสสนามผิด</span>
+                                <div className="text-2xl font-bold text-purple-500">{stats.err_exam_center_id_total.toLocaleString()}</div>
+                            </div>
+                        )}
+                        {stats.err_class_level_total > 0 && (
+                            <div className="flex flex-col items-center gap-1">
+                                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">ชั้นผิด</span>
+                                <div className="text-2xl font-bold text-blue-500">{stats.err_class_level_total.toLocaleString()}</div>
+                            </div>
+                        )}
+                        {stats.err_class_group_total > 0 && (
+                            <div className="flex flex-col items-center gap-1">
+                                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">ช่วงชั้นผิด</span>
+                                <div className="text-2xl font-bold text-stone-500">{stats.err_class_group_total.toLocaleString()}</div>
+                            </div>
+                        )}
                     </div>
                 </div>
             </CardContent>
@@ -75,13 +103,4 @@ export function TaskStatsSummary({ stats, isLoading }: TaskStatsSummaryProps) {
     );
 }
 
-function StatItem({ label, value, color }: { label: string; value: number; color: string }) {
-    if (value === 0) return null;
-    return (
-        <div className="flex items-center gap-2">
-            <Badge className={`${color} h-2 w-2 rounded-full p-0`} />
-            <span className="text-sm text-muted-foreground">{label}:</span>
-            <span className="font-medium">{value}</span>
-        </div>
-    );
-}
+

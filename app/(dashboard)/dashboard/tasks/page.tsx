@@ -94,7 +94,7 @@ export default function TasksPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Tasks</h1>
+        <h1 className="text-3xl font-bold">ตรวจข้อสอบ</h1>
         {isAdmin && (
           <div className="flex gap-2">
             {selectedTaskIds.length > 0 && (
@@ -109,7 +109,7 @@ export default function TasksPage() {
             )}
             <Button onClick={() => setIsAssignDialogOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
-              Assign Tasks
+              มอบหมายงาน
             </Button>
           </div>
         )}
