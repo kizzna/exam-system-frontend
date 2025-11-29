@@ -191,7 +191,7 @@ export function TaskFilters({ filters, onFilterChange }: TaskFiltersProps) {
                         <PopoverTrigger asChild>
                             <Button variant="outline">
                                 <Filter className="mr-2 h-4 w-4" />
-                                Advanced Filters
+                                ตัวกรองอื่นๆ
                             </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-80 p-4">
@@ -199,7 +199,7 @@ export function TaskFilters({ filters, onFilterChange }: TaskFiltersProps) {
                                 {/* Specific Errors */}
                                 <div className="grid grid-cols-2 gap-2">
                                     <div className="space-y-1">
-                                        <Label htmlFor="err-dup" className="text-xs">Dup Sheets</Label>
+                                        <Label htmlFor="err-dup" className="text-xs">ซ้ำ</Label>
                                         <Input
                                             id="err-dup"
                                             type="number"
@@ -210,7 +210,7 @@ export function TaskFilters({ filters, onFilterChange }: TaskFiltersProps) {
                                         />
                                     </div>
                                     <div className="space-y-1">
-                                        <Label htmlFor="err-low" className="text-xs">Low Ans</Label>
+                                        <Label htmlFor="err-low" className="text-xs">อ่านไม่ถึง 140 ข้อ</Label>
                                         <Input
                                             id="err-low"
                                             type="number"
@@ -221,7 +221,7 @@ export function TaskFilters({ filters, onFilterChange }: TaskFiltersProps) {
                                         />
                                     </div>
                                     <div className="space-y-1">
-                                        <Label htmlFor="err-sid" className="text-xs">Student ID</Label>
+                                        <Label htmlFor="err-sid" className="text-xs">เลขที่สอบผิด</Label>
                                         <Input
                                             id="err-sid"
                                             type="number"
@@ -232,7 +232,7 @@ export function TaskFilters({ filters, onFilterChange }: TaskFiltersProps) {
                                         />
                                     </div>
                                     <div className="space-y-1">
-                                        <Label htmlFor="err-center" className="text-xs">Center ID</Label>
+                                        <Label htmlFor="err-center" className="text-xs">รหัสสนามสอบผิด</Label>
                                         <Input
                                             id="err-center"
                                             type="number"
@@ -243,7 +243,7 @@ export function TaskFilters({ filters, onFilterChange }: TaskFiltersProps) {
                                         />
                                     </div>
                                     <div className="space-y-1">
-                                        <Label htmlFor="err-grp" className="text-xs">Group</Label>
+                                        <Label htmlFor="err-grp" className="text-xs">ช่วงชั้นผิด</Label>
                                         <Input
                                             id="err-grp"
                                             type="number"
@@ -254,7 +254,7 @@ export function TaskFilters({ filters, onFilterChange }: TaskFiltersProps) {
                                         />
                                     </div>
                                     <div className="space-y-1">
-                                        <Label htmlFor="err-lvl" className="text-xs">Level</Label>
+                                        <Label htmlFor="err-lvl" className="text-xs">ชั้นผิด</Label>
                                         <Input
                                             id="err-lvl"
                                             type="number"
@@ -271,7 +271,8 @@ export function TaskFilters({ filters, onFilterChange }: TaskFiltersProps) {
                     </Popover>
                 </div>
 
-                <div className="space-y-2 w-40">
+                {/* Search by Batch ID, not used yet */}
+                {/* <div className="space-y-2 w-40">
                     <Label htmlFor="batch-id">ค้นหาจาก Batch ID</Label>
                     <Input
                         id="batch-id"
@@ -280,7 +281,7 @@ export function TaskFilters({ filters, onFilterChange }: TaskFiltersProps) {
                         value={filters.latest_batch_id || ''}
                         onChange={(e) => onFilterChange({ ...filters, latest_batch_id: e.target.value ? parseInt(e.target.value) : undefined })}
                     />
-                </div>
+                </div> */}
             </div>
         </div>
     );

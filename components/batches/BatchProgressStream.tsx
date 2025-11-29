@@ -7,7 +7,7 @@
 
 import { useBatchStream, type ProcessingStage } from '@/lib/hooks/use-batch-stream';
 import { Card } from '@/components/ui/card';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface BatchProgressStreamProps {
   batchId: string;
@@ -52,6 +52,18 @@ function formatDuration(seconds: number): string {
 export function BatchProgressStream({ batchId, onComplete }: BatchProgressStreamProps) {
   const { events, currentEvent, isConnected, isComplete, error } = useBatchStream(batchId);
   const logEndRef = useRef<HTMLDivElement>(null);
+  const [duplicateWarnings, setDuplicateWarnings] = useState<string[]>([]);
+
+  // Monitor for duplicate task warnings
+  useEffect(() => {
+    if (currentEvent?.stage === 'extracting' && currentEvent.message.startsWith('Skipping')) {
+      setDuplicateWarnings((prev) => {
+        // Avoid duplicates if the same event is processed multiple times
+        if (prev.includes(currentEvent.message)) return prev;
+        return [...prev, currentEvent.message];
+      });
+    }
+  }, [currentEvent]);
 
   // Auto-scroll to bottom when new events arrive
   useEffect(() => {
@@ -108,6 +120,20 @@ export function BatchProgressStream({ batchId, onComplete }: BatchProgressStream
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Duplicate Task Warnings */}
+      {duplicateWarnings.length > 0 && (
+        <div className="mb-4 space-y-2">
+          {duplicateWarnings.map((msg, idx) => (
+            <div key={idx} className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 text-yellow-600">⚠️</div>
+                <div className="text-sm text-yellow-800">{msg}</div>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 
