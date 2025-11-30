@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { usersApi } from '@/lib/api/users';
 import { masterDataApi } from '@/lib/api/master-data';
@@ -51,6 +51,27 @@ export default function UsersPage() {
     queryFn: () => usersApi.getUsers({ page, page_size: 20 }),
     enabled: isAdmin,
   });
+
+  // Fetch single user for editing
+  const { data: fullUser, isLoading: isLoadingFullUser } = useQuery({
+    queryKey: ['user', selectedUser?.user_id],
+    queryFn: () => usersApi.getUser(selectedUser!.user_id),
+    enabled: !!selectedUser && isEditDialogOpen,
+  });
+
+  // Update form data when full user details are loaded
+  useEffect(() => {
+    if (fullUser) {
+      setFormData({
+        username: fullUser.username,
+        email: fullUser.email,
+        password: '',
+        full_name: fullUser.full_name,
+        is_admin: fullUser.is_admin,
+        scopes: fullUser.scopes || [],
+      });
+    }
+  }, [fullUser]);
 
   // Create user mutation
   const createMutation = useMutation({
@@ -111,6 +132,14 @@ export default function UsersPage() {
 
   const handleEditUser = (user: User) => {
     setSelectedUser(user);
+    setFormData({
+      username: user.username,
+      email: user.email,
+      password: '', // Password not required for update unless changing
+      full_name: user.full_name,
+      is_admin: user.is_admin,
+      scopes: user.scopes || [],
+    });
     setIsEditDialogOpen(true);
   };
 
@@ -269,7 +298,7 @@ export default function UsersPage() {
       {/* Create User Dialog */}
       {isCreateDialogOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <Card className="w-full max-w-md">
+          <Card className="w-full max-w-md max-h-[80vh] overflow-y-auto">
             <CardHeader>
               <CardTitle>Create New User</CardTitle>
             </CardHeader>
@@ -367,79 +396,83 @@ export default function UsersPage() {
       {/* Edit User Dialog */}
       {isEditDialogOpen && selectedUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <Card className="w-full max-w-md">
+          <Card className="w-full max-w-md max-h-[80vh] overflow-y-auto">
             <CardHeader>
               <CardTitle>Edit User: {selectedUser.username}</CardTitle>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleUpdateUser} className="space-y-4">
-                <div>
-                  <Label htmlFor="edit-email">Email</Label>
-                  <Input
-                    id="edit-email"
-                    type="email"
-                    defaultValue={selectedUser.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="edit-full_name">Full Name</Label>
-                  <Input
-                    id="edit-full_name"
-                    defaultValue={selectedUser.full_name}
-                    onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label>Role</Label>
-                  <div className="flex gap-4 mt-2">
-                    <label className="flex items-center space-x-2">
-                      <input
-                        type="radio"
-                        name="edit-role"
-                        checked={formData.is_admin}
-                        onChange={() => setFormData({ ...formData, is_admin: true, scopes: [] })}
-                      />
-                      <span>Global Admin</span>
-                    </label>
-                    <label className="flex items-center space-x-2">
-                      <input
-                        type="radio"
-                        name="edit-role"
-                        checked={!formData.is_admin}
-                        onChange={() => setFormData({ ...formData, is_admin: false })}
-                      />
-                      <span>Standard User</span>
-                    </label>
+              {isLoadingFullUser ? (
+                <div className="flex justify-center p-8">Loading user details...</div>
+              ) : (
+                <form onSubmit={handleUpdateUser} className="space-y-4">
+                  <div>
+                    <Label htmlFor="edit-email">Email</Label>
+                    <Input
+                      id="edit-email"
+                      type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      required
+                    />
                   </div>
-                </div>
+                  <div>
+                    <Label htmlFor="edit-full_name">Full Name</Label>
+                    <Input
+                      id="edit-full_name"
+                      value={formData.full_name}
+                      onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label>Role</Label>
+                    <div className="flex gap-4 mt-2">
+                      <label className="flex items-center space-x-2">
+                        <input
+                          type="radio"
+                          name="edit-role"
+                          checked={formData.is_admin}
+                          onChange={() => setFormData({ ...formData, is_admin: true, scopes: [] })}
+                        />
+                        <span>Global Admin</span>
+                      </label>
+                      <label className="flex items-center space-x-2">
+                        <input
+                          type="radio"
+                          name="edit-role"
+                          checked={!formData.is_admin}
+                          onChange={() => setFormData({ ...formData, is_admin: false })}
+                        />
+                        <span>Standard User</span>
+                      </label>
+                    </div>
+                  </div>
 
-                {!formData.is_admin && (
-                  <ScopeManager
-                    scopes={formData.scopes}
-                    onChange={(scopes) => setFormData({ ...formData, scopes })}
-                  />
-                )}
+                  {!formData.is_admin && (
+                    <ScopeManager
+                      scopes={formData.scopes}
+                      onChange={(scopes) => setFormData({ ...formData, scopes })}
+                    />
+                  )}
 
-                <div className="flex justify-end gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setIsEditDialogOpen(false);
-                      setSelectedUser(null);
-                      resetForm();
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={updateMutation.isPending}>
-                    {updateMutation.isPending ? 'Updating...' : 'Update User'}
-                  </Button>
-                </div>
-              </form>
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setIsEditDialogOpen(false);
+                        setSelectedUser(null);
+                        resetForm();
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={updateMutation.isPending}>
+                      {updateMutation.isPending ? 'Updating...' : 'Update User'}
+                    </Button>
+                  </div>
+                </form>
+              )}
             </CardContent>
           </Card>
         </div>

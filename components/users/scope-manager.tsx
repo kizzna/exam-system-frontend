@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent } from '@/components/ui/card';
 import { Trash2, Plus } from 'lucide-react';
+import { NumberArrayInput } from '@/components/ui/number-array-input';
 
 interface ScopeManagerProps {
     scopes: UserScope[];
@@ -83,13 +84,14 @@ export function ScopeManager({ scopes, onChange }: ScopeManagerProps) {
                                     <Select
                                         value={scope.scope_type}
                                         onValueChange={(value) =>
-                                            updateScope(index, { scope_type: value as 'eval_center' | 'snr_authority' })
+                                            updateScope(index, { scope_type: value as 'global' | 'eval_center' | 'snr_authority' })
                                         }
                                     >
                                         <SelectTrigger>
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
+                                            <SelectItem value="global">Global</SelectItem>
                                             <SelectItem value="eval_center">Evaluation Center</SelectItem>
                                             <SelectItem value="snr_authority">SNR Authority</SelectItem>
                                         </SelectContent>
@@ -114,13 +116,15 @@ export function ScopeManager({ scopes, onChange }: ScopeManagerProps) {
                                                 ))}
                                             </SelectContent>
                                         </Select>
-                                    ) : (
+                                    ) : scope.scope_type === 'snr_authority' ? (
                                         <Input
                                             type="number"
                                             placeholder="SNR ID"
                                             value={scope.scope_id || ''}
                                             onChange={(e) => updateScope(index, { scope_id: parseInt(e.target.value) })}
                                         />
+                                    ) : (
+                                        <div className="text-sm text-muted-foreground py-2">Global Scope</div>
                                     )}
                                 </div>
                             </div>
@@ -138,7 +142,7 @@ export function ScopeManager({ scopes, onChange }: ScopeManagerProps) {
                         <div className="space-y-2">
                             <Label>Class Levels</Label>
                             <div className="flex flex-wrap gap-4">
-                                {[1, 2, 3, 4, 5, 6].map((level) => (
+                                {[1, 2, 3].map((level) => (
                                     <div key={level} className="flex items-center space-x-2">
                                         <Checkbox
                                             checked={scope.filters.class_levels?.includes(level)}
@@ -154,6 +158,26 @@ export function ScopeManager({ scopes, onChange }: ScopeManagerProps) {
                                     </div>
                                 ))}
                             </div>
+                        </div>
+
+                        {scope.scope_type === 'eval_center' && (
+                            <div className="space-y-2">
+                                <Label>SNR IDs (Optional)</Label>
+                                <NumberArrayInput
+                                    placeholder="e.g. 116, 117"
+                                    value={scope.filters.snr_id_list}
+                                    onChange={(ids) => updateFilter(index, { snr_id_list: ids })}
+                                />
+                            </div>
+                        )}
+
+                        <div className="space-y-2">
+                            <Label>Task IDs (Optional)</Label>
+                            <NumberArrayInput
+                                placeholder="e.g. 1001, 1002"
+                                value={scope.filters.task_id_list}
+                                onChange={(ids) => updateFilter(index, { task_id_list: ids })}
+                            />
                         </div>
 
                         {/* Exam Centers Include/Ranges could be added here if needed */}

@@ -2,7 +2,7 @@
 
 import { Task } from '@/lib/types/tasks';
 import { DataTable } from '@/components/ui/data-table';
-import { ColumnDef, PaginationState, OnChangeFn, RowSelectionState } from '@tanstack/react-table';
+import { ColumnDef, PaginationState, OnChangeFn, RowSelectionState, SortingState } from '@tanstack/react-table';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,8 @@ interface TaskListProps {
     onPaginationChange: OnChangeFn<PaginationState>;
     rowSelection: RowSelectionState;
     onRowSelectionChange: OnChangeFn<RowSelectionState>;
+    sorting: SortingState;
+    onSortingChange: OnChangeFn<SortingState>;
     isLoading: boolean;
 }
 
@@ -60,8 +62,8 @@ const columns: ColumnDef<Task>[] = [
                 aria-label="Select row"
             />
         ),
-        enableSorting: false,
-        enableHiding: false,
+        enableSorting: true,
+        enableHiding: true,
     },
     // {
     //     accessorKey: 'task_id',
@@ -71,6 +73,7 @@ const columns: ColumnDef<Task>[] = [
     {
         accessorKey: 'exam_center_code',
         header: 'รหัสสนาม',
+        enableSorting: true,
     },
     {
         id: 'class',
@@ -147,6 +150,7 @@ const columns: ColumnDef<Task>[] = [
     {
         accessorKey: 'error_count',
         header: 'ปัญหา',
+        enableSorting: true,
         cell: ({ row }) => {
             const count = row.getValue('error_count') as number;
             return count > 0 ? <Badge variant="destructive" className="rounded-full">{count}</Badge> : '-';
@@ -155,6 +159,7 @@ const columns: ColumnDef<Task>[] = [
     {
         accessorKey: 'err_duplicate_sheets_count',
         header: 'ซ้ำ',
+        enableSorting: true,
         cell: ({ row }) => {
             const count = row.original.err_duplicate_sheets_count || 0;
             return count > 0 ? <Badge className="bg-orange-500 hover:bg-orange-600 rounded-full">{count}</Badge> : null;
@@ -163,6 +168,7 @@ const columns: ColumnDef<Task>[] = [
     {
         accessorKey: 'err_low_answer_count',
         header: '< 141',
+        enableSorting: true,
         cell: ({ row }) => {
             const count = row.original.err_low_answer_count || 0;
             return count > 0 ? <Badge className="bg-yellow-500 hover:bg-yellow-600 rounded-full">{count}</Badge> : null;
@@ -171,6 +177,7 @@ const columns: ColumnDef<Task>[] = [
     {
         accessorKey: 'err_student_id_count',
         header: 'เลขที่ผิด',
+        enableSorting: true,
         cell: ({ row }) => {
             const count = row.original.err_student_id_count || 0;
             return count > 0 ? <Badge variant="destructive" className="rounded-full">{count}</Badge> : null;
@@ -179,6 +186,7 @@ const columns: ColumnDef<Task>[] = [
     {
         accessorKey: 'err_exam_center_id_count',
         header: 'รหัสสนามผิด',
+        enableSorting: true,
         cell: ({ row }) => {
             const count = row.original.err_exam_center_id_count || 0;
             return count > 0 ? <Badge className="bg-purple-500 hover:bg-purple-600 rounded-full">{count}</Badge> : null;
@@ -187,6 +195,7 @@ const columns: ColumnDef<Task>[] = [
     {
         accessorKey: 'err_class_level_count',
         header: 'ชั้นผิด',
+        enableSorting: true,
         cell: ({ row }) => {
             const count = row.original.err_class_level_count || 0;
             return count > 0 ? <Badge className="bg-blue-500 hover:bg-blue-600 rounded-full">{count}</Badge> : null;
@@ -195,6 +204,7 @@ const columns: ColumnDef<Task>[] = [
     {
         accessorKey: 'err_class_group_count',
         header: 'ช่วงชั้นผิด',
+        enableSorting: true,
         cell: ({ row }) => {
             const count = row.original.err_class_group_count || 0;
             return count > 0 ? <Badge className="bg-stone-500 hover:bg-stone-600 rounded-full">{count}</Badge> : null;
@@ -209,6 +219,8 @@ export function TaskList({
     onPaginationChange,
     rowSelection,
     onRowSelectionChange,
+    sorting,
+    onSortingChange,
     isLoading,
 }: TaskListProps) {
     // 3. The component is now lightweight and only handles data passing
@@ -221,7 +233,10 @@ export function TaskList({
             onPaginationChange={onPaginationChange}
             rowSelection={rowSelection}
             onRowSelectionChange={onRowSelectionChange}
+            sorting={sorting}
+            onSortingChange={onSortingChange}
             isLoading={isLoading}
+            getRowId={(row) => row.task_id.toString()}
         />
     );
 }

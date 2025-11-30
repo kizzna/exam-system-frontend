@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/providers/auth-provider';
 import { Plus, UserMinus } from 'lucide-react';
 import { toast } from 'sonner';
-import { PaginationState, RowSelectionState } from '@tanstack/react-table';
+import { PaginationState, RowSelectionState, SortingState } from '@tanstack/react-table';
 
 export default function TasksPage() {
   const { isAdmin } = useAuth();
@@ -23,6 +23,12 @@ export default function TasksPage() {
     pageSize: 50,
   });
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [sorting, setSorting] = useState<SortingState>([
+    {
+      id: 'error_count',
+      desc: true,
+    },
+  ]);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
 
   // Reset pagination when filters change
@@ -33,12 +39,14 @@ export default function TasksPage() {
   };
 
   const { data, isLoading } = useQuery({
-    queryKey: ['tasks', filters, pagination],
+    queryKey: ['tasks', filters, pagination, sorting],
     queryFn: () =>
       tasksApi.getTasks({
         ...filters,
         page: pagination.pageIndex + 1,
         size: pagination.pageSize,
+        sort_by: sorting[0]?.id,
+        sort_order: sorting[0]?.desc ? 'desc' : 'asc',
       }),
   });
 
@@ -53,20 +61,9 @@ export default function TasksPage() {
 
   const selectedTaskIds = useMemo(() => {
     // Map row selection to task IDs
-    // Note: This only works for currently visible tasks if we rely on row index
-    // But since we need IDs for actions, we need a way to track selected IDs across pages if desired.
-    // For now, we'll stick to current page selection or need to map selection state differently.
-    // TanStack table row selection uses row ID (default index). We should use task ID as row ID.
-    // However, TaskList implementation of DataTable uses default getRowId.
-    // We need to update TaskList to pass getRowId or handle selection mapping.
-    // Let's assume for now we only select from current page.
-    // Actually, we can just map the selection indices to tasks if we use index.
-    // Better: Let's update TaskList/DataTable to use task ID as row key if possible,
-    // or just map current page tasks.
-    return Object.keys(rowSelection)
-      .map((index) => tasks[parseInt(index)]?.id)
-      .filter((id) => id !== undefined);
-  }, [rowSelection, tasks]);
+    // Since we updated TaskList to use task_id as row ID, the keys in rowSelection are the task IDs.
+    return Object.keys(rowSelection).map((id) => parseInt(id));
+  }, [rowSelection]);
 
   const unassignMutation = useMutation({
     mutationFn: tasksApi.unassignTasks,
@@ -88,7 +85,7 @@ export default function TasksPage() {
 
   // Check if any selected task is assigned
   const hasAssignedTasks = tasks.some(
-    (t) => selectedTaskIds.includes(t.id) && t.processing_status === 'assigned'
+    (t) => selectedTaskIds.includes(t.task_id) && t.processing_status === 'assigned'
   );
 
   return (
@@ -126,6 +123,8 @@ export default function TasksPage() {
         onPaginationChange={setPagination}
         rowSelection={rowSelection}
         onRowSelectionChange={setRowSelection}
+        sorting={sorting}
+        onSortingChange={setSorting}
         isLoading={isLoading}
       />
 

@@ -8,6 +8,8 @@ import {
     PaginationState,
     OnChangeFn,
     RowSelectionState,
+    SortingState,
+    getSortedRowModel,
 } from '@tanstack/react-table';
 
 import {
@@ -19,7 +21,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 
 interface DataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[];
@@ -29,7 +31,10 @@ interface DataTableProps<TData, TValue> {
     onPaginationChange: OnChangeFn<PaginationState>;
     rowSelection?: RowSelectionState;
     onRowSelectionChange?: OnChangeFn<RowSelectionState>;
+    sorting?: SortingState;
+    onSortingChange?: OnChangeFn<SortingState>;
     isLoading?: boolean;
+    getRowId?: (originalRow: TData, index: number, parent?: any) => string;
 }
 
 export function DataTable<TData, TValue>({
@@ -40,7 +45,10 @@ export function DataTable<TData, TValue>({
     onPaginationChange,
     rowSelection = {},
     onRowSelectionChange,
+    sorting = [],
+    onSortingChange,
     isLoading = false,
+    getRowId,
 }: DataTableProps<TData, TValue>) {
     const table = useReactTable({
         data,
@@ -49,12 +57,17 @@ export function DataTable<TData, TValue>({
         state: {
             pagination,
             rowSelection,
+            sorting,
         },
         onPaginationChange,
         onRowSelectionChange,
+        onSortingChange,
         getCoreRowModel: getCoreRowModel(),
+        getSortedRowModel: getSortedRowModel(),
         manualPagination: true,
+        manualSorting: true,
         enableRowSelection: true,
+        getRowId,
     });
 
     return (
@@ -65,14 +78,36 @@ export function DataTable<TData, TValue>({
                         {table.getHeaderGroups().map((headerGroup) => (
                             <TableRow key={headerGroup.id}>
                                 {headerGroup.headers.map((header) => {
+                                    const canSort = header.column.getCanSort();
+                                    const sortDirection = header.column.getIsSorted();
+
                                     return (
                                         <TableHead key={header.id}>
-                                            {header.isPlaceholder
-                                                ? null
-                                                : flexRender(
+                                            {header.isPlaceholder ? null : canSort ? (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="-ml-3 h-8 data-[state=open]:bg-accent"
+                                                    onClick={header.column.getToggleSortingHandler()}
+                                                >
+                                                    {flexRender(
+                                                        header.column.columnDef.header,
+                                                        header.getContext()
+                                                    )}
+                                                    {sortDirection === 'asc' ? (
+                                                        <ArrowUp className="ml-2 h-4 w-4" />
+                                                    ) : sortDirection === 'desc' ? (
+                                                        <ArrowDown className="ml-2 h-4 w-4" />
+                                                    ) : (
+                                                        <ArrowUpDown className="ml-2 h-4 w-4 opacity-50" />
+                                                    )}
+                                                </Button>
+                                            ) : (
+                                                flexRender(
                                                     header.column.columnDef.header,
                                                     header.getContext()
-                                                )}
+                                                )
+                                            )}
                                         </TableHead>
                                     );
                                 })}

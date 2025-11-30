@@ -9,6 +9,7 @@ export interface ScopeFilter {
   exam_centers_include?: number[];
   exam_centers_ranges?: { start: number; end: number }[];
   snr_id_list?: number[];
+  task_id_list?: number[];
 }
 
 export interface UserScope {

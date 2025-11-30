@@ -106,15 +106,7 @@ export function TaskFilters({ filters, onFilterChange }: TaskFiltersProps) {
                     </Select>
                 </div>
 
-                <div className="space-y-2 col-span-12 md:col-span-2">
-                    <Label htmlFor="task-id">รหัสสนาม</Label>
-                    <Input
-                        id="task-id"
-                        placeholder="ค้นหา..."
-                        value={filters.task_id || ''}
-                        onChange={(e) => onFilterChange({ ...filters, task_id: e.target.value || undefined })}
-                    />
-                </div>
+
 
                 <div className="space-y-2 col-span-12 md:col-span-2">
                     <Label htmlFor="class-level">ชั้น</Label>
@@ -175,6 +167,16 @@ export function TaskFilters({ filters, onFilterChange }: TaskFiltersProps) {
 
             {/* Row 2: Min Error Count */}
             <div className="flex flex-wrap items-end gap-4">
+                <div className="space-y-2 w-40">
+                    <Label htmlFor="task-id">รหัสสนาม</Label>
+                    <Input
+                        id="task-id"
+                        placeholder="ค้นหา..."
+                        value={filters.task_id || ''}
+                        onChange={(e) => onFilterChange({ ...filters, task_id: e.target.value || undefined })}
+                    />
+                </div>
+
                 <div className="space-y-2 w-40">
                     <Label htmlFor="error-count">เฉพาะที่มีปัญหาอย่างน้อย...</Label>
                     <Input

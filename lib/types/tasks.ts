@@ -15,7 +15,7 @@ export enum TaskPriority {
 }
 
 export interface Task {
-  id: number;
+
   task_id: number;
   exam_center_code: number;
   class_group: number;

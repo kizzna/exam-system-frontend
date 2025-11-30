@@ -24,6 +24,8 @@ export const tasksApi = {
     err_class_level_count?: number;
     page?: number;
     size?: number;
+    sort_by?: string;
+    sort_order?: 'asc' | 'desc';
   }): Promise<PaginatedResponse<Task>> => {
     const response = await apiClient.get<PaginatedResponse<Task>>('/tasks/', { params });
     return response.data;
@@ -49,8 +51,8 @@ export const tasksApi = {
     return response.data;
   },
 
-  getTask: async (id: number): Promise<Task> => {
-    const response = await apiClient.get<Task>(`/tasks/${id}`);
+  getTask: async (task_id: number): Promise<Task> => {
+    const response = await apiClient.get<Task>(`/tasks/${task_id}`);
     return response.data;
   },
 
@@ -71,12 +73,12 @@ export const tasksApi = {
     await apiClient.post('/tasks/distribute', data);
   },
 
-  updateTask: async (id: number, data: Partial<Task>): Promise<Task> => {
-    const response = await apiClient.patch<Task>(`/tasks/${id}`, data);
+  updateTask: async (task_id: number, data: Partial<Task>): Promise<Task> => {
+    const response = await apiClient.patch<Task>(`/tasks/${task_id}`, data);
     return response.data;
   },
 
-  deleteTask: async (id: number): Promise<void> => {
-    await apiClient.delete(`/tasks/${id}`);
+  deleteTask: async (task_id: number): Promise<void> => {
+    await apiClient.delete(`/tasks/${task_id}`);
   },
 };
