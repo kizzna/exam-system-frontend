@@ -1,5 +1,5 @@
 import apiClient from './client';
-import { Task, CreateTaskRequest, TaskAssignmentRequest, TaskDistributionRequest, TaskStats } from '../types/tasks';
+import { Task, CreateTaskRequest, TaskAssignmentRequest, TaskDistributionRequest, TaskStats, RosterEntry } from '../types/tasks';
 import { PaginatedResponse } from '../types/api';
 
 export const tasksApi = {
@@ -80,5 +80,10 @@ export const tasksApi = {
 
   deleteTask: async (task_id: number): Promise<void> => {
     await apiClient.delete(`/tasks/${task_id}`);
+  },
+
+  getRoster: async (task_id: number): Promise<RosterEntry[]> => {
+    const response = await apiClient.get<RosterEntry[]>(`/tasks/${task_id}/roster`);
+    return response.data;
   },
 };

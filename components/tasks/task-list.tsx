@@ -140,7 +140,7 @@ const columns: ColumnDef<Task>[] = [
         header: 'ตรวจ',
         cell: ({ row }) => (
             <Button variant="outline" size="sm" className="h-8 border-primary text-primary hover:bg-primary hover:text-primary-foreground" asChild>
-                <Link href={`/dashboard/tasks/${row.original.task_id}/review`}>
+                <Link href={`/dashboard/sheets/review/${row.original.task_id}`}>
                     <SearchCheck className="mr-2 h-4 w-4" />
                     ตรวจ
                 </Link>

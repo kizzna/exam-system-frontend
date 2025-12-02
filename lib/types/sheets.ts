@@ -57,3 +57,34 @@ export interface BulkSheetUpdateRequest {
   status?: SheetStatus;
   action?: 'reread' | 'reject' | 'approve';
 }
+
+export interface OverlayCoordinate {
+  val: number | string;
+  x: number;
+  y: number;
+}
+
+export interface OverlayTopData {
+  dimensions: { w: number; h: number };
+  fields: Record<string, OverlayCoordinate[]>;
+  current_values: Record<string, any>;
+  scores: Record<string, number>;
+}
+
+export interface OverlayAnswer {
+  q: number;
+  val: number | string;
+  correct_val: number | string;
+  coords?: { x: number; y: number };
+  correct_coords?: { x: number; y: number };
+}
+
+export interface OverlayBottomData {
+  dimensions: { w: number; h: number };
+  answers: OverlayAnswer[];
+}
+
+export interface OverlayResponse {
+  top: OverlayTopData;
+  bottom: OverlayBottomData;
+}

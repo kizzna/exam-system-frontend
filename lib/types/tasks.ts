@@ -78,3 +78,16 @@ export interface TaskDistributionRequest {
   user_ids: number[];
   strategy: 'fair' | 'workload' | 'random';
 }
+
+export interface RosterEntry {
+  source: 'master' | 'ghost';
+  master_roll: string | null;
+  student_name: string;
+  is_absent_in_master: number | null;
+  sheet_id: string | null;
+  sheet_roll: string | null;
+  error_flags: number;
+  original_filename: string | null;
+  row_status: 'MISSING' | 'UNEXPECTED' | 'ERROR' | 'OK' | 'ABSENT' | 'GHOST';
+  error_message: string | null;
+}

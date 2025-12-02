@@ -1,5 +1,5 @@
 import apiClient from './client';
-import { Sheet, SheetCorrectionRequest, BulkSheetUpdateRequest } from '../types/sheets';
+import { Sheet, SheetCorrectionRequest, BulkSheetUpdateRequest, OverlayResponse } from '../types/sheets';
 import { PaginatedResponse } from '../types/api';
 
 export const sheetsApi = {
@@ -25,5 +25,14 @@ export const sheetsApi = {
   rereadSheet: async (id: string): Promise<Sheet> => {
     const response = await apiClient.post<Sheet>(`/sheets/${id}/reread`);
     return response.data;
+  },
+
+  getOverlay: async (id: string): Promise<OverlayResponse> => {
+    const response = await apiClient.get<OverlayResponse>(`/sheets/${id}/overlay`);
+    return response.data;
+  },
+
+  getSheetImageUrl: (id: string, part: 'top' | 'bottom'): string => {
+    return `${process.env.NEXT_PUBLIC_API_URL}/sheets/${id}/image?part=${part}`;
   },
 };

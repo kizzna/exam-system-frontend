@@ -44,8 +44,14 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           }`}
       >
         <div className="flex flex-col h-full">
-          <div className="p-6 border-b border-border">
+          <div className="p-6 border-b border-border flex items-center justify-between">
             <h1 className="text-xl font-bold">Exam System</h1>
+            <button
+              onClick={toggleSidebar}
+              className="p-1 hover:bg-accent rounded-md"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
           </div>
 
           <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
@@ -58,8 +64,8 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                   key={item.name}
                   href={item.href}
                   className={`flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                     }`}
                 >
                   <Icon className="h-5 w-5" />
@@ -94,23 +100,16 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
       {/* Main content */}
       <div className={`transition-all duration-200 ${sidebarOpen ? 'ml-64' : 'ml-0'}`}>
-        {/* Header */}
-        <header className="sticky top-0 z-40 bg-card border-b border-border">
-          <div className="flex items-center justify-between px-6 py-4">
-            <button
-              onClick={toggleSidebar}
-              className="p-2 hover:bg-accent rounded-md"
-            >
-              <Menu className="h-6 w-6" />
-            </button>
 
-            <div className="flex items-center gap-4">
-              <span className="text-sm text-muted-foreground">
-                {user?.full_name}
-              </span>
-            </div>
-          </div>
-        </header>
+        {/* Floating Toggle Button (Visible only when sidebar is closed) */}
+        {!sidebarOpen && (
+          <button
+            onClick={toggleSidebar}
+            className="fixed top-4 left-4 z-50 p-2 bg-card border border-border shadow-md rounded-md hover:bg-accent"
+          >
+            <Menu className="h-6 w-6" />
+          </button>
+        )}
 
         {/* Page content */}
         <main className="p-6">{children}</main>
