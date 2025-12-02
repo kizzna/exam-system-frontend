@@ -86,4 +86,10 @@ export const tasksApi = {
     const response = await apiClient.get<RosterEntry[]>(`/tasks/${task_id}/roster`);
     return response.data;
   },
+
+  getExamCenterInfo: async (task_id: string | number): Promise<import('../types/tasks').ExamCenterInfo> => {
+    const response = await apiClient.get<import('../types/tasks').ExamCenterInfo>(`/tasks/${task_id}/exam-center-info`);
+    return response.data;
+  },
+
 };

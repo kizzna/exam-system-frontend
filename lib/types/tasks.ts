@@ -91,3 +91,7 @@ export interface RosterEntry {
   row_status: 'MISSING' | 'UNEXPECTED' | 'ERROR' | 'OK' | 'ABSENT' | 'GHOST';
   error_message: string | null;
 }
+
+export interface ExamCenterInfo {
+  center_name: string | null;
+}

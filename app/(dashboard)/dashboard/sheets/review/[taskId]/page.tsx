@@ -1,14 +1,28 @@
 'use client';
 
-import React, { useState, use } from 'react';
+import React, { useState, use, useEffect } from 'react';
 import { HeaderImageViewer } from '@/components/sheets/header-image-viewer';
 import { StatsPanel } from '@/components/sheets/stats-panel';
 import { StudentTable } from '@/components/sheets/student-table';
 import { AnswerImageViewer } from '@/components/sheets/answer-image-viewer';
+import { tasksApi } from '@/lib/api/tasks';
 
 export default function OMRReviewPage({ params }: { params: Promise<{ taskId: string }> }) {
     const { taskId } = use(params);
     const [selectedSheetId, setSelectedSheetId] = useState<string>();
+    const [examCenterInfo, setExamCenterInfo] = useState<string | null>(null);
+
+    useEffect(() => {
+        const fetchInfo = async () => {
+            try {
+                const info = await tasksApi.getExamCenterInfo(taskId);
+                setExamCenterInfo(info.center_name);
+            } catch (error) {
+                console.error('Failed to fetch exam center info:', error);
+            }
+        };
+        fetchInfo();
+    }, [taskId]);
 
     return (
         <>
@@ -22,7 +36,9 @@ export default function OMRReviewPage({ params }: { params: Promise<{ taskId: st
 
                 {/* Optional: Minimal Global Header (Breadcrumbs/Back Button) */}
                 <header className="h-10 shrink-0 flex items-center justify-center px-2 mb-2 gap-4">
-                    <h1 className="font-bold text-sm text-slate-700">Task Review: {taskId}</h1>
+                    <h1 className="font-bold text-sm text-slate-700">
+                        สนามสอบ: {taskId} {examCenterInfo ? `(${examCenterInfo})` : ''}
+                    </h1>
                     {/* Add Back Button Here */}
                 </header>
 
@@ -44,7 +60,7 @@ export default function OMRReviewPage({ params }: { params: Promise<{ taskId: st
                         <div className="mb-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
                             Panel B: Stats & Actions
                         </div>
-                        <StatsPanel />
+                        <StatsPanel taskId={taskId} />
                     </section>
 
                     {/* --- PANEL C: Bottom Left (Data Table) --- */}
