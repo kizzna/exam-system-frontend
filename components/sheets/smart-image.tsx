@@ -5,8 +5,9 @@ export interface SmartImageItem {
     id: string;
     x: number;
     y: number;
-    type: 'circle' | 'correct' | 'incorrect' | 'neutral';
-    color?: string; // for circle, default green
+    type: 'circle' | 'correct' | 'incorrect' | 'neutral' | 'cross';
+    color?: string; // for circle/cross, default green
+    lineWidth?: number;
 }
 
 interface SmartImageProps {
@@ -47,8 +48,18 @@ export function SmartImage({ src, width, height, items, alignment = 'center', ch
                                     r="18"
                                     fill={item.color || "rgba(0, 255, 0, 0.4)"}
                                     stroke={item.color ? item.color.replace('0.4', '1') : "green"}
-                                    strokeWidth="3"
+                                    strokeWidth={item.lineWidth || "3"}
                                 />
+                            );
+                        }
+
+                        if (item.type === 'cross') {
+                            const size = 12;
+                            return (
+                                <g key={item.id} stroke={item.color || "red"} strokeWidth={item.lineWidth || "3"}>
+                                    <line x1={item.x - size} y1={item.y - size} x2={item.x + size} y2={item.y + size} />
+                                    <line x1={item.x + size} y1={item.y - size} x2={item.x - size} y2={item.y + size} />
+                                </g>
                             );
                         }
 

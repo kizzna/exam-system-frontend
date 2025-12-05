@@ -1,5 +1,5 @@
 import apiClient from './client';
-import { Sheet, SheetCorrectionRequest, BulkSheetUpdateRequest, OverlayResponse } from '../types/sheets';
+import { Sheet, SheetCorrectionRequest, BulkSheetUpdateRequest, OverlayResponse, OMRLayout, AnswerKey } from '../types/sheets';
 import { PaginatedResponse } from '../types/api';
 
 export const sheetsApi = {
@@ -32,7 +32,18 @@ export const sheetsApi = {
     return response.data;
   },
 
-  getSheetImageUrl: (id: string, part: 'top' | 'bottom'): string => {
-    return `${process.env.NEXT_PUBLIC_API_URL}/sheets/${id}/image?part=${part}`;
+  getSheetImageUrl: (id: string, part: 'top' | 'bottom', width?: number): string => {
+    const baseUrl = `${process.env.NEXT_PUBLIC_API_URL}/sheets/${id}/image?part=${part}`;
+    return width ? `${baseUrl}&width=${width}` : baseUrl;
+  },
+
+  getLayout: async (): Promise<OMRLayout> => {
+    const response = await apiClient.get<OMRLayout>('/sheets/layout');
+    return response.data;
+  },
+
+  getAnswerKey: async (taskId: string): Promise<AnswerKey> => {
+    const response = await apiClient.get<AnswerKey>(`/sheets/answer-key/${taskId}`);
+    return response.data;
   },
 };

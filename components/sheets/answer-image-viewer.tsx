@@ -17,16 +17,29 @@ const SUBJECTS = [
     { name: 'subject3', label: 'วิชา วินัย', range: [101, 150], color: 'bg-orange-500', borderColor: 'border-orange-600' },
 ];
 
-export function AnswerImageViewer({ sheetId }: AnswerImageViewerProps) {
-    const { data: overlay, isLoading } = useQuery({
+export function AnswerImageViewer({ sheetId, taskId }: AnswerImageViewerProps & { taskId: string }) {
+    const { data: overlay, isLoading: isLoadingOverlay } = useQuery({
         queryKey: ['sheet-overlay', sheetId],
         queryFn: () => sheetsApi.getOverlay(sheetId!),
         enabled: !!sheetId,
     });
 
+    const { data: layout, isLoading: isLoadingLayout } = useQuery({
+        queryKey: ['omr-layout'],
+        queryFn: () => sheetsApi.getLayout(),
+        staleTime: Infinity,
+    });
+
+    const { data: answerKey, isLoading: isLoadingAnswerKey } = useQuery({
+        queryKey: ['answer-key', taskId],
+        queryFn: () => sheetsApi.getAnswerKey(taskId),
+        enabled: !!taskId,
+        staleTime: Infinity,
+    });
+
     // Calculate statistics per subject (must be before conditional returns)
     const subjectStats = useMemo(() => {
-        if (!overlay?.bottom?.answers) return [];
+        if (!overlay?.bottom?.answers || !answerKey) return [];
 
         return SUBJECTS.map((subject) => {
             const [start, end] = subject.range;
@@ -35,17 +48,15 @@ export function AnswerImageViewer({ sheetId }: AnswerImageViewerProps) {
             );
 
             const answered = subjectAnswers.filter(
-                (ans) => ans.val !== null && ans.val !== undefined && ans.val !== '' && ans.val !== 0
+                (ans) => ans.val !== null && ans.val !== undefined && ans.val !== 0
             ).length;
 
-            const correct = subjectAnswers.filter(
-                (ans) => ans.val == ans.correct_val
-            ).length;
+            const correct = subjectAnswers.filter((ans) => {
+                const correctVal = answerKey[ans.q.toString()];
+                return ans.val !== null && ans.val === correctVal;
+            }).length;
 
-            const incorrect = subjectAnswers.filter(
-                (ans) => ans.val !== null && ans.val !== undefined && ans.val !== '' && ans.val !== 0 && ans.val != ans.correct_val
-            ).length;
-
+            const incorrect = answered - correct;
             const score = overlay.top?.scores?.[subject.name] || 0;
 
             return {
@@ -56,73 +67,95 @@ export function AnswerImageViewer({ sheetId }: AnswerImageViewerProps) {
                 score,
             };
         });
-    }, [overlay]);
+    }, [overlay, answerKey]);
 
     // Calculate items for overlay (must be before conditional returns)
     const items: SmartImageItem[] = useMemo(() => {
-        if (!overlay?.bottom?.answers) return [];
+        if (!overlay?.bottom?.answers || !layout?.questions || !layout?.config?.bottom || !answerKey) return [];
 
-        return overlay.bottom.answers.flatMap((ans) => {
-            const resultItems: SmartImageItem[] = [];
-            let type: SmartImageItem['type'] = 'neutral';
+        const items: SmartImageItem[] = [];
+        const { answers } = overlay.bottom;
+        const { questions, config } = layout;
 
-            // Logic:
-            // 1. Correct Icon (Student Answered Correctly) -> val == correct_val
-            // 2. Incorrect Icon (Student Answered Incorrectly) -> val != correct_val && val is present (not 0)
-            // 3. Neutral Icon (Student Did Not Answer) -> val is empty/null/0
+        // Coordinate Transformation Logic
+        // 1. Get Crop Config
+        const { crop_x, crop_y } = config.bottom;
 
-            if (ans.val == ans.correct_val) {
-                type = 'correct';
+        // Helper to transform coordinates: (AbsX, AbsY) -> (RelX, RelY)
+        const transform = (absX: number, absY: number) => {
+            const relX = absX - crop_x;
+            const relY = absY - crop_y;
+            return {
+                x: relX,
+                y: relY
+            };
+        };
 
-                // Workaround: If student answer is correct but student coords are missing (backend bug),
-                // use the correct_coords to show the green checkmark.
-                if (!ans.coords && ans.correct_coords) {
-                    resultItems.push({
-                        id: `q-${ans.q}-fallback`,
-                        x: ans.correct_coords.x,
-                        y: ans.correct_coords.y,
-                        type: 'correct',
-                    });
-                }
-            } else if (ans.val !== null && ans.val !== undefined && ans.val !== '' && ans.val !== 0) {
-                type = 'incorrect';
+        answers.forEach((ans) => {
+            const qNum = ans.q.toString();
+            const questionCoords = questions[qNum];
+            const correctVal = answerKey[qNum];
 
-                // If incorrect, also show the correct answer if coordinates are available
-                if (ans.correct_coords) {
-                    resultItems.push({
-                        id: `q-${ans.q}-correct`,
-                        x: ans.correct_coords.x,
-                        y: ans.correct_coords.y,
-                        type: 'correct', // Green check/circle on the correct answer
-                    });
-                }
-            } else {
-                type = 'neutral';
+            if (!questionCoords) return;
 
-                // If neutral (not answered), show the correct answer location as neutral (blue circle)
-                // This indicates "Here is where you should have answered"
-                if (ans.correct_coords) {
-                    resultItems.push({
-                        id: `q-${ans.q}-missing`,
-                        x: ans.correct_coords.x,
-                        y: ans.correct_coords.y,
-                        type: 'neutral',
-                    });
-                }
-            }
+            // 1. Draw Student Answer (if any)
+            if (ans.val !== null && ans.val !== undefined && ans.val !== 0) {
+                // Determine which option was selected (A=1, B=2, C=4, D=8, E=16)
+                const values = [1, 2, 4, 8, 16];
+                const options = ['A', 'B', 'C', 'D', 'E'];
 
-            if (ans.coords) {
-                resultItems.push({
-                    id: `q-${ans.q}`,
-                    x: ans.coords.x,
-                    y: ans.coords.y,
-                    type: type,
+                values.forEach((val, idx) => {
+                    if ((ans.val! & val) === val) {
+                        const option = options[idx];
+                        const coord = questionCoords[option];
+                        if (coord) {
+                            const { x, y } = transform(coord.x, coord.y);
+                            const isCorrect = (ans.val === correctVal);
+                            items.push({
+                                id: `q_${qNum}_student`,
+                                x,
+                                y,
+                                type: isCorrect ? 'circle' : 'cross',
+                                color: isCorrect ? 'rgba(0, 255, 0, 0.6)' : 'rgba(255, 0, 0, 0.6)',
+                                lineWidth: 3
+                            });
+                        }
+                    }
                 });
             }
 
-            return resultItems;
+            // 2. Draw Correct Answer (if student was wrong or didn't answer)
+            // If student was wrong (ans.val !== correctVal) OR didn't answer (ans.val === 0/null)
+            // But only if we know the correct value
+            if (correctVal !== undefined && (ans.val !== correctVal)) {
+                const values = [1, 2, 4, 8, 16];
+                const options = ['A', 'B', 'C', 'D', 'E'];
+
+                values.forEach((val, idx) => {
+                    if ((correctVal & val) === val) {
+                        const option = options[idx];
+                        const coord = questionCoords[option];
+                        if (coord) {
+                            const { x, y } = transform(coord.x, coord.y);
+                            // If student didn't answer, show neutral (blue), else show correct (green)
+                            // The user's logic had 'neutral' for missing answers.
+                            // Let's stick to: Green circle for correct answer location.
+                            items.push({
+                                id: `q_${qNum}_correct`,
+                                x,
+                                y,
+                                type: 'circle',
+                                color: 'rgba(0, 255, 0, 0.6)', // Green Circle
+                                lineWidth: 3
+                            });
+                        }
+                    }
+                });
+            }
         });
-    }, [overlay]);
+
+        return items;
+    }, [overlay, layout, answerKey]);
 
     if (!sheetId) {
         return (
@@ -132,7 +165,7 @@ export function AnswerImageViewer({ sheetId }: AnswerImageViewerProps) {
         );
     }
 
-    if (isLoading) {
+    if (isLoadingOverlay || isLoadingLayout || isLoadingAnswerKey) {
         return (
             <div className="flex-1 flex items-center justify-center bg-slate-100/50 h-full">
                 <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
@@ -153,7 +186,7 @@ export function AnswerImageViewer({ sheetId }: AnswerImageViewerProps) {
             <div className="flex items-start gap-2 h-full">
                 <div className="h-full flex-shrink-0">
                     <SmartImage
-                        src={sheetsApi.getSheetImageUrl(sheetId, 'bottom')}
+                        src={sheetsApi.getSheetImageUrl(sheetId, 'bottom', 350)}
                         width={overlay.bottom.dimensions.w}
                         height={overlay.bottom.dimensions.h}
                         items={items}

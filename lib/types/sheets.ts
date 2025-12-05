@@ -58,33 +58,65 @@ export interface BulkSheetUpdateRequest {
   action?: 'reread' | 'reject' | 'approve';
 }
 
-export interface OverlayCoordinate {
-  val: number | string;
+export interface OverlayDimensions {
+  w: number;
+  h: number;
+}
+
+export interface OverlayMarker {
   x: number;
   y: number;
+  val: number | string;
+  step_y: number;
+  base_y: number;
+  col?: number;
 }
 
 export interface OverlayTopData {
-  dimensions: { w: number; h: number };
-  fields: Record<string, OverlayCoordinate[]>;
-  current_values: Record<string, any>;
+  dimensions: OverlayDimensions;
+  values: {
+    class_level: number | string;
+    class_group: number | string;
+    exam_center: number | string;
+    student_roll: number | string;
+  };
   scores: Record<string, number>;
 }
 
 export interface OverlayAnswer {
   q: number;
-  val: number | string;
-  correct_val: number | string;
-  coords?: { x: number; y: number };
-  correct_coords?: { x: number; y: number };
+  val: number | null;
 }
 
 export interface OverlayBottomData {
-  dimensions: { w: number; h: number };
+  dimensions: OverlayDimensions;
   answers: OverlayAnswer[];
 }
 
 export interface OverlayResponse {
   top: OverlayTopData;
   bottom: OverlayBottomData;
+}
+
+export interface OverlayCoordinate {
+  x: number;
+  y: number;
+}
+
+export interface OMRLayout {
+  dimensions: OverlayDimensions;
+  config: {
+    top: { crop_x: number; crop_y: number; crop_w: number; crop_h: number };
+    bottom: { crop_x: number; crop_y: number; crop_w: number; crop_h: number };
+  };
+  header_layout: {
+    id_class_level: OverlayCoordinate[];
+    id_group_level: OverlayCoordinate[];
+    [key: string]: OverlayCoordinate[]; // For dynamic columns like id_exam_center_col_X
+  };
+  questions: Record<string, Record<string, OverlayCoordinate>>;
+}
+
+export interface AnswerKey {
+  [questionNo: string]: number;
 }

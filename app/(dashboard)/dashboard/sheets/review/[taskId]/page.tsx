@@ -6,8 +6,11 @@ import { StatsPanel } from '@/components/sheets/stats-panel';
 import { StudentTable } from '@/components/sheets/student-table';
 import { AnswerImageViewer } from '@/components/sheets/answer-image-viewer';
 import { tasksApi } from '@/lib/api/tasks';
+import { sheetsApi } from '@/lib/api/sheets';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 
 export default function OMRReviewPage({ params }: { params: Promise<{ taskId: string }> }) {
+    const queryClient = useQueryClient();
     const { taskId } = use(params);
     const [selectedSheetId, setSelectedSheetId] = useState<string>();
     const [examCenterInfo, setExamCenterInfo] = useState<string | null>(null);
@@ -23,6 +26,48 @@ export default function OMRReviewPage({ params }: { params: Promise<{ taskId: st
         };
         fetchInfo();
     }, [taskId]);
+
+    const { data: overlay, isLoading } = useQuery({
+        queryKey: ['sheet-overlay', selectedSheetId],
+        queryFn: () => sheetsApi.getOverlay(selectedSheetId!),
+        enabled: !!selectedSheetId,
+    });
+
+    // Prefetching Logic
+    useEffect(() => {
+        if (!selectedSheetId) return;
+
+        // Get roster data from cache
+        const roster = queryClient.getQueryData<any[]>(['roster', taskId]);
+        if (!roster) return;
+
+        const currentIndex = roster.findIndex(r => r.sheet_id === selectedSheetId);
+        if (currentIndex === -1) return;
+
+        // Prefetch next 5 items
+        const nextIndices = [1, 2, 3, 4, 5]
+            .map(offset => currentIndex + offset)
+            .filter(idx => idx < roster.length);
+
+        nextIndices.forEach(idx => {
+            const sheet = roster[idx];
+            if (!sheet.sheet_id) return;
+
+            // 1. Prefetch Overlay Data
+            queryClient.prefetchQuery({
+                queryKey: ['sheet-overlay', sheet.sheet_id],
+                queryFn: () => sheetsApi.getOverlay(sheet.sheet_id!),
+                staleTime: 1000 * 60 * 5, // 5 minutes
+            });
+
+            // 2. Prefetch Images (Browser Cache)
+            const imgTop = new Image();
+            imgTop.src = sheetsApi.getSheetImageUrl(sheet.sheet_id, 'top', 920);
+
+            const imgBottom = new Image();
+            imgBottom.src = sheetsApi.getSheetImageUrl(sheet.sheet_id, 'bottom', 350);
+        });
+    }, [selectedSheetId, taskId, queryClient]);
 
     return (
         <>
@@ -87,7 +132,10 @@ export default function OMRReviewPage({ params }: { params: Promise<{ taskId: st
                         <div className="absolute top-2 left-2 z-10 bg-black/50 text-white text-xs px-2 py-1 rounded">
                             Panel D: Answer Sheet Overlay
                         </div>
-                        <AnswerImageViewer sheetId={selectedSheetId} />
+                        <AnswerImageViewer
+                            sheetId={selectedSheetId}
+                            taskId={taskId}
+                        />
                     </section>
 
                 </div>

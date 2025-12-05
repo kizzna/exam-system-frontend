@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { sheetsApi } from '@/lib/api/sheets';
 import { SmartImage, SmartImageItem } from './smart-image';
@@ -10,12 +10,127 @@ interface HeaderImageViewerProps {
     sheetId?: string;
 }
 
-export function HeaderImageViewer({ sheetId }: HeaderImageViewerProps) {
+export function HeaderImageViewer({ sheetId, optimisticValues }: HeaderImageViewerProps & { optimisticValues?: Record<string, any> }) {
     const { data: overlay, isLoading } = useQuery({
         queryKey: ['sheet-overlay', sheetId],
         queryFn: () => sheetsApi.getOverlay(sheetId!),
         enabled: !!sheetId,
     });
+
+    const { data: layout } = useQuery({
+        queryKey: ['omr-layout'],
+        queryFn: () => sheetsApi.getLayout(),
+        staleTime: Infinity, // Layout is static
+    });
+
+    const items: SmartImageItem[] = useMemo(() => {
+        if (!overlay?.top?.values || !layout?.header_layout || !layout?.config?.top) return [];
+
+        const { values } = overlay.top;
+        const { header_layout, config } = layout;
+        const items: SmartImageItem[] = [];
+
+        // Coordinate Transformation Logic
+        // 1. Get Crop Config
+        const { crop_x, crop_y } = config.top;
+
+        // Helper to transform coordinates: (AbsX, AbsY) -> (RelX, RelY)
+        const transform = (absX: number, absY: number) => {
+            const relX = absX - crop_x;
+            const relY = absY - crop_y;
+            return {
+                x: relX,
+                y: relY
+            };
+        };
+
+        // 1. Class Level (Single Bubble)
+        if (header_layout.id_class_level && values.class_level) {
+            const val = typeof values.class_level === 'number' ? values.class_level : parseInt(values.class_level as string);
+            // 1-based value -> 0-based index
+            const bubbleIndex = val - 1;
+            const bubble = header_layout.id_class_level[bubbleIndex];
+
+            if (bubble) {
+                const { x, y } = transform(bubble.x, bubble.y);
+                items.push({
+                    id: 'class_level',
+                    x,
+                    y,
+                    type: 'circle',
+                    color: 'rgba(0, 255, 0, 0.4)',
+                });
+            }
+        }
+
+        // 2. Class Group (Single Bubble)
+        if (header_layout.id_group_level && values.class_group) {
+            const val = typeof values.class_group === 'number' ? values.class_group : parseInt(values.class_group as string);
+            // 1-based value -> 0-based index
+            const bubbleIndex = val - 1;
+            const bubble = header_layout.id_group_level[bubbleIndex];
+
+            if (bubble) {
+                const { x, y } = transform(bubble.x, bubble.y);
+                items.push({
+                    id: 'class_group',
+                    x,
+                    y,
+                    type: 'circle',
+                    color: 'rgba(0, 255, 0, 0.4)',
+                });
+            }
+        }
+
+        // 3. Exam Center (Multi-digit)
+        // Layout has id_exam_center_col_1 to id_exam_center_col_6
+        if (values.exam_center) {
+            const valStr = values.exam_center.toString().padStart(6, '0');
+            for (let i = 0; i < 6; i++) {
+                const digit = parseInt(valStr[i]);
+                const colKey = `id_exam_center_col_${i + 1}`;
+                const bubbles = header_layout[colKey];
+
+                if (bubbles && bubbles[digit]) {
+                    const { x, y } = transform(bubbles[digit].x, bubbles[digit].y);
+                    items.push({
+                        id: `exam_center_${i}`,
+                        x,
+                        y,
+                        type: 'circle',
+                        color: 'rgba(0, 255, 0, 0.4)',
+                    });
+                }
+            }
+        }
+
+        // 4. Student Roll (Multi-digit)
+        // Layout has id_student_roll_col_1 to id_student_roll_col_5
+        if (values.student_roll) {
+            // Check for optimistic value (snappy update)
+            const currentRoll = optimisticValues?.student_roll ?? values.student_roll;
+            const valStr = currentRoll.toString().padStart(5, '0');
+
+            for (let i = 0; i < 5; i++) {
+                const digit = parseInt(valStr[i]);
+                const colKey = `id_student_roll_col_${i + 1}`;
+                const bubbles = header_layout[colKey];
+
+                if (bubbles && bubbles[digit]) {
+                    const { x, y } = transform(bubbles[digit].x, bubbles[digit].y);
+                    items.push({
+                        id: `student_roll_${i}`,
+                        x,
+                        y,
+                        type: 'circle',
+                        color: 'rgba(0, 255, 0, 0.4)',
+                    });
+                }
+            }
+        }
+
+        return items;
+    }, [overlay, layout, optimisticValues]);
 
     if (!sheetId) {
         return (
@@ -41,57 +156,15 @@ export function HeaderImageViewer({ sheetId }: HeaderImageViewerProps) {
         );
     }
 
-    const items: SmartImageItem[] = [];
-    const { fields, current_values } = overlay.top;
-
-    Object.entries(fields).forEach(([fieldName, coordinates]) => {
-        let targetIndex = -1;
-
-        if (fieldName === 'id_class_level') {
-            const val = current_values.class_level;
-            if (typeof val === 'number') {
-                targetIndex = val - 1; // 1-based -> 0-based
-            }
-        } else if (fieldName === 'id_group_level') {
-            const val = current_values.class_group;
-            if (typeof val === 'number') {
-                targetIndex = val - 1; // 1-based -> 0-based
-            }
-        } else if (fieldName.startsWith('id_exam_center_col_')) {
-            const colIndex = parseInt(fieldName.replace('id_exam_center_col_', '')) - 1;
-            const codeStr = current_values.exam_center_code?.toString().padStart(6, '0') || '';
-            const digit = codeStr[colIndex];
-            if (digit !== undefined) {
-                targetIndex = parseInt(digit); // 0-9 maps to index 0-9
-            }
-        } else if (fieldName.startsWith('id_student_roll_col_')) {
-            const colIndex = parseInt(fieldName.replace('id_student_roll_col_', '')) - 1;
-            const rollStr = current_values.student_roll?.toString().padStart(5, '0') || '';
-            const digit = rollStr[colIndex];
-            if (digit !== undefined) {
-                targetIndex = parseInt(digit); // 0-9 maps to index 0-9
-            }
-        }
-
-        // Check if targetIndex is valid for the coordinates array
-        if (targetIndex >= 0 && targetIndex < coordinates.length) {
-            const match = coordinates[targetIndex];
-            items.push({
-                id: `${fieldName}-${targetIndex}`,
-                x: match.x,
-                y: match.y,
-                type: 'circle',
-                color: 'rgba(0, 255, 0, 0.4)', // Green for active
-            });
-        }
-    });
+    if (!overlay || !layout) return <div className="animate-pulse bg-slate-200 w-full h-full" />;
 
     return (
         <SmartImage
-            src={sheetsApi.getSheetImageUrl(sheetId, 'top')}
+            src={sheetsApi.getSheetImageUrl(sheetId, 'top', 920)}
             width={overlay.top.dimensions.w}
             height={overlay.top.dimensions.h}
             items={items}
         />
     );
 }
+
