@@ -100,9 +100,9 @@ export function AnswerImageViewer({ sheetId, taskId }: AnswerImageViewerProps & 
 
             // 1. Draw Student Answer (if any)
             if (ans.val !== null && ans.val !== undefined && ans.val !== 0) {
-                // Determine which option was selected (A=1, B=2, C=4, D=8, E=16)
-                const values = [1, 2, 4, 8, 16];
-                const options = ['A', 'B', 'C', 'D', 'E'];
+                // Determine which option was selected (A=1, B=2, C=4, D=8)
+                const values = [1, 2, 4, 8];
+                const options = ['A', 'B', 'C', 'D'];
 
                 values.forEach((val, idx) => {
                     if ((ans.val! & val) === val) {
@@ -116,8 +116,9 @@ export function AnswerImageViewer({ sheetId, taskId }: AnswerImageViewerProps & 
                                 x,
                                 y,
                                 type: isCorrect ? 'circle' : 'cross',
-                                color: isCorrect ? 'rgba(0, 255, 0, 0.6)' : 'rgba(255, 0, 0, 0.6)',
-                                lineWidth: 3
+                                color: isCorrect ? 'rgba(0, 255, 0, 0.8)' : 'rgba(255, 0, 0, 0.8)',
+                                r: isCorrect ? 14 : 18, // bubble radius : cross size
+                                lineWidth: isCorrect ? 2 : 6,
                             });
                         }
                     }
@@ -145,8 +146,8 @@ export function AnswerImageViewer({ sheetId, taskId }: AnswerImageViewerProps & 
                                 x,
                                 y,
                                 type: 'circle',
-                                color: 'rgba(0, 255, 0, 0.6)', // Green Circle
-                                lineWidth: 3
+                                color: 'rgba(0, 0, 255, 0.8)', // Blue Circle
+                                lineWidth: 2
                             });
                         }
                     }

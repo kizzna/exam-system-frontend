@@ -8,6 +8,7 @@ export interface SmartImageItem {
     type: 'circle' | 'correct' | 'incorrect' | 'neutral' | 'cross';
     color?: string; // for circle/cross, default green
     lineWidth?: number;
+    r?: number;
 }
 
 interface SmartImageProps {
@@ -45,7 +46,7 @@ export function SmartImage({ src, width, height, items, alignment = 'center', ch
                                     key={item.id}
                                     cx={item.x}
                                     cy={item.y}
-                                    r="18"
+                                    r={item.r || 14} // bubble radius 14 default
                                     fill={item.color || "rgba(0, 255, 0, 0.4)"}
                                     stroke={item.color ? item.color.replace('0.4', '1') : "green"}
                                     strokeWidth={item.lineWidth || "3"}
@@ -54,7 +55,7 @@ export function SmartImage({ src, width, height, items, alignment = 'center', ch
                         }
 
                         if (item.type === 'cross') {
-                            const size = 12;
+                            const size = item.r || 14;
                             return (
                                 <g key={item.id} stroke={item.color || "red"} strokeWidth={item.lineWidth || "3"}>
                                     <line x1={item.x - size} y1={item.y - size} x2={item.x + size} y2={item.y + size} />
