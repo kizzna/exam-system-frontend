@@ -129,6 +129,21 @@ export function HeaderImageViewer({ sheetId, optimisticValues }: HeaderImageView
             }
         }
 
+        // 5. Student Name (Text)
+        if (overlay.student_name) {
+            const { value, x, y } = overlay.student_name;
+            const transformed = transform(x, y);
+            items.push({
+                id: 'student_name',
+                x: transformed.x,
+                y: transformed.y,
+                type: 'text',
+                text: value,
+                color: 'blue',
+                fontSize: '2rem', // ~h4
+            });
+        }
+
         return items;
     }, [overlay, layout, optimisticValues]);
 

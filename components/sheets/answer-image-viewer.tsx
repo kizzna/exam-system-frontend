@@ -117,7 +117,7 @@ export function AnswerImageViewer({ sheetId, taskId }: AnswerImageViewerProps & 
                                 y,
                                 type: isCorrect ? 'circle' : 'cross',
                                 color: isCorrect ? 'rgba(0, 255, 0, 0.8)' : 'rgba(255, 0, 0, 0.8)',
-                                r: isCorrect ? 14 : 18, // bubble radius : cross size
+                                r: isCorrect ? 14 : 16, // bubble radius : cross size
                                 lineWidth: isCorrect ? 2 : 6,
                             });
                         }

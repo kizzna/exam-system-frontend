@@ -96,6 +96,11 @@ export interface OverlayBottomData {
 export interface OverlayResponse {
   top: OverlayTopData;
   bottom: OverlayBottomData;
+  student_name?: {
+    value: string;
+    x: number;
+    y: number;
+  };
 }
 
 export interface OverlayCoordinate {

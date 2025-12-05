@@ -75,7 +75,7 @@ export function StatsPanel({ taskId }: StatsPanelProps) {
                         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">เลขที่ผิด</span>
                         <div className="text-xl font-bold text-red-500">{stats.err_student_id_total.toLocaleString()}</div>
                     </div>
-                    <div className="flex flex-col items-center gap-1">
+                    {/* <div className="flex flex-col items-center gap-1">
                         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">รหัสสนามผิด</span>
                         <div className="text-xl font-bold text-purple-500">{stats.err_exam_center_id_total.toLocaleString()}</div>
                     </div>
@@ -86,7 +86,7 @@ export function StatsPanel({ taskId }: StatsPanelProps) {
                     <div className="flex flex-col items-center gap-1">
                         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">ช่วงชั้นผิด</span>
                         <div className="text-xl font-bold text-stone-500">{stats.err_class_group_total.toLocaleString()}</div>
-                    </div>
+                    </div> */}
                 </div>
             </div>
         </div>

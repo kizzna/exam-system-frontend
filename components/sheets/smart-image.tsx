@@ -5,10 +5,12 @@ export interface SmartImageItem {
     id: string;
     x: number;
     y: number;
-    type: 'circle' | 'correct' | 'incorrect' | 'neutral' | 'cross';
+    type: 'circle' | 'correct' | 'incorrect' | 'neutral' | 'cross' | 'text';
     color?: string; // for circle/cross, default green
     lineWidth?: number;
     r?: number;
+    text?: string;
+    fontSize?: number | string;
 }
 
 interface SmartImageProps {
@@ -61,6 +63,22 @@ export function SmartImage({ src, width, height, items, alignment = 'center', ch
                                     <line x1={item.x - size} y1={item.y - size} x2={item.x + size} y2={item.y + size} />
                                     <line x1={item.x + size} y1={item.y - size} x2={item.x - size} y2={item.y + size} />
                                 </g>
+                            );
+                        }
+
+                        if (item.type === 'text' && item.text) {
+                            return (
+                                <text
+                                    key={item.id}
+                                    x={item.x}
+                                    y={item.y}
+                                    fill={item.color || "blue"}
+                                    fontSize={item.fontSize || "1.5rem"} // approximate h4
+                                    fontWeight="bold"
+                                    dominantBaseline="middle"
+                                >
+                                    {item.text}
+                                </text>
                             );
                         }
 
