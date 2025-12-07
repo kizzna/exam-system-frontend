@@ -125,3 +125,18 @@ export interface OMRLayout {
 export interface AnswerKey {
   [questionNo: string]: number;
 }
+export interface SheetInfoUpdateRequest {
+  sheet_ids: string[];
+  updates: {
+    student_roll?: string;
+  };
+}
+
+export interface SheetVerificationRequest {
+  corrected_flags: {
+    marked_present?: boolean;
+    too_few_answers?: boolean;
+    passed_by_policy?: boolean;
+    manual_corrected?: boolean;
+  };
+}

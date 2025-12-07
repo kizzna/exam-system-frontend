@@ -1,5 +1,5 @@
 import apiClient from './client';
-import { Sheet, SheetCorrectionRequest, BulkSheetUpdateRequest, OverlayResponse, OMRLayout, AnswerKey } from '../types/sheets';
+import { Sheet, SheetCorrectionRequest, BulkSheetUpdateRequest, OverlayResponse, OMRLayout, AnswerKey, SheetInfoUpdateRequest, SheetVerificationRequest } from '../types/sheets';
 import { PaginatedResponse } from '../types/api';
 
 export const sheetsApi = {
@@ -45,5 +45,13 @@ export const sheetsApi = {
   getAnswerKey: async (taskId: string): Promise<AnswerKey> => {
     const response = await apiClient.get<AnswerKey>(`/sheets/answer-key/${taskId}`);
     return response.data;
+  },
+
+  updateSheetInfo: async (data: SheetInfoUpdateRequest): Promise<void> => {
+    await apiClient.patch('/sheets/info', data);
+  },
+
+  verifySheet: async (id: string, data: SheetVerificationRequest): Promise<void> => {
+    await apiClient.patch(`/sheets/${id}/verify`, data);
   },
 };
