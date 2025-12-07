@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { RosterEntry } from '@/lib/types/tasks';
 import { cn, calculateStudentRoll } from '@/lib/utils';
-import { Ghost, AlertTriangle, HelpCircle, UserX, CheckCircle, Search } from 'lucide-react';
+import { Ghost, AlertTriangle, HelpCircle, UserX, CheckCircle, Search, Wrench } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
@@ -22,9 +22,8 @@ interface StudentRowProps {
     group: number;
 }
 
-export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, onSelect, viewMode, fullRoster, classLevel, group }: StudentRowProps) => {
+export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, onSelect, viewMode, fullRoster, classLevel, group, isOpen, onOpenChange }: StudentRowProps & { isOpen: boolean; onOpenChange: (open: boolean) => void }) => {
     const queryClient = useQueryClient();
-    const [isPopoverOpen, setIsPopoverOpen] = useState(false);
     const [search, setSearch] = useState("");
 
     const { exactMatches, startsWithMatches, otherMatches } = React.useMemo(() => {
@@ -101,7 +100,6 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
 
     const handleAssignStudent = async (targetStudent: RosterEntry) => {
         if (!entry.sheet_id) return;
-        // ... (existing logic)
         try {
             // Calculate 5-digit roll number if sheet_roll is missing
             const finalRoll = calculateStudentRoll(classLevel, group, targetStudent.master_roll || '')
@@ -115,7 +113,7 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
             });
 
             toast.success(`Assigned sheet to ${targetStudent.student_name}`);
-            setIsPopoverOpen(false);
+            onOpenChange(false);
             queryClient.invalidateQueries({ queryKey: ['roster'] });
         } catch (error) {
             toast.error("Failed to update student assignment");
@@ -138,7 +136,7 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
             });
 
             toast.success(`Assigned sheet to ${name}`);
-            setIsPopoverOpen(false);
+            onOpenChange(false);
             queryClient.invalidateQueries({ queryKey: ['roster'] });
         } catch (error) {
             toast.error("Failed to update manual assignment");
@@ -146,7 +144,6 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
     };
 
     const handleQuickAction = async (e: React.MouseEvent, type: 'present' | 'too_few') => {
-        // ... (existing logic)
         e.stopPropagation();
         if (!entry.sheet_id) return;
 
@@ -164,197 +161,211 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
         }
     }
 
+    // Determine errors from effective_flags (priority) or row_status
+    // Bit 6 (64): Absent but sheet present -> "Mark Present"
+    // Bit 1 (2): Too few answers -> "Too few"
+    const hasAbsentError = (entry.effective_flags & 64) > 0 || entry.row_status === 'UNEXPECTED';
+    const hasTooFewError = (entry.effective_flags & 2) > 0;
+
+    // ... (imports remain same, maybe add Wrench icon)
+    // ... imports moved to top
+    // ...
+
+    // ... (logic remains same)
+
+    const isCorrected = (entry.corrected_flags || 0) > 0;
+    const correctedTooltip = isCorrected ? `Corrected Flags: ${entry.corrected_flags}` : "";
+    // Ideally we would map flags to text, but for now showing raw or simple "Corrected" is good start.
+    // User requested "User will know what was corrected", so we should try to map if possible or just generic.
+    // Given the prompt "Criteria to change corrected row is as simple as corrected_flags > 0 change color and explain in tooltip."
+    // Let's use a simple map if possible, but for MVP just show "Manually Corrected" or similar.
+
+    // Using a grid layout:
+    // Col 1: Master Roll (15%)
+    // Col 2: Student Roll (15%)
+    // Col 3: Student Name (30%)
+    // Col 4: Error Message (30%)
+    // Col 5: Actions (10%)
+
     return (
         <div
             style={style}
-            className="p-1"
+            className="p-0.5" // Reduced padding wrapper
         >
             <div
                 onClick={() => isClickable && onSelect()}
                 className={cn(
-                    "p-2 rounded text-sm flex justify-between items-center transition-colors h-full",
+                    "px-2 py-1 rounded-sm text-base flex items-center transition-colors h-full gap-2", // Increased text-base, reduced py-1
                     getRowStyle(entry.row_status),
                     isSelected ? "bg-blue-100 border-blue-200 ring-1 ring-blue-300" : "hover:bg-slate-100",
+                    isCorrected && !isSelected && "bg-purple-50/50 border-l-4 border-l-purple-400", // Corrected theme
                     isClickable ? "cursor-pointer" : "cursor-default",
-                    !isClickable && !isSelected && "border border-transparent"
+                    !isClickable && !isSelected && !isCorrected && "border border-transparent"
                 )}
             >
-                <div className="flex items-center gap-3 overflow-hidden flex-1">
-                    <div className="shrink-0">
-                        {getStatusIcon(entry.row_status)}
-                    </div>
-                    <div className="flex flex-col min-w-0 flex-1">
-                        <span className={cn(
-                            "font-medium truncate",
-                            entry.row_status === 'GHOST' ? "text-slate-500 italic" : "text-slate-700"
-                        )}>
-                            {entry.student_name}
-                        </span>
-
-                        {/* Smart Input Area */}
-                        <div className="flex items-center gap-2 text-xs text-slate-500">
-                            {viewMode === 'SEQUENTIAL' && entry.sheet_id ? (
-                                <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
-                                    <PopoverTrigger asChild>
-                                        <button
-                                            onClick={(e) => { e.stopPropagation(); setIsPopoverOpen(true); setSearch(""); }}
-                                            className="hover:bg-slate-200 px-1 rounded -ml-1 flex items-center gap-1 transition-colors text-left"
-                                        >
-                                            <span>{entry.master_roll || 'No ID'}</span>
-                                            {entry.sheet_roll && entry.sheet_roll !== entry.master_roll && (
-                                                <span className="text-orange-600 font-mono">
-                                                    → {entry.sheet_roll}
-                                                </span>
-                                            )}
-                                        </button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-[300px] p-0" align="start">
-                                        <Command shouldFilter={false}>
-                                            <CommandInput
-                                                placeholder="Search student ID..."
-                                                value={search}
-                                                onValueChange={setSearch}
-                                            />
-                                            <CommandList>
-                                                <CommandEmpty>No student found.</CommandEmpty>
-
-                                                {/* Manual Input Option */}
-                                                {search && !isNaN(parseInt(search)) && (
-                                                    <CommandItem
-                                                        value={`manual-${search}`}
-                                                        onSelect={() => handleManualAssign(search)}
-                                                    >
-                                                        <span className="font-medium text-blue-600 flex items-center gap-2">
-                                                            Assign ID: {search}
-                                                            <span className="text-xs text-slate-400 font-normal">
-                                                                (→ {calculateStudentRoll(classLevel, group, search)})
-                                                            </span>
-                                                        </span>
-                                                    </CommandItem>
-                                                )}
-
-                                                {/* Exact Matches Group */}
-                                                {exactMatches.length > 0 && (
-                                                    <CommandGroup heading="Exact Match">
-                                                        {exactMatches.map((student) => (
-                                                            <CommandItem
-                                                                key={student.master_roll || student.student_name}
-                                                                value={`${student.master_roll} ${student.student_name}`}
-                                                                onSelect={() => handleAssignStudent(student)}
-                                                            >
-                                                                <div className="flex flex-col">
-                                                                    <span className="font-bold">{student.student_name} ({student.master_roll})</span>
-                                                                    <span className={cn(
-                                                                        "text-xs",
-                                                                        student.row_status === 'MISSING' ? "text-green-600" : "text-orange-500"
-                                                                    )}>
-                                                                        Status: {student.row_status}
-                                                                    </span>
-                                                                </div>
-                                                            </CommandItem>
-                                                        ))}
-                                                    </CommandGroup>
-                                                )}
-
-                                                {/* Starts With Matches Group */}
-                                                {startsWithMatches.length > 0 && (
-                                                    <CommandGroup heading="Matches ID">
-                                                        {startsWithMatches.map((student) => (
-                                                            <CommandItem
-                                                                key={student.master_roll || student.student_name}
-                                                                value={`${student.master_roll} ${student.student_name}`}
-                                                                onSelect={() => handleAssignStudent(student)}
-                                                            >
-                                                                <div className="flex flex-col">
-                                                                    <span>{student.student_name} ({student.master_roll})</span>
-                                                                    <span className={cn(
-                                                                        "text-xs",
-                                                                        student.row_status === 'MISSING' ? "text-green-600" : "text-orange-500"
-                                                                    )}>
-                                                                        Status: {student.row_status}
-                                                                    </span>
-                                                                </div>
-                                                            </CommandItem>
-                                                        ))}
-                                                    </CommandGroup>
-                                                )}
-
-                                                {/* Other Matches Group */}
-                                                {otherMatches.length > 0 && (
-                                                    <CommandGroup heading="Other Matches">
-                                                        {otherMatches.map((student) => (
-                                                            <CommandItem
-                                                                key={student.master_roll || student.student_name}
-                                                                value={`${student.master_roll} ${student.student_name}`}
-                                                                onSelect={() => handleAssignStudent(student)}
-                                                            >
-                                                                <div className="flex flex-col">
-                                                                    <span>{student.student_name} ({student.master_roll})</span>
-                                                                    <span className={cn(
-                                                                        "text-xs",
-                                                                        student.row_status === 'MISSING' ? "text-green-600" : "text-orange-500"
-                                                                    )}>
-                                                                        Status: {student.row_status}
-                                                                    </span>
-                                                                </div>
-                                                            </CommandItem>
-                                                        ))}
-                                                    </CommandGroup>
-                                                )}
-                                            </CommandList>
-                                        </Command>
-                                    </PopoverContent>
-                                </Popover>
+                {/* Col 1: Icon + Master Roll */}
+                <div className="w-[15%] flex items-center gap-2 overflow-hidden shrink-0">
+                    <Tooltip>
+                        <TooltipTrigger>
+                            {isCorrected ? (
+                                <Wrench className="w-4 h-4 text-purple-500" />
                             ) : (
-                                <>
-                                    <span>{entry.master_roll || 'No ID'}</span>
-                                    {entry.sheet_roll && entry.sheet_roll !== entry.master_roll && (
-                                        <span className="text-orange-600 font-mono">
-                                            → {entry.sheet_roll}
-                                        </span>
-                                    )}
-                                </>
+                                getStatusIcon(entry.row_status)
                             )}
-                        </div>
-                    </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            {isCorrected ? (
+                                <p>Corrected (Flags: {entry.corrected_flags})</p>
+                            ) : (
+                                <p>Status: {entry.row_status}</p>
+                            )}
+                        </TooltipContent>
+                    </Tooltip>
+                    <span className="font-mono font-semibold truncate text-slate-700" title={entry.master_roll || ''}>
+                        {entry.master_roll || '-'}
+                    </span>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    {/* Quick Actions for Sequential View */}
-                    {viewMode === 'SEQUENTIAL' && (
-                        <>
-                            {entry.row_status === 'UNEXPECTED' && (
-                                <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-6 px-2 text-xs bg-white/50 hover:bg-white text-green-700 border border-green-200"
-                                    onClick={(e) => handleQuickAction(e, 'present')}
+                {/* Col 2: Student Roll (5 digit) */}
+                <div className="w-[15%] flex items-center gap-1 overflow-hidden shrink-0">
+                    {entry.sheet_id ? (
+                        <Popover open={isOpen} onOpenChange={onOpenChange}>
+                            <PopoverTrigger asChild>
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); onOpenChange(true); setSearch(""); }}
+                                    className="hover:bg-black/5 px-1 rounded flex items-center gap-1 transition-colors text-left w-full"
                                 >
-                                    Mark Present
-                                </Button>
-                            )}
-                            {entry.row_status === 'ERROR' && (
-                                <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-6 px-2 text-xs bg-white/50 hover:bg-white text-orange-700 border border-orange-200"
-                                    onClick={(e) => handleQuickAction(e, 'too_few')}
-                                >
-                                    Too few
-                                </Button>
-                            )}
-                        </>
+                                    <span className={cn(
+                                        "font-mono text-lg font-bold", // Larger font
+                                        entry.sheet_roll !== entry.master_roll ? "text-orange-600" : "text-slate-900"
+                                    )}>
+                                        {entry.sheet_roll || '-'}
+                                    </span>
+                                </button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[300px] p-0" align="start">
+                                {/* ... Command content ... */}
+                                <Command shouldFilter={false}>
+                                    <CommandInput
+                                        placeholder="Search student ID..."
+                                        value={search}
+                                        onValueChange={setSearch}
+                                    />
+                                    <CommandList>
+                                        <CommandEmpty>No student found.</CommandEmpty>
+                                        {/* Manual Input Option */}
+                                        {search && !isNaN(parseInt(search)) && (
+                                            <CommandItem
+                                                value={`manual-${search}`}
+                                                onSelect={() => handleManualAssign(search)}
+                                            >
+                                                <span className="font-medium text-blue-600 flex items-center gap-2">
+                                                    Assign ID: {search}
+                                                    <span className="text-xs text-slate-400 font-normal">
+                                                        (→ {calculateStudentRoll(classLevel, group, search)})
+                                                    </span>
+                                                </span>
+                                            </CommandItem>
+                                        )}
+                                        {/* Matches ... */}
+                                        {exactMatches.length > 0 && (
+                                            <CommandGroup heading="Exact Match">
+                                                {exactMatches.map((student) => (
+                                                    <CommandItem
+                                                        key={student.master_roll || student.student_name}
+                                                        value={`${student.master_roll} ${student.student_name}`}
+                                                        onSelect={() => handleAssignStudent(student)}
+                                                    >
+                                                        <div className="flex flex-col">
+                                                            <span className="font-bold">{student.student_name} ({student.master_roll})</span>
+                                                            <span className={cn("text-xs", student.row_status === 'MISSING' ? "text-green-600" : "text-orange-500")}>Status: {student.row_status}</span>
+                                                        </div>
+                                                    </CommandItem>
+                                                ))}
+                                            </CommandGroup>
+                                        )}
+                                        {startsWithMatches.length > 0 && (
+                                            <CommandGroup heading="Matches ID">
+                                                {startsWithMatches.map((student) => (
+                                                    <CommandItem
+                                                        key={student.master_roll || student.student_name}
+                                                        value={`${student.master_roll} ${student.student_name}`}
+                                                        onSelect={() => handleAssignStudent(student)}
+                                                    >
+                                                        <div className="flex flex-col">
+                                                            <span>{student.student_name} ({student.master_roll})</span>
+                                                            <span className={cn("text-xs", student.row_status === 'MISSING' ? "text-green-600" : "text-orange-500")}>Status: {student.row_status}</span>
+                                                        </div>
+                                                    </CommandItem>
+                                                ))}
+                                            </CommandGroup>
+                                        )}
+                                        {otherMatches.length > 0 && (
+                                            <CommandGroup heading="Other Matches">
+                                                {otherMatches.map((student) => (
+                                                    <CommandItem
+                                                        key={student.master_roll || student.student_name}
+                                                        value={`${student.master_roll} ${student.student_name}`}
+                                                        onSelect={() => handleAssignStudent(student)}
+                                                    >
+                                                        <div className="flex flex-col">
+                                                            <span>{student.student_name} ({student.master_roll})</span>
+                                                            <span className={cn("text-xs", student.row_status === 'MISSING' ? "text-green-600" : "text-orange-500")}>Status: {student.row_status}</span>
+                                                        </div>
+                                                    </CommandItem>
+                                                ))}
+                                            </CommandGroup>
+                                        )}
+                                    </CommandList>
+                                </Command>
+                            </PopoverContent>
+                        </Popover>
+                    ) : (
+                        <span className="font-mono text-slate-400">-</span>
                     )}
+                </div>
 
+                {/* Col 3: Student Name */}
+                <div className="w-[30%] overflow-hidden shrink-0">
+                    <span className={cn(
+                        "truncate block font-medium text-lg", // Larger font
+                        entry.row_status === 'GHOST' ? "text-slate-500 italic" : "text-slate-800"
+                    )} title={entry.student_name}>
+                        {entry.student_name}
+                    </span>
+                </div>
+
+                {/* Col 4: Error Message */}
+                <div className="w-[30%] overflow-hidden shrink-0">
                     {entry.error_message && (
-                        <Tooltip>
-                            <TooltipTrigger>
-                                <AlertTriangle className="w-4 h-4 text-red-400" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p>{entry.error_message}</p>
-                            </TooltipContent>
-                        </Tooltip>
+                        <span className="text-red-500 text-sm truncate block" title={entry.error_message}>
+                            {entry.error_message}
+                        </span>
+                    )}
+                </div>
+
+                {/* Col 5: Actions */}
+                <div className="flex-1 flex justify-end gap-2 shrink-0 overflow-hidden">
+                    {/* Quick Actions */}
+                    {hasAbsentError && (
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 px-2 text-xs bg-white/50 hover:bg-white text-green-700 border border-green-200 whitespace-nowrap"
+                            onClick={(e) => handleQuickAction(e, 'present')}
+                        >
+                            Confirm Present
+                        </Button>
+                    )}
+                    {hasTooFewError && (
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 px-2 text-xs bg-white/50 hover:bg-white text-orange-700 border border-orange-200 whitespace-nowrap"
+                            onClick={(e) => handleQuickAction(e, 'too_few')}
+                        >
+                            Accept
+                        </Button>
                     )}
                 </div>
             </div>

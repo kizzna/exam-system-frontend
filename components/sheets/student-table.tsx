@@ -1,11 +1,13 @@
 import React, { useRef, useEffect, useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { tasksApi } from '@/lib/api/tasks';
+import { sheetsApi } from '@/lib/api/sheets';
 import { Loader2, ArrowUpDown, ListOrdered } from 'lucide-react';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import { StudentRow } from './student-row';
+import { toast } from 'sonner';
 
 interface StudentTableProps {
     taskId: string;
@@ -18,6 +20,8 @@ type ViewMode = 'PRIORITY' | 'SEQUENTIAL';
 export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: StudentTableProps) {
     const parentRef = useRef<HTMLDivElement>(null);
     const [viewMode, setViewMode] = useState<ViewMode>('SEQUENTIAL');
+    const [editingSheetId, setEditingSheetId] = useState<string | null>(null);
+    const queryClient = useQueryClient();
 
     // Fetch Roster using task_id
     const { data: roster, isLoading } = useQuery({
@@ -34,8 +38,6 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
             // Sequential View: 
             // 1. Filter out Missing (No physical sheet)
             // 2. Sort by original_filename (Physical order)
-            // Note: We need accurate original_filename. 
-            // If it's missing, we fall back to something stable but ideally it should present.
             return roster
                 .filter(r => r.sheet_id !== null)
                 .sort((a, b) => {
@@ -49,7 +51,7 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
     const rowVirtualizer = useVirtualizer({
         count: displayRoster.length,
         getScrollElement: () => parentRef.current,
-        estimateSize: () => 60, // Increased slightly for better spacing/UI
+        estimateSize: () => 50,
         overscan: 5,
     });
 
@@ -57,8 +59,11 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
     useEffect(() => {
         if (displayRoster.length === 0) return;
 
-        const handleKeyDown = (e: KeyboardEvent) => {
-            // Only handle if no input/textarea is focused
+        const handleKeyDown = async (e: KeyboardEvent) => {
+            // Only handle if no input/textarea is focused, allow standard nav unless special keys
+            // But if popover is open (editingSheetId is set), we might want to respect default behavior 
+            // unless users wants to close it? 
+            // Usually popover focus trap handles it. If not in a popover:
             if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) return;
 
             const currentIndex = displayRoster.findIndex(r => r.sheet_id === selectedSheetId);
@@ -89,22 +94,64 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                     e.preventDefault();
                     nextIndex = displayRoster.length - 1;
                     break;
+                case 'Enter':
+                    if (e.ctrlKey) {
+                        // Quick Fix (Ctrl + Enter)
+                        e.preventDefault();
+                        if (currentIndex !== -1) {
+                            const entry = displayRoster[currentIndex];
+                            if (!entry.sheet_id) return;
+
+                            // Determine Action based on effective_flags
+                            // Bit 6 (64): Absent but sheet present -> Mark Present
+                            // Bit 1 (2): Too few answers -> Too few
+                            // Prioritize Mark Present if both exist (though unlikely)
+                            let actionType: 'present' | 'too_few' | null = null;
+                            if ((entry.effective_flags & 64) > 0 || entry.row_status === 'UNEXPECTED') {
+                                actionType = 'present';
+                            } else if ((entry.effective_flags & 2) > 0) {
+                                actionType = 'too_few';
+                            }
+
+                            if (actionType) {
+                                try {
+                                    await sheetsApi.verifySheet(entry.sheet_id, {
+                                        corrected_flags: {
+                                            marked_present: actionType === 'present' ? true : undefined,
+                                            too_few_answers: actionType === 'too_few' ? true : undefined
+                                        }
+                                    });
+                                    toast.success("Updated sheet status via shortcut");
+                                    queryClient.invalidateQueries({ queryKey: ['roster'] });
+                                } catch (err) {
+                                    toast.error("Failed to update status");
+                                }
+                            } else {
+                                toast.info("No quick fix available for this status");
+                            }
+                        }
+                    } else {
+                        // Edit Mode (Enter)
+                        e.preventDefault();
+                        if (currentIndex !== -1) {
+                            const entry = displayRoster[currentIndex];
+                            // Only allow edit if there is a sheet_id
+                            if (entry.sheet_id) {
+                                setEditingSheetId(entry.sheet_id);
+                            }
+                        }
+                    }
+                    break;
                 case 'n': // Next Error Navigation
                 case 'N':
-                    if (viewMode === 'SEQUENTIAL') {
-                        e.preventDefault();
-                        const errorIndex = displayRoster.findIndex((r, idx) => {
-                            if (idx <= currentIndex) return false;
-                            // Skip OK and MISSING (though missing shouldn't be here in seq view usually)
-                            // Stop at ERROR, GHOST, UNEXPECTED, ABSENT
-                            return ['ERROR', 'GHOST', 'UNEXPECTED', 'ABSENT'].includes(r.row_status);
-                        });
-                        if (errorIndex !== -1) {
-                            nextIndex = errorIndex;
-                        } else {
-                            // Optional: Loop back to start or notify "No more errors"
-                            // For now, simple stop.
-                        }
+                    // Works in both modes now if desired, but mainly useful for verifying
+                    e.preventDefault();
+                    const errorIndex = displayRoster.findIndex((r, idx) => {
+                        if (idx <= currentIndex) return false;
+                        return ['ERROR', 'GHOST', 'UNEXPECTED', 'ABSENT'].includes(r.row_status);
+                    });
+                    if (errorIndex !== -1) {
+                        nextIndex = errorIndex;
                     }
                     break;
                 default:
@@ -122,19 +169,17 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [displayRoster, selectedSheetId, onSelectSheet, rowVirtualizer, viewMode]);
+    }, [displayRoster, selectedSheetId, onSelectSheet, rowVirtualizer, viewMode, queryClient]);
 
     // Scroll to selected item on initial load or selection change (if visible in current view)
     useEffect(() => {
         if (selectedSheetId && displayRoster.length > 0) {
-            // We only auto-scroll if the selected item is actually in the current list
             const index = displayRoster.findIndex(r => r.sheet_id === selectedSheetId);
             if (index !== -1) {
-                // Optional: Debounce this or check if already visible to prevent jarring jumps
                 rowVirtualizer.scrollToIndex(index, { align: 'center' });
             }
         }
-    }, [selectedSheetId, displayRoster, rowVirtualizer]); // Removed roster dependency to avoid conflict
+    }, [selectedSheetId, displayRoster, rowVirtualizer]);
 
     if (isLoading) {
         return (
@@ -152,8 +197,6 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
         );
     }
 
-    // Extract Class and Group from Task ID (8 digits)
-    // Structure: [ExamCenter:6][Class:1][Group:1]
     const classLevel = parseInt(taskId.charAt(6), 10);
     const group = parseInt(taskId.charAt(7), 10);
 
@@ -196,6 +239,16 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                             const isSelected = entry.sheet_id === selectedSheetId;
                             const isClickable = !!entry.sheet_id;
 
+                            // Editing Logic
+                            const isOpen = editingSheetId === entry.sheet_id;
+                            const onOpenChange = (open: boolean) => {
+                                if (open) {
+                                    setEditingSheetId(entry.sheet_id);
+                                } else {
+                                    setEditingSheetId(null);
+                                }
+                            };
+
                             return (
                                 <StudentRow
                                     key={entry.sheet_id || `missing-${entry.master_roll}`}
@@ -215,6 +268,8 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                                     fullRoster={roster}
                                     classLevel={classLevel}
                                     group={group}
+                                    isOpen={isOpen}
+                                    onOpenChange={onOpenChange}
                                 />
                             );
                         })}

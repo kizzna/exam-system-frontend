@@ -92,6 +92,8 @@ export interface RosterEntry {
   error_flags: number;
   original_filename: string | null;
   row_status: 'MISSING' | 'UNEXPECTED' | 'ERROR' | 'OK' | 'ABSENT' | 'GHOST';
+  effective_flags: number;
+  corrected_flags: number;
   error_message: string | null;
 }
 
