@@ -17,7 +17,7 @@ type ViewMode = 'PRIORITY' | 'SEQUENTIAL';
 
 export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: StudentTableProps) {
     const parentRef = useRef<HTMLDivElement>(null);
-    const [viewMode, setViewMode] = useState<ViewMode>('PRIORITY');
+    const [viewMode, setViewMode] = useState<ViewMode>('SEQUENTIAL');
 
     // Fetch Roster using task_id
     const { data: roster, isLoading } = useQuery({

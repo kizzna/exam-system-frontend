@@ -34,6 +34,8 @@ export interface Task {
   err_exam_center_id_count?: number;
   err_class_group_count?: number;
   err_class_level_count?: number;
+  err_absent_count_total?: number;
+  err_absent_count?: number;
   created_at: string;
   access_source?: string;
 
@@ -50,6 +52,7 @@ export interface TaskStats {
   err_exam_center_id_total: number;
   err_class_level_total: number;
   err_class_group_total: number;
+  err_absent_count_total: number;
 }
 
 export interface CreateTaskRequest {

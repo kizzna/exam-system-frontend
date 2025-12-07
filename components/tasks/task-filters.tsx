@@ -27,6 +27,7 @@ export interface TaskFiltersState {
     err_exam_center_id_count?: number;
     err_class_group_count?: number;
     err_class_level_count?: number;
+    err_absent_count?: number;
 }
 
 interface TaskFiltersProps {
@@ -188,6 +189,51 @@ export function TaskFilters({ filters, onFilterChange }: TaskFiltersProps) {
                     />
                 </div>
 
+                <div className="space-y-2 w-28">
+                    <Label htmlFor="err-dup" className="text-xs">ซ้ำ</Label>
+                    <Input
+                        id="err-dup"
+                        type="number"
+                        placeholder="> 0"
+                        value={filters.err_duplicate_sheets_count || ''}
+                        onChange={(e) => onFilterChange({ ...filters, err_duplicate_sheets_count: e.target.value ? parseInt(e.target.value) : undefined })}
+                    />
+                </div>
+
+                <div className="space-y-2 w-28">
+                    <Label htmlFor="err-low" className="text-xs">อ่านไม่ถึง 140 ข้อ</Label>
+                    <Input
+                        id="err-low"
+                        type="number"
+                        placeholder="> 0"
+                        value={filters.err_low_answer_count || ''}
+                        onChange={(e) => onFilterChange({ ...filters, err_low_answer_count: e.target.value ? parseInt(e.target.value) : undefined })}
+                    />
+                </div>
+
+                <div className="space-y-2 w-28">
+                    <Label htmlFor="err-sid" className="text-xs">เลขที่สอบผิด</Label>
+                    <Input
+                        id="err-sid"
+                        type="number"
+                        placeholder="> 0"
+                        value={filters.err_student_id_count || ''}
+                        onChange={(e) => onFilterChange({ ...filters, err_student_id_count: e.target.value ? parseInt(e.target.value) : undefined })}
+                    />
+                </div>
+
+                <div className="space-y-2 w-28">
+                    <Label htmlFor="err-absent" className="text-xs">ขาดสอบมีใบตอบ</Label>
+                    <Input
+                        id="err-absent"
+                        type="number"
+                        placeholder="> 0"
+                        value={filters.err_absent_count || ''}
+                        onChange={(e) => onFilterChange({ ...filters, err_absent_count: e.target.value ? parseInt(e.target.value) : undefined })}
+                    />
+                </div>
+
+
                 <div className="flex items-end">
                     <Popover>
                         <PopoverTrigger asChild>
@@ -200,39 +246,7 @@ export function TaskFilters({ filters, onFilterChange }: TaskFiltersProps) {
                             <div className="grid gap-4">
                                 {/* Specific Errors */}
                                 <div className="grid grid-cols-2 gap-2">
-                                    <div className="space-y-1">
-                                        <Label htmlFor="err-dup" className="text-xs">ซ้ำ</Label>
-                                        <Input
-                                            id="err-dup"
-                                            type="number"
-                                            className="h-8"
-                                            placeholder="> 0"
-                                            value={filters.err_duplicate_sheets_count || ''}
-                                            onChange={(e) => onFilterChange({ ...filters, err_duplicate_sheets_count: e.target.value ? parseInt(e.target.value) : undefined })}
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <Label htmlFor="err-low" className="text-xs">อ่านไม่ถึง 140 ข้อ</Label>
-                                        <Input
-                                            id="err-low"
-                                            type="number"
-                                            className="h-8"
-                                            placeholder="> 0"
-                                            value={filters.err_low_answer_count || ''}
-                                            onChange={(e) => onFilterChange({ ...filters, err_low_answer_count: e.target.value ? parseInt(e.target.value) : undefined })}
-                                        />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <Label htmlFor="err-sid" className="text-xs">เลขที่สอบผิด</Label>
-                                        <Input
-                                            id="err-sid"
-                                            type="number"
-                                            className="h-8"
-                                            placeholder="> 0"
-                                            value={filters.err_student_id_count || ''}
-                                            onChange={(e) => onFilterChange({ ...filters, err_student_id_count: e.target.value ? parseInt(e.target.value) : undefined })}
-                                        />
-                                    </div>
+
                                     <div className="space-y-1">
                                         <Label htmlFor="err-center" className="text-xs">รหัสสนามสอบผิด</Label>
                                         <Input

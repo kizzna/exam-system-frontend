@@ -22,6 +22,7 @@ export const tasksApi = {
     err_exam_center_id_count?: number;
     err_class_group_count?: number;
     err_class_level_count?: number;
+    err_absent_count?: number;
     page?: number;
     size?: number;
     sort_by?: string;
@@ -46,6 +47,7 @@ export const tasksApi = {
     err_exam_center_id_count?: number;
     err_class_group_count?: number;
     err_class_level_count?: number;
+    err_absent_count?: number;
   }): Promise<TaskStats> => {
     const response = await apiClient.get<TaskStats>('/tasks/stats', { params });
     return response.data;

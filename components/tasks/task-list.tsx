@@ -184,32 +184,41 @@ const columns: ColumnDef<Task>[] = [
         },
     },
     {
-        accessorKey: 'err_exam_center_id_count',
-        header: 'รหัสสนามผิด',
+        accessorKey: 'err_absent_count',
+        header: 'ขาดสอบมีใบตอบ',
         enableSorting: true,
         cell: ({ row }) => {
-            const count = row.original.err_exam_center_id_count || 0;
-            return count > 0 ? <Badge className="bg-purple-500 hover:bg-purple-600 rounded-full">{count}</Badge> : null;
+            const count = row.original.err_absent_count || 0;
+            return count > 0 ? <Badge className="bg-gray-500 hover:bg-gray-600 rounded-full">{count}</Badge> : null;
         },
     },
-    {
-        accessorKey: 'err_class_level_count',
-        header: 'ชั้นผิด',
-        enableSorting: true,
-        cell: ({ row }) => {
-            const count = row.original.err_class_level_count || 0;
-            return count > 0 ? <Badge className="bg-blue-500 hover:bg-blue-600 rounded-full">{count}</Badge> : null;
-        },
-    },
-    {
-        accessorKey: 'err_class_group_count',
-        header: 'ช่วงชั้นผิด',
-        enableSorting: true,
-        cell: ({ row }) => {
-            const count = row.original.err_class_group_count || 0;
-            return count > 0 ? <Badge className="bg-stone-500 hover:bg-stone-600 rounded-full">{count}</Badge> : null;
-        },
-    },
+    // {
+    //     accessorKey: 'err_exam_center_id_count',
+    //     header: 'รหัสสนามผิด',
+    //     enableSorting: true,
+    //     cell: ({ row }) => {
+    //         const count = row.original.err_exam_center_id_count || 0;
+    //         return count > 0 ? <Badge className="bg-purple-500 hover:bg-purple-600 rounded-full">{count}</Badge> : null;
+    //     },
+    // },
+    // {
+    //     accessorKey: 'err_class_level_count',
+    //     header: 'ชั้นผิด',
+    //     enableSorting: true,
+    //     cell: ({ row }) => {
+    //         const count = row.original.err_class_level_count || 0;
+    //         return count > 0 ? <Badge className="bg-blue-500 hover:bg-blue-600 rounded-full">{count}</Badge> : null;
+    //     },
+    // },
+    // {
+    //     accessorKey: 'err_class_group_count',
+    //     header: 'ช่วงชั้นผิด',
+    //     enableSorting: true,
+    //     cell: ({ row }) => {
+    //         const count = row.original.err_class_group_count || 0;
+    //         return count > 0 ? <Badge className="bg-stone-500 hover:bg-stone-600 rounded-full">{count}</Badge> : null;
+    //     },
+    // },
 ];
 
 export function TaskList({

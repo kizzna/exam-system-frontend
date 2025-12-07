@@ -183,4 +183,5 @@ export interface BatchStats {
   err_center_code_total: number;
   err_class_group_total: number;
   err_class_level_total: number;
+  err_absent_count_total: number;
 }
