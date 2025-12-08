@@ -72,11 +72,52 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
             switch (e.key) {
                 case 'ArrowDown':
                     e.preventDefault();
-                    nextIndex = Math.min(displayRoster.length - 1, currentIndex + 1);
+                    if (e.ctrlKey) {
+                        // Next Error Navigation (formerly 'n')
+                        // Find next error starting from currentIndex + 1
+                        let nextErrorIndex = displayRoster.findIndex((r, idx) => {
+                            if (idx <= currentIndex) return false;
+                            return ['ERROR', 'GHOST', 'UNEXPECTED', 'ABSENT', 'DUPLICATE', 'ABSENT_MISMATCH'].includes(r.row_status);
+                        });
+
+                        // Logic: If current row is already at last (or no next error found), wrap to first error
+                        if (nextErrorIndex === -1) {
+                            nextErrorIndex = displayRoster.findIndex((r) =>
+                                ['ERROR', 'GHOST', 'UNEXPECTED', 'ABSENT', 'DUPLICATE', 'ABSENT_MISMATCH'].includes(r.row_status)
+                            );
+                        }
+
+                        if (nextErrorIndex !== -1) {
+                            nextIndex = nextErrorIndex;
+                        }
+                    } else {
+                        nextIndex = Math.min(displayRoster.length - 1, currentIndex + 1);
+                    }
                     break;
                 case 'ArrowUp':
                     e.preventDefault();
-                    nextIndex = Math.max(0, currentIndex - 1);
+                    if (e.ctrlKey) {
+                        // Previous Error Navigation (formerly 'p')
+                        // Find prev error starting from currentIndex - 1 traversing backwards
+                        // or just find all errors and pick the one before current
+                        const errorIndices = displayRoster
+                            .map((r, idx) => ({ ...r, originalIndex: idx }))
+                            .filter(r => ['ERROR', 'GHOST', 'UNEXPECTED', 'ABSENT', 'DUPLICATE', 'ABSENT_MISMATCH'].includes(r.row_status))
+                            .map(r => r.originalIndex);
+
+                        if (errorIndices.length > 0) {
+                            // Find first index < currentIndex
+                            const prevErrors = errorIndices.filter(idx => idx < currentIndex);
+                            if (prevErrors.length > 0) {
+                                nextIndex = prevErrors[prevErrors.length - 1];
+                            } else {
+                                // Wrap to last
+                                nextIndex = errorIndices[errorIndices.length - 1];
+                            }
+                        }
+                    } else {
+                        nextIndex = Math.max(0, currentIndex - 1);
+                    }
                     break;
                 case 'PageDown':
                     e.preventDefault();
@@ -145,47 +186,7 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                         }
                     }
                     break;
-                case 'n': // Next Error Navigation
-                case 'N':
-                    e.preventDefault();
-                    // Find next error starting from currentIndex + 1
-                    let nextErrorIndex = displayRoster.findIndex((r, idx) => {
-                        if (idx <= currentIndex) return false;
-                        return ['ERROR', 'GHOST', 'UNEXPECTED', 'ABSENT'].includes(r.row_status);
-                    });
 
-                    // Logic: If current row is already at last (or no next error found), wrap to first error
-                    if (nextErrorIndex === -1) {
-                        nextErrorIndex = displayRoster.findIndex((r) =>
-                            ['ERROR', 'GHOST', 'UNEXPECTED', 'ABSENT'].includes(r.row_status)
-                        );
-                    }
-
-                    if (nextErrorIndex !== -1) {
-                        nextIndex = nextErrorIndex;
-                    }
-                    break;
-                case 'p': // Previous Error Navigation
-                case 'P':
-                    e.preventDefault();
-                    // Find prev error starting from currentIndex - 1 traversing backwards
-                    // or just find all errors and pick the one before current
-                    const errorIndices = displayRoster
-                        .map((r, idx) => ({ ...r, originalIndex: idx }))
-                        .filter(r => ['ERROR', 'GHOST', 'UNEXPECTED', 'ABSENT'].includes(r.row_status))
-                        .map(r => r.originalIndex);
-
-                    if (errorIndices.length > 0) {
-                        // Find first index < currentIndex
-                        const prevErrors = errorIndices.filter(idx => idx < currentIndex);
-                        if (prevErrors.length > 0) {
-                            nextIndex = prevErrors[prevErrors.length - 1];
-                        } else {
-                            // Wrap to last
-                            nextIndex = errorIndices[errorIndices.length - 1];
-                        }
-                    }
-                    break;
                 default:
                     return;
             }
@@ -203,23 +204,78 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [displayRoster, selectedSheetId, onSelectSheet, rowVirtualizer, viewMode, queryClient, editingSheetId]);
 
+    // State to track previous roster for diffing
+    const prevRosterRef = useRef<typeof displayRoster>([]);
+
+    // Focus Retention Logic for Priority Mode
+    useEffect(() => {
+        if (viewMode === 'PRIORITY' && selectedSheetId) {
+            const prevRoster = prevRosterRef.current;
+            if (prevRoster.length === 0) {
+                prevRosterRef.current = displayRoster;
+                return;
+            }
+
+            const prevIndex = prevRoster.findIndex(r => r.sheet_id === selectedSheetId);
+            const currIndex = displayRoster.findIndex(r => r.sheet_id === selectedSheetId);
+
+            if (prevIndex !== -1 && currIndex !== -1) {
+                const prevEntry = prevRoster[prevIndex];
+                const currEntry = displayRoster[currIndex];
+
+                // Detect if the row was "Fixed" (Status improved from Error-like to OK-like)
+                // Error-like: GHOST, ERROR, UNEXPECTED, ABSENT, DUPLICATE, ABSENT_MISMATCH
+                // OK-like: OK
+                const isError = (s: string) => ['GHOST', 'ERROR', 'UNEXPECTED', 'ABSENT', 'DUPLICATE', 'ABSENT_MISMATCH'].includes(s);
+
+                // If it was an error and now is OK (or lost its sheet id?), move focus to the replacement row
+                if (isError(prevEntry.row_status) && !isError(currEntry.row_status)) {
+                    // It was fixed and likely moved down.
+                    // We want to select the row that is now at prevIndex (the "next" item taking the slot)
+                    // Ensure we don't go out of bounds
+                    const targetIndex = Math.min(prevIndex, displayRoster.length - 1);
+                    const targetRow = displayRoster[targetIndex];
+
+                    if (targetRow && targetRow.sheet_id && targetRow.sheet_id !== selectedSheetId) {
+                        // Must defer this to avoid render-cycle conflicts or use a small timeout?
+                        // Ideally just calling onSelectSheet is enough if parent handles it gracefully.
+                        // But we are in a useEffect, so it triggers an update.
+                        onSelectSheet(targetRow.sheet_id);
+
+                        // Also force scroll to keep it in view?
+                        // Virtualizer should handle it if index is stable, but let's be sure.
+                        // rowVirtualizer.scrollToIndex(targetIndex, { align: 'center' }); // Optional
+                    }
+                }
+            }
+        }
+        prevRosterRef.current = displayRoster;
+    }, [displayRoster, viewMode, selectedSheetId, onSelectSheet]);
+
     // Cleanup / Auto-Advance Logic
     const handleCorrect = () => {
-        // Doc: "Current row become next sheet with error unless there is no sheet with error"
-        // User Update (V3): "I think we need to disable this one because user should see the reflection..."
-        // Disable auto-advance. Selection stays on the current row.
-
-        // No-op.
+        // Legacy auto-advance is disabled in favor of the effect-based logic above.
+        // The effect detects the data change and handles the move.
     };
 
-    // Scroll to selected item on initial load or selection change (if visible in current view)
+    // Scroll to selected item on initial load or selection change
+    // Modified to prevent auto-jumping when the list re-sorts (Priority Mode)
+    const lastSelectedIdRef = useRef<string | undefined>();
+
     useEffect(() => {
-        if (selectedSheetId && displayRoster.length > 0) {
+        // Only scroll if the Selection ID actually changed, or if it's the first load
+        // This prevents the "Roster Re-sort" from dragging the view to the bottom
+        const hasSelectionChanged = selectedSheetId !== lastSelectedIdRef.current;
+        const isFirstLoad = !lastSelectedIdRef.current && selectedSheetId;
+
+        if ((hasSelectionChanged || isFirstLoad) && selectedSheetId && displayRoster.length > 0) {
             const index = displayRoster.findIndex(r => r.sheet_id === selectedSheetId);
             if (index !== -1) {
                 rowVirtualizer.scrollToIndex(index, { align: 'center' });
             }
         }
+
+        lastSelectedIdRef.current = selectedSheetId;
     }, [selectedSheetId, displayRoster, rowVirtualizer]);
 
     if (isLoading) {

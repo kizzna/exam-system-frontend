@@ -91,7 +91,7 @@ export interface RosterEntry {
   sheet_roll: string | null;
   error_flags: number;
   original_filename: string | null;
-  row_status: 'MISSING' | 'UNEXPECTED' | 'ERROR' | 'OK' | 'ABSENT' | 'GHOST';
+  row_status: 'MISSING' | 'UNEXPECTED' | 'ERROR' | 'OK' | 'ABSENT' | 'GHOST' | 'DUPLICATE' | 'ABSENT_MISMATCH';
   effective_flags: number;
   corrected_flags: number;
   error_message: string | null;

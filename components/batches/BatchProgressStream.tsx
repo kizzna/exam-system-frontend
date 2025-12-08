@@ -7,7 +7,7 @@
 
 import { useBatchStream, type ProcessingStage } from '@/lib/hooks/use-batch-stream';
 import { Card } from '@/components/ui/card';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 interface BatchProgressStreamProps {
   batchId: string;
@@ -51,7 +51,7 @@ function formatDuration(seconds: number): string {
 
 export function BatchProgressStream({ batchId, onComplete }: BatchProgressStreamProps) {
   const { events, currentEvent, isConnected, isComplete, error } = useBatchStream(batchId);
-  const logEndRef = useRef<HTMLDivElement>(null);
+
   const [duplicateWarnings, setDuplicateWarnings] = useState<string[]>([]);
 
   // Monitor for duplicate task warnings
@@ -65,10 +65,7 @@ export function BatchProgressStream({ batchId, onComplete }: BatchProgressStream
     }
   }, [currentEvent]);
 
-  // Auto-scroll to bottom when new events arrive
-  useEffect(() => {
-    logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [events.length]);
+
 
   // Call onComplete callback when batch completes
   useEffect(() => {
@@ -184,7 +181,7 @@ export function BatchProgressStream({ batchId, onComplete }: BatchProgressStream
                   )}
                 </div>
               ))}
-              <div ref={logEndRef} />
+
             </div>
           )}
         </div>

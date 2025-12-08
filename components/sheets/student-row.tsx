@@ -151,9 +151,9 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
         const searchTrimmed = search.trim();
         const searchLower = searchTrimmed.toLowerCase();
 
-        const exact: RosterEntry[] = [];
-        const starts: RosterEntry[] = [];
-        const others: RosterEntry[] = [];
+        let exact: RosterEntry[] = [];
+        let starts: RosterEntry[] = [];
+        let others: RosterEntry[] = [];
 
         const searchNum = parseInt(searchTrimmed, 10);
         const isSearchNumeric = !isNaN(searchNum);
@@ -207,14 +207,21 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
         });
 
         const sortNumeric = (a: RosterEntry, b: RosterEntry) => {
+            // Priority: MISSING status first
+            if (a.row_status === 'MISSING' && b.row_status !== 'MISSING') return -1;
+            if (a.row_status !== 'MISSING' && b.row_status === 'MISSING') return 1;
+
             const ra = parseInt(a.master_roll?.toString() || '0', 10);
             const rb = parseInt(b.master_roll?.toString() || '0', 10);
             return ra - rb;
         };
 
-        exact.sort(sortNumeric);
-        starts.sort(sortNumeric);
-        others.sort(sortNumeric);
+        // Filter out GHOST from search results as requested
+        const filterGhost = (r: RosterEntry) => r.row_status !== 'GHOST';
+
+        exact = exact.filter(filterGhost).sort(sortNumeric);
+        starts = starts.filter(filterGhost).sort(sortNumeric);
+        others = others.filter(filterGhost).sort(sortNumeric);
 
         return { exactMatches: exact, startsWithMatches: starts, otherMatches: others };
     }, [fullRoster, search, classLevel, group]);
@@ -223,6 +230,8 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
         switch (status) {
             case 'GHOST': return <Ghost className="w-4 h-4 text-red-500" />;
             case 'ERROR': return <AlertTriangle className="w-4 h-4 text-orange-500" />;
+            case 'DUPLICATE': return <AlertTriangle className="w-4 h-4 text-red-600" />; // More severe than ERROR
+            case 'ABSENT_MISMATCH': return <UserX className="w-4 h-4 text-red-500" />;
             case 'UNEXPECTED': return <HelpCircle className="w-4 h-4 text-yellow-500" />;
             case 'MISSING': return <UserX className="w-4 h-4 text-slate-400" />;
             case 'OK': return <CheckCircle className="w-4 h-4 text-green-500" />;
@@ -234,6 +243,8 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
         switch (status) {
             case 'GHOST': return "border-l-4 border-l-red-500 bg-red-50/50";
             case 'ERROR': return "border-l-4 border-l-orange-500 bg-orange-50/50";
+            case 'DUPLICATE': return "border-l-4 border-l-red-600 bg-red-100/50";
+            case 'ABSENT_MISMATCH': return "border-l-4 border-l-red-500 bg-red-50/50";
             case 'UNEXPECTED': return "bg-yellow-50";
             case 'MISSING': return "opacity-60 bg-slate-50";
             case 'OK': return "border-l-4 border-l-green-500";
@@ -337,7 +348,7 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
     // Determine errors from effective_flags (priority) or row_status
     // Bit 6 (64): Absent but sheet present -> "Mark Present"
     // Bit 1 (2): Too few answers -> "Too few"
-    const hasAbsentError = (entry.effective_flags & 64) > 0 || entry.row_status === 'UNEXPECTED';
+    const hasAbsentError = (entry.effective_flags & 64) > 0 || entry.row_status === 'UNEXPECTED' || entry.row_status === 'ABSENT_MISMATCH';
     const hasTooFewError = (entry.effective_flags & 2) > 0;
 
     const isCorrected = (entry.corrected_flags || 0) > 0;
