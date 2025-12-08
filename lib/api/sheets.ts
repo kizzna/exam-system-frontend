@@ -1,6 +1,7 @@
 import apiClient from './client';
 import { Sheet, SheetCorrectionRequest, BulkSheetUpdateRequest, OverlayResponse, OMRLayout, AnswerKey, SheetInfoUpdateRequest, SheetVerificationRequest } from '../types/sheets';
 import { PaginatedResponse } from '../types/api';
+import { RosterEntry } from '../types/tasks';
 
 export const sheetsApi = {
   getSheets: async (params?: { page?: number; size?: number; status?: string; batch_id?: string }): Promise<PaginatedResponse<Sheet>> => {
@@ -47,8 +48,11 @@ export const sheetsApi = {
     return response.data;
   },
 
-  updateSheetInfo: async (data: SheetInfoUpdateRequest): Promise<void> => {
-    await apiClient.patch('/sheets/info', data);
+
+
+  updateSheetInfo: async (data: SheetInfoUpdateRequest): Promise<RosterEntry[]> => {
+    const response = await apiClient.patch<RosterEntry[]>('/sheets/info', data);
+    return response.data;
   },
 
   verifySheet: async (id: string, data: SheetVerificationRequest): Promise<void> => {

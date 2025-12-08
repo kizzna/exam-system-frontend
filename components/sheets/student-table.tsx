@@ -270,6 +270,7 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                                     group={group}
                                     isOpen={isOpen}
                                     onOpenChange={onOpenChange}
+                                    taskId={taskId}
                                 />
                             );
                         })}

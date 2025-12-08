@@ -20,9 +20,86 @@ interface StudentRowProps {
     fullRoster: RosterEntry[];
     classLevel: number;
     group: number;
+    taskId: string;
 }
 
-export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, onSelect, viewMode, fullRoster, classLevel, group, isOpen, onOpenChange }: StudentRowProps & { isOpen: boolean; onOpenChange: (open: boolean) => void }) => {
+function applyRosterUpdates(oldRoster: RosterEntry[], updatedRows: RosterEntry[]): RosterEntry[] {
+    const updates = [...updatedRows];
+    const updatesConsumed = new Set<number>(); // Index of consumed updates
+
+    // Identify all sheet_ids involved in the update
+    const updatedSheetIds = new Set(updates.map(u => u.sheet_id ? String(u.sheet_id) : '').filter(Boolean));
+
+    // Pass 1: Map (Update Existing)
+    let newRoster = oldRoster.map(row => {
+        // Match logic
+        const updateIndex = updates.findIndex(u => {
+            if (row.source === 'master') {
+                return u.source === 'master' && String(u.master_roll) === String(row.master_roll);
+            } else { // ghost
+                return u.source === 'ghost' && String(u.sheet_id) === String(row.sheet_id);
+            }
+        });
+
+        if (updateIndex !== -1) {
+            updatesConsumed.add(updateIndex);
+            return updates[updateIndex];
+        }
+
+        // Check 2: Sheet Stealing (Did this row lose its sheet?)
+        // If this row has a sheet that is present in the updates (assigned to someone else since we didn't match above),
+        // then this row lost it.
+        if (row.sheet_id && updatedSheetIds.has(String(row.sheet_id))) {
+            if (row.source === 'master') {
+                // Reset Master Row to defaults
+                return {
+                    ...row,
+                    sheet_id: null,
+                    sheet_roll: null,
+                    error_flags: 0,
+                    corrected_flags: 0,
+                    effective_flags: 0,
+                    original_filename: null,
+                    row_status: 'MISSING',
+                    error_message: null
+                };
+            } else {
+                // Delete Ghost Row (it lost its sheet)
+                return null;
+            }
+        }
+
+        return row;
+    });
+
+    // Pass 2: Append (Add New)
+    updates.forEach((u, idx) => {
+        if (!updatesConsumed.has(idx)) {
+            newRoster.push(u);
+        }
+    });
+
+    // Pass 3: Cleanup (Deduplicate)
+    // Identify all sheet_ids strictly claimed by Master rows in the new roster
+    const masterSheetIds = new Set(
+        newRoster
+            .filter(r => r && r.source === 'master' && r.sheet_id)
+            .map(r => String(r!.sheet_id))
+    );
+
+    // Remove any Ghost rows whose sheet_id is now owned by a Master
+    newRoster = newRoster.filter(r => {
+        if (!r) return false;
+        if (r.source === 'ghost' && r.sheet_id && masterSheetIds.has(String(r.sheet_id))) {
+            return false;
+        }
+        return true;
+    });
+
+    return newRoster as RosterEntry[];
+}
+
+export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, onSelect, viewMode, fullRoster, classLevel, group, taskId, isOpen, onOpenChange }: StudentRowProps & { isOpen: boolean; onOpenChange: (open: boolean) => void }) => {
     const queryClient = useQueryClient();
     const [search, setSearch] = useState("");
 
@@ -107,14 +184,18 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
                 || targetStudent.master_roll
                 || '';
 
-            await sheetsApi.updateSheetInfo({
+            const updatedRows = await sheetsApi.updateSheetInfo({
                 sheet_ids: [entry.sheet_id],
                 updates: { student_roll: finalRoll }
             });
 
             toast.success(`Assigned sheet to ${targetStudent.student_name}`);
             onOpenChange(false);
-            queryClient.invalidateQueries({ queryKey: ['roster'] });
+
+            queryClient.setQueryData<RosterEntry[]>(['roster', taskId], (oldRoster) => {
+                if (!oldRoster) return oldRoster;
+                return applyRosterUpdates(oldRoster, updatedRows);
+            });
         } catch (error) {
             toast.error("Failed to update student assignment");
         }
@@ -130,14 +211,18 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
             const matchedStudent = fullRoster.find(s => s.master_roll && s.master_roll.toString() === manualInput);
             const name = matchedStudent ? matchedStudent.student_name : `roll ${manualInput}`;
 
-            await sheetsApi.updateSheetInfo({
+            const updatedRows = await sheetsApi.updateSheetInfo({
                 sheet_ids: [entry.sheet_id],
                 updates: { student_roll: finalRoll }
             });
 
             toast.success(`Assigned sheet to ${name}`);
             onOpenChange(false);
-            queryClient.invalidateQueries({ queryKey: ['roster'] });
+
+            queryClient.setQueryData<RosterEntry[]>(['roster', taskId], (oldRoster) => {
+                if (!oldRoster) return oldRoster;
+                return applyRosterUpdates(oldRoster, updatedRows);
+            });
         } catch (error) {
             toast.error("Failed to update manual assignment");
         }
