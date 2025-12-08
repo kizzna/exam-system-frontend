@@ -94,7 +94,7 @@ export default function OMRReviewPage({ params }: { params: Promise<{ taskId: st
                     {/* Proportions: ~58% width, ~42% height */}
                     <section className="col-span-7 row-span-5 bg-white rounded-lg border shadow-sm relative overflow-hidden flex flex-col">
                         <div className="absolute top-2 left-2 z-10 bg-black/50 text-white text-xs px-2 py-1 rounded">
-                            Panel A: Header Image Crop
+                            แผง A: ภาพส่วนบน (ข้อมูลผู้ขอเข้าสอบ)
                         </div>
                         <HeaderImageViewer sheetId={selectedSheetId} />
                     </section>
@@ -103,7 +103,7 @@ export default function OMRReviewPage({ params }: { params: Promise<{ taskId: st
                     {/* Proportions: ~42% width, ~42% height */}
                     <section className="col-span-5 row-span-5 bg-white rounded-lg border shadow-sm p-4 overflow-y-auto">
                         <div className="mb-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                            Panel B: Stats & Actions
+                            แผง B: สถิติและเครื่องมือ
                         </div>
                         <StatsPanel taskId={taskId} />
                     </section>
@@ -112,7 +112,7 @@ export default function OMRReviewPage({ params }: { params: Promise<{ taskId: st
                     {/* Proportions: ~58% width, ~58% height */}
                     <section className="col-span-7 row-span-7 bg-white rounded-lg border shadow-sm flex flex-col overflow-hidden">
                         <div className="p-2 border-b bg-slate-50 flex justify-between items-center">
-                            <span className="text-xs font-bold text-slate-500">Panel C: Student Roster</span>
+                            <span className="text-xs font-bold text-slate-500">แผง C: รายชื่อผู้สมัครสอบ</span>
                             <input type="text" placeholder="Search..." className="text-xs border rounded px-2 py-1" />
                         </div>
 
@@ -130,7 +130,7 @@ export default function OMRReviewPage({ params }: { params: Promise<{ taskId: st
                     {/* Proportions: ~42% width, ~58% height */}
                     <section className="col-span-5 row-span-7 bg-white rounded-lg border shadow-sm relative overflow-hidden flex flex-col">
                         <div className="absolute top-2 left-2 z-10 bg-black/50 text-white text-xs px-2 py-1 rounded">
-                            Panel D: Answer Sheet Overlay
+                            แผง D: คำตอบ 150 ข้อ
                         </div>
                         <AnswerImageViewer
                             sheetId={selectedSheetId}

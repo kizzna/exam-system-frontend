@@ -60,11 +60,11 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
         if (displayRoster.length === 0) return;
 
         const handleKeyDown = async (e: KeyboardEvent) => {
-            // Only handle if no input/textarea is focused, allow standard nav unless special keys
-            // But if popover is open (editingSheetId is set), we might want to respect default behavior 
-            // unless users wants to close it? 
-            // Usually popover focus trap handles it. If not in a popover:
+            // Only handle if no input/textarea is focused
             if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) return;
+
+            // Block navigation if a popover is open
+            if (editingSheetId) return;
 
             const currentIndex = displayRoster.findIndex(r => r.sheet_id === selectedSheetId);
             let nextIndex = currentIndex;
@@ -123,6 +123,9 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                                     });
                                     toast.success("Updated sheet status via shortcut");
                                     queryClient.invalidateQueries({ queryKey: ['roster'] });
+
+                                    // Trigger Auto-Advance for Quick Fix
+                                    handleCorrect();
                                 } catch (err) {
                                     toast.error("Failed to update status");
                                 }
@@ -144,14 +147,43 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                     break;
                 case 'n': // Next Error Navigation
                 case 'N':
-                    // Works in both modes now if desired, but mainly useful for verifying
                     e.preventDefault();
-                    const errorIndex = displayRoster.findIndex((r, idx) => {
+                    // Find next error starting from currentIndex + 1
+                    let nextErrorIndex = displayRoster.findIndex((r, idx) => {
                         if (idx <= currentIndex) return false;
                         return ['ERROR', 'GHOST', 'UNEXPECTED', 'ABSENT'].includes(r.row_status);
                     });
-                    if (errorIndex !== -1) {
-                        nextIndex = errorIndex;
+
+                    // Logic: If current row is already at last (or no next error found), wrap to first error
+                    if (nextErrorIndex === -1) {
+                        nextErrorIndex = displayRoster.findIndex((r) =>
+                            ['ERROR', 'GHOST', 'UNEXPECTED', 'ABSENT'].includes(r.row_status)
+                        );
+                    }
+
+                    if (nextErrorIndex !== -1) {
+                        nextIndex = nextErrorIndex;
+                    }
+                    break;
+                case 'p': // Previous Error Navigation
+                case 'P':
+                    e.preventDefault();
+                    // Find prev error starting from currentIndex - 1 traversing backwards
+                    // or just find all errors and pick the one before current
+                    const errorIndices = displayRoster
+                        .map((r, idx) => ({ ...r, originalIndex: idx }))
+                        .filter(r => ['ERROR', 'GHOST', 'UNEXPECTED', 'ABSENT'].includes(r.row_status))
+                        .map(r => r.originalIndex);
+
+                    if (errorIndices.length > 0) {
+                        // Find first index < currentIndex
+                        const prevErrors = errorIndices.filter(idx => idx < currentIndex);
+                        if (prevErrors.length > 0) {
+                            nextIndex = prevErrors[prevErrors.length - 1];
+                        } else {
+                            // Wrap to last
+                            nextIndex = errorIndices[errorIndices.length - 1];
+                        }
                     }
                     break;
                 default:
@@ -169,7 +201,16 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [displayRoster, selectedSheetId, onSelectSheet, rowVirtualizer, viewMode, queryClient]);
+    }, [displayRoster, selectedSheetId, onSelectSheet, rowVirtualizer, viewMode, queryClient, editingSheetId]);
+
+    // Cleanup / Auto-Advance Logic
+    const handleCorrect = () => {
+        // Doc: "Current row become next sheet with error unless there is no sheet with error"
+        // User Update (V3): "I think we need to disable this one because user should see the reflection..."
+        // Disable auto-advance. Selection stays on the current row.
+
+        // No-op.
+    };
 
     // Scroll to selected item on initial load or selection change (if visible in current view)
     useEffect(() => {
@@ -271,6 +312,7 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                                     isOpen={isOpen}
                                     onOpenChange={onOpenChange}
                                     taskId={taskId}
+                                    onCorrect={handleCorrect}
                                 />
                             );
                         })}

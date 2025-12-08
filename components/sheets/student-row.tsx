@@ -21,6 +21,7 @@ interface StudentRowProps {
     classLevel: number;
     group: number;
     taskId: string;
+    onCorrect?: () => void;
 }
 
 function applyRosterUpdates(oldRoster: RosterEntry[], updatedRows: RosterEntry[]): RosterEntry[] {
@@ -60,7 +61,7 @@ function applyRosterUpdates(oldRoster: RosterEntry[], updatedRows: RosterEntry[]
                     corrected_flags: 0,
                     effective_flags: 0,
                     original_filename: null,
-                    row_status: 'MISSING',
+                    row_status: 'MISSING' as const,
                     error_message: null
                 };
             } else {
@@ -90,18 +91,58 @@ function applyRosterUpdates(oldRoster: RosterEntry[], updatedRows: RosterEntry[]
     // Remove any Ghost rows whose sheet_id is now owned by a Master
     newRoster = newRoster.filter(r => {
         if (!r) return false;
+        // Strict check: If I am a GHOST and my sheet_id is in the set of Master sheet_ids, I am a duplicate/stale row. Goodbye.
         if (r.source === 'ghost' && r.sheet_id && masterSheetIds.has(String(r.sheet_id))) {
             return false;
         }
         return true;
     });
 
-    return newRoster as RosterEntry[];
+    // Pass 4: Final Safety Net (Strict Deduplication by sheet_id)
+    // Ensure no two rows share the same non-null sheet_id.
+    const uniqueSheetMap = new Map<string, RosterEntry>();
+    const rowsWithoutSheet: RosterEntry[] = [];
+
+    newRoster.forEach(r => {
+        if (!r) return;
+        if (!r.sheet_id) {
+            rowsWithoutSheet.push(r);
+        } else {
+            const sid = String(r.sheet_id);
+            if (uniqueSheetMap.has(sid)) {
+                // Conflict! Decided who stays.
+                const existing = uniqueSheetMap.get(sid)!;
+
+                // Rule 1: Master wins over Ghost
+                if (r.source === 'master' && existing.source !== 'master') {
+                    uniqueSheetMap.set(sid, r);
+                }
+                // Rule 2: If both master (shouldn't happen) or both ghost, prefer one with OK status or just keep existing
+                else if (r.source === existing.source) {
+                    // unexpected, just keep first one or use logic. 
+                    // Keep existing is safer for stability.
+                }
+                // (If existing is master and new is ghost, existing wins - do nothing)
+            } else {
+                uniqueSheetMap.set(sid, r);
+            }
+        }
+    });
+
+    return [...rowsWithoutSheet, ...Array.from(uniqueSheetMap.values())];
 }
 
-export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, onSelect, viewMode, fullRoster, classLevel, group, taskId, isOpen, onOpenChange }: StudentRowProps & { isOpen: boolean; onOpenChange: (open: boolean) => void }) => {
+export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, onSelect, viewMode, fullRoster, classLevel, group, taskId, isOpen, onOpenChange, onCorrect }: StudentRowProps & { isOpen: boolean; onOpenChange: (open: boolean) => void }) => {
     const queryClient = useQueryClient();
     const [search, setSearch] = useState("");
+    const listRef = React.useRef<HTMLDivElement>(null);
+
+    // Reset scroll when search changes
+    React.useEffect(() => {
+        if (listRef.current) {
+            listRef.current.scrollTop = 0;
+        }
+    }, [search]);
 
     const { exactMatches, startsWithMatches, otherMatches } = React.useMemo(() => {
         const empty = { exactMatches: [], startsWithMatches: [], otherMatches: [] };
@@ -117,25 +158,50 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
         const searchNum = parseInt(searchTrimmed, 10);
         const isSearchNumeric = !isNaN(searchNum);
 
+        // Convert search to 5-digit roll if numeric
+        let searchRollCalculated = '';
+        if (isSearchNumeric) {
+            searchRollCalculated = calculateStudentRoll(classLevel, group, searchTrimmed) || '';
+            // console.log('calculatedRoll ' + searchRollCalculated);
+        }
+
         fullRoster.forEach(s => {
-            const rollStr = s.master_roll ? s.master_roll.toString() : '';
-            const rollNum = parseInt(rollStr, 10);
+            const masterRollStr = s.master_roll ? s.master_roll.toString() : '';
+            const sheetRollStr = s.sheet_roll ? s.sheet_roll.toString() : '';
             const nameLower = s.student_name ? s.student_name.toLowerCase() : '';
 
-            // 1. Exact Match
-            if (isSearchNumeric && !isNaN(rollNum) && rollNum === searchNum) {
-                exact.push(s);
-                return;
+            // Calculate candidate's 5-digit roll for comparison
+            const candidateMasterRollCalculated = calculateStudentRoll(classLevel, group, masterRollStr) || masterRollStr;
+            const candidateSheetRollCalculated = calculateStudentRoll(classLevel, group, sheetRollStr) || sheetRollStr;
+
+            // 1. Exact Match Logic
+            if (isSearchNumeric) {
+                // Check if candidate's master roll (calculated or raw) matches the search roll (calculated or raw)
+                if (candidateMasterRollCalculated === searchRollCalculated || masterRollStr === searchTrimmed) {
+                    exact.push(s);
+                    return;
+                }
+                // Check if candidate's sheet roll (calculated or raw) matches the search roll (calculated or raw)
+                if (candidateSheetRollCalculated === searchRollCalculated || sheetRollStr === searchTrimmed) {
+                    exact.push(s);
+                    return;
+                }
+            } else {
+                // Partial match for names
+                if (s.student_name && s.student_name.includes(searchTrimmed)) {
+                    exact.push(s);
+                    return;
+                }
             }
 
             // 2. Starts With
-            if (rollStr.startsWith(searchTrimmed)) {
+            if (masterRollStr.startsWith(searchTrimmed) || sheetRollStr.startsWith(searchTrimmed)) {
                 starts.push(s);
                 return;
             }
 
             // 3. Others
-            if (rollStr.includes(searchTrimmed) || nameLower.includes(searchLower)) {
+            if (masterRollStr.includes(searchTrimmed) || sheetRollStr.includes(searchTrimmed) || nameLower.includes(searchLower)) {
                 others.push(s);
             }
         });
@@ -151,7 +217,7 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
         others.sort(sortNumeric);
 
         return { exactMatches: exact, startsWithMatches: starts, otherMatches: others };
-    }, [fullRoster, search]);
+    }, [fullRoster, search, classLevel, group]);
 
     const getStatusIcon = (status: RosterEntry['row_status']) => {
         switch (status) {
@@ -196,6 +262,13 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
                 if (!oldRoster) return oldRoster;
                 return applyRosterUpdates(oldRoster, updatedRows);
             });
+
+            // Invalidate for refresh
+            queryClient.invalidateQueries({ queryKey: ['sheet-overlay', entry.sheet_id] });
+            queryClient.invalidateQueries({ queryKey: ['task-stats', taskId] });
+
+            if (onCorrect) onCorrect();
+
         } catch (error) {
             toast.error("Failed to update student assignment");
         }
@@ -223,6 +296,13 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
                 if (!oldRoster) return oldRoster;
                 return applyRosterUpdates(oldRoster, updatedRows);
             });
+
+            // Invalidate for refresh
+            queryClient.invalidateQueries({ queryKey: ['sheet-overlay', entry.sheet_id] });
+            queryClient.invalidateQueries({ queryKey: ['task-stats', taskId] });
+
+            if (onCorrect) onCorrect();
+
         } catch (error) {
             toast.error("Failed to update manual assignment");
         }
@@ -241,6 +321,14 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
             });
             toast.success("Updated sheet status");
             queryClient.invalidateQueries({ queryKey: ['roster'] });
+
+            // Invalidate for refresh
+            queryClient.invalidateQueries({ queryKey: ['task-stats', taskId] });
+            // Overlay won't change on quick action flags usually, but harmless to verify
+            // queryClient.invalidateQueries({ queryKey: ['sheet-overlay', entry.sheet_id] });
+
+            if (onCorrect) onCorrect();
+
         } catch (error) {
             toast.error("Failed to update status");
         }
@@ -251,12 +339,6 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
     // Bit 1 (2): Too few answers -> "Too few"
     const hasAbsentError = (entry.effective_flags & 64) > 0 || entry.row_status === 'UNEXPECTED';
     const hasTooFewError = (entry.effective_flags & 2) > 0;
-
-    // ... (imports remain same, maybe add Wrench icon)
-    // ... imports moved to top
-    // ...
-
-    // ... (logic remains same)
 
     const isCorrected = (entry.corrected_flags || 0) > 0;
     const correctedTooltip = isCorrected ? `Corrected Flags: ${entry.corrected_flags}` : "";
@@ -328,25 +410,33 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
                                     </span>
                                 </button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-[300px] p-0" align="start">
+                            <PopoverContent className="w-[400px] p-0 bg-slate-900/95 border-slate-700 text-slate-100 backdrop-blur-sm" align="start">
                                 {/* ... Command content ... */}
-                                <Command shouldFilter={false}>
+                                <Command shouldFilter={false} className="bg-transparent text-slate-100">
                                     <CommandInput
                                         placeholder="Search student ID..."
                                         value={search}
                                         onValueChange={setSearch}
+                                        className="text-white placeholder:text-slate-400"
+                                        onKeyDown={(e) => {
+                                            // Allow native Home/End behavior
+                                            if (e.key === 'Home' || e.key === 'End') {
+                                                e.stopPropagation();
+                                            }
+                                        }}
                                     />
-                                    <CommandList>
-                                        <CommandEmpty>No student found.</CommandEmpty>
+                                    <CommandList ref={listRef} className="max-h-[300px] overflow-y-auto">
+                                        <CommandEmpty className="py-2 text-center text-sm text-slate-400">No student found.</CommandEmpty>
                                         {/* Manual Input Option */}
                                         {search && !isNaN(parseInt(search)) && (
                                             <CommandItem
                                                 value={`manual-${search}`}
                                                 onSelect={() => handleManualAssign(search)}
+                                                className="aria-selected:bg-emerald-600 aria-selected:text-white data-[disabled]:opacity-90 data-[disabled]:pointer-events-auto cursor-pointer"
                                             >
-                                                <span className="font-medium text-blue-600 flex items-center gap-2">
+                                                <span className="font-medium text-blue-400 flex items-center gap-2">
                                                     Assign ID: {search}
-                                                    <span className="text-xs text-slate-400 font-normal">
+                                                    <span className="text-xs text-slate-500 font-normal">
                                                         (→ {calculateStudentRoll(classLevel, group, search)})
                                                     </span>
                                                 </span>
@@ -354,48 +444,51 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
                                         )}
                                         {/* Matches ... */}
                                         {exactMatches.length > 0 && (
-                                            <CommandGroup heading="Exact Match">
-                                                {exactMatches.map((student) => (
+                                            <CommandGroup heading="Exact Match" className="text-slate-300">
+                                                {exactMatches.map((student, idx) => (
                                                     <CommandItem
-                                                        key={student.master_roll || student.student_name}
+                                                        key={`${student.source}-${student.master_roll}-${idx}`}
                                                         value={`${student.master_roll} ${student.student_name}`}
                                                         onSelect={() => handleAssignStudent(student)}
+                                                        className="aria-selected:bg-emerald-600 aria-selected:text-white data-[disabled]:opacity-90 data-[disabled]:pointer-events-auto cursor-pointer"
                                                     >
                                                         <div className="flex flex-col">
-                                                            <span className="font-bold">{student.student_name} ({student.master_roll})</span>
-                                                            <span className={cn("text-xs", student.row_status === 'MISSING' ? "text-green-600" : "text-orange-500")}>Status: {student.row_status}</span>
+                                                            <span className="font-bold text-white">{student.student_name} ({student.master_roll})</span>
+                                                            <span className={cn("text-xs", student.row_status === 'MISSING' ? "text-green-400" : "text-orange-400")}>Status: {student.row_status}</span>
                                                         </div>
                                                     </CommandItem>
                                                 ))}
                                             </CommandGroup>
                                         )}
                                         {startsWithMatches.length > 0 && (
-                                            <CommandGroup heading="Matches ID">
-                                                {startsWithMatches.map((student) => (
+                                            <CommandGroup heading="Matches ID" className="text-slate-300">
+                                                {startsWithMatches.map((student, idx) => (
                                                     <CommandItem
-                                                        key={student.master_roll || student.student_name}
+                                                        key={`${student.source}-${student.master_roll}-${idx}`}
                                                         value={`${student.master_roll} ${student.student_name}`}
                                                         onSelect={() => handleAssignStudent(student)}
+                                                        className="aria-selected:bg-emerald-600 aria-selected:text-white data-[disabled]:opacity-90 data-[disabled]:pointer-events-auto cursor-pointer"
                                                     >
                                                         <div className="flex flex-col">
-                                                            <span>{student.student_name} ({student.master_roll})</span>
-                                                            <span className={cn("text-xs", student.row_status === 'MISSING' ? "text-green-600" : "text-orange-500")}>Status: {student.row_status}</span>
+                                                            <span className="text-slate-200">{student.student_name} ({student.master_roll})</span>
+                                                            <span className={cn("text-xs", student.row_status === 'MISSING' ? "text-green-400" : "text-orange-400")}>Status: {student.row_status}</span>
                                                         </div>
                                                     </CommandItem>
                                                 ))}
                                             </CommandGroup>
                                         )}
                                         {otherMatches.length > 0 && (
-                                            <CommandGroup heading="Other Matches">
-                                                {otherMatches.map((student) => (
+                                            <CommandGroup heading="Other Matches" className="text-slate-300">
+                                                {otherMatches.map((student, idx) => (
                                                     <CommandItem
-                                                        key={student.master_roll || student.student_name}
+                                                        key={`${student.source}-${student.master_roll}-${idx}`}
                                                         value={`${student.master_roll} ${student.student_name}`}
                                                         onSelect={() => handleAssignStudent(student)}
+                                                        className="aria-selected:bg-emerald-600 aria-selected:text-white data-[disabled]:opacity-90 data-[disabled]:pointer-events-auto cursor-pointer"
                                                     >
                                                         <div className="flex flex-col">
-                                                            <span>{student.student_name} ({student.master_roll})</span>
-                                                            <span className={cn("text-xs", student.row_status === 'MISSING' ? "text-green-600" : "text-orange-500")}>Status: {student.row_status}</span>
+                                                            <span className="text-slate-200">{student.student_name} ({student.master_roll})</span>
+                                                            <span className={cn("text-xs", student.row_status === 'MISSING' ? "text-green-400" : "text-orange-400")}>Status: {student.row_status}</span>
                                                         </div>
                                                     </CommandItem>
                                                 ))}
