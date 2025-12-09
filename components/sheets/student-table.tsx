@@ -3,7 +3,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { tasksApi } from '@/lib/api/tasks';
 import { sheetsApi } from '@/lib/api/sheets';
-import { Loader2, ArrowUpDown, ListOrdered } from 'lucide-react';
+import { RosterEntry } from '@/lib/types/tasks';
+import { Loader2, ArrowUpDown, ListOrdered, Navigation } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import { StudentRow } from './student-row';
@@ -20,6 +22,7 @@ type ViewMode = 'PRIORITY' | 'SEQUENTIAL';
 export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: StudentTableProps) {
     const parentRef = useRef<HTMLDivElement>(null);
     const [viewMode, setViewMode] = useState<ViewMode>('SEQUENTIAL');
+    const [jumperStatus, setJumperStatus] = useState<RosterEntry['row_status'] | 'DEFAULT'>('DEFAULT');
     const [editingSheetId, setEditingSheetId] = useState<string | null>(null);
     const queryClient = useQueryClient();
 
@@ -90,6 +93,22 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                         if (nextErrorIndex !== -1) {
                             nextIndex = nextErrorIndex;
                         }
+                    } else if (jumperStatus !== 'DEFAULT') {
+                        // Jumper Mode Down
+                        const statusToFind = jumperStatus;
+                        // Search forward from current + 1
+                        let nextStatusIndex = displayRoster.findIndex((r, idx) => idx > currentIndex && r.row_status === statusToFind);
+
+                        // Wrap around if not found
+                        if (nextStatusIndex === -1) {
+                            nextStatusIndex = displayRoster.findIndex((r) => r.row_status === statusToFind);
+                        }
+
+                        if (nextStatusIndex !== -1) {
+                            nextIndex = nextStatusIndex;
+                        } else {
+                            // No row with this status exists, stay put (or maybe toast? - silent for now)
+                        }
                     } else {
                         nextIndex = Math.min(displayRoster.length - 1, currentIndex + 1);
                     }
@@ -113,6 +132,26 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                             } else {
                                 // Wrap to last
                                 nextIndex = errorIndices[errorIndices.length - 1];
+                            }
+                        }
+                    } else if (jumperStatus !== 'DEFAULT') {
+                        // Jumper Mode Up
+                        const statusToFind = jumperStatus;
+
+                        // Find all indices of matching status
+                        const matchingIndices = displayRoster
+                            .map((r, idx) => ({ status: r.row_status, index: idx }))
+                            .filter(item => item.status === statusToFind)
+                            .map(item => item.index);
+
+                        if (matchingIndices.length > 0) {
+                            // Find nearest previous index
+                            const prevIndices = matchingIndices.filter(idx => idx < currentIndex);
+                            if (prevIndices.length > 0) {
+                                nextIndex = prevIndices[prevIndices.length - 1];
+                            } else {
+                                // Wrap to last
+                                nextIndex = matchingIndices[matchingIndices.length - 1];
                             }
                         }
                     } else {
@@ -187,6 +226,118 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                     }
                     break;
 
+                case 'ArrowLeft':
+                    if (e.ctrlKey) {
+                        e.preventDefault();
+                        const currentRoll = displayRoster[currentIndex]?.master_roll || displayRoster[currentIndex]?.sheet_roll;
+                        const searchRoll = currentRoll ? String(currentRoll) : null;
+
+                        // Check if we have counterparts
+                        const counterpartIndices = displayRoster
+                            .map((r, idx) => {
+                                const mr = r.master_roll ? String(r.master_roll) : null;
+                                const sr = r.sheet_roll ? String(r.sheet_roll) : null;
+                                return (searchRoll && (mr === searchRoll || sr === searchRoll)) ? idx : -1;
+                            })
+                            .filter(idx => idx !== -1);
+
+                        const hasCounterparts = counterpartIndices.length > 1;
+
+                        if (hasCounterparts) {
+                            // Find prev counterpart relative to currentIndex
+                            // Filter indices < currentIndex
+                            const prevIndices = counterpartIndices.filter(idx => idx < currentIndex);
+                            if (prevIndices.length > 0) {
+                                nextIndex = prevIndices[prevIndices.length - 1];
+                            } else {
+                                // Wrap to last counterpart
+                                nextIndex = counterpartIndices[counterpartIndices.length - 1];
+                            }
+                        } else {
+                            // Fallback: Find Previous DUPLICATE row
+                            // Search backwards from currentIndex - 1
+                            let foundIndex = -1;
+                            for (let i = currentIndex - 1; i >= 0; i--) {
+                                if (displayRoster[i].row_status === 'DUPLICATE') {
+                                    foundIndex = i;
+                                    break;
+                                }
+                            }
+
+                            // Wrap around
+                            if (foundIndex === -1) {
+                                for (let i = displayRoster.length - 1; i > currentIndex; i--) {
+                                    if (displayRoster[i].row_status === 'DUPLICATE') {
+                                        foundIndex = i;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (foundIndex !== -1) {
+                                nextIndex = foundIndex;
+                            } else {
+                                toast.info("No previous duplicate found");
+                            }
+                        }
+                    }
+                    break;
+
+                case 'ArrowRight':
+                    if (e.ctrlKey) {
+                        e.preventDefault();
+                        const currentRoll = displayRoster[currentIndex]?.master_roll || displayRoster[currentIndex]?.sheet_roll;
+                        const searchRoll = currentRoll ? String(currentRoll) : null;
+
+                        // Check if we have counterparts
+                        const counterpartIndices = displayRoster
+                            .map((r, idx) => {
+                                const mr = r.master_roll ? String(r.master_roll) : null;
+                                const sr = r.sheet_roll ? String(r.sheet_roll) : null;
+                                return (searchRoll && (mr === searchRoll || sr === searchRoll)) ? idx : -1;
+                            })
+                            .filter(idx => idx !== -1);
+
+                        const hasCounterparts = counterpartIndices.length > 1;
+
+                        if (hasCounterparts) {
+                            // Find next counterpart relative to currentIndex
+                            const nextIndices = counterpartIndices.filter(idx => idx > currentIndex);
+                            if (nextIndices.length > 0) {
+                                nextIndex = nextIndices[0];
+                            } else {
+                                // Wrap to first counterpart
+                                nextIndex = counterpartIndices[0];
+                            }
+                        } else {
+                            // Fallback: Find Next DUPLICATE row
+                            let foundIndex = -1;
+                            for (let i = currentIndex + 1; i < displayRoster.length; i++) {
+                                if (displayRoster[i].row_status === 'DUPLICATE') {
+                                    foundIndex = i;
+                                    break;
+                                }
+                            }
+
+                            // Wrap around
+                            if (foundIndex === -1) {
+                                for (let i = 0; i < currentIndex; i++) {
+                                    if (displayRoster[i].row_status === 'DUPLICATE') {
+                                        foundIndex = i;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (foundIndex !== -1) {
+                                nextIndex = foundIndex;
+                            } else {
+                                toast.info("No next duplicate found");
+                            }
+                        }
+                    }
+                    break;
+
                 default:
                     return;
             }
@@ -202,7 +353,7 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [displayRoster, selectedSheetId, onSelectSheet, rowVirtualizer, viewMode, queryClient, editingSheetId]);
+    }, [displayRoster, selectedSheetId, onSelectSheet, rowVirtualizer, viewMode, queryClient, editingSheetId, jumperStatus]);
 
     // State to track previous roster for diffing
     const prevRosterRef = useRef<typeof displayRoster>([]);
@@ -300,29 +451,68 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
     return (
         <div className="flex flex-col h-full bg-white">
             {/* Header / View Toggle */}
-            <div className="flex items-center gap-1 p-2 border-b">
-                <Button
-                    variant={viewMode === 'PRIORITY' ? 'secondary' : 'ghost'}
-                    size="sm"
-                    className="flex-1 text-xs"
-                    onClick={() => setViewMode('PRIORITY')}
-                >
-                    <ArrowUpDown className="w-3 h-3 mr-1" />
-                    Priority
-                </Button>
-                <Button
-                    variant={viewMode === 'SEQUENTIAL' ? 'secondary' : 'ghost'}
-                    size="sm"
-                    className="flex-1 text-xs"
-                    onClick={() => setViewMode('SEQUENTIAL')}
-                >
-                    <ListOrdered className="w-3 h-3 mr-1" />
-                    Sequential
-                </Button>
+            <div className="flex items-center justify-between p-2 border-b gap-2 bg-slate-50">
+                <div className="flex items-center gap-1">
+                    <Button
+                        variant={viewMode === 'PRIORITY' ? 'secondary' : 'ghost'}
+                        size="sm"
+                        className="text-xs px-3"
+                        onClick={() => setViewMode('PRIORITY')}
+                    >
+                        <ArrowUpDown className="w-3 h-3 mr-1" />
+                        Priority
+                    </Button>
+                    <Button
+                        variant={viewMode === 'SEQUENTIAL' ? 'secondary' : 'ghost'}
+                        size="sm"
+                        className="text-xs px-3"
+                        onClick={() => setViewMode('SEQUENTIAL')}
+                    >
+                        <ListOrdered className="w-3 h-3 mr-1" />
+                        Sequential
+                    </Button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                    <Navigation className="w-4 h-4 text-slate-500" />
+                    <Select
+                        value={jumperStatus}
+                        onValueChange={(val) => setJumperStatus(val as RosterEntry['row_status'] | 'DEFAULT')}
+                        onOpenChange={(open) => {
+                            if (!open) {
+                                // When closing, force blur to prevent SelectTrigger from capturing arrow keys
+                                setTimeout(() => {
+                                    if (document.activeElement instanceof HTMLElement) {
+                                        document.activeElement.blur();
+                                    }
+                                    parentRef.current?.focus();
+                                }, 50);
+                            }
+                        }}
+                    >
+                        <SelectTrigger className="h-8 w-[180px] text-xs bg-white">
+                            <SelectValue placeholder="Jump Mode" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="DEFAULT">Default (Sequential)</SelectItem>
+                            <SelectItem value="DUPLICATE">DUPLICATE</SelectItem>
+                            <SelectItem value="GHOST">GHOST</SelectItem>
+                            <SelectItem value="ABSENT_MISMATCH">ABSENT_MISMATCH</SelectItem>
+                            <SelectItem value="ERROR">ERROR</SelectItem>
+                            <SelectItem value="MISSING">MISSING</SelectItem>
+                            <SelectItem value="ABSENT">ABSENT</SelectItem>
+                            <SelectItem value="OK">OK</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
             </div>
 
             {/* List */}
-            <div ref={parentRef} className="flex-1 overflow-auto p-2">
+            <div
+                ref={parentRef}
+                className="flex-1 overflow-auto p-2 outline-none"
+                tabIndex={-1} // Allow programmatic focus
+            >
                 <div
                     style={{
                         height: `${rowVirtualizer.getTotalSize()}px`,
