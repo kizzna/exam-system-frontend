@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { RosterEntry } from '@/lib/types/tasks';
 import { cn, calculateStudentRoll } from '@/lib/utils';
+import { getThaiRowStatus } from '@/lib/translations';
 import { Ghost, AlertTriangle, HelpCircle, UserX, CheckCircle, Search, Wrench } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -417,7 +418,7 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
                             {isCorrected ? (
                                 <p>Corrected (Flags: {entry.corrected_flags})</p>
                             ) : (
-                                <p>Status: {entry.row_status}</p>
+                                <p>Status: {getThaiRowStatus(entry.row_status)}</p>
                             )}
                         </TooltipContent>
                     </Tooltip>
@@ -428,7 +429,16 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
 
                 {/* Col 2: Student Roll (5 digit) */}
                 <div className="w-[15%] flex items-center gap-1 overflow-hidden shrink-0">
-                    {entry.sheet_id ? (
+                    {entry.sheet_id && viewMode === 'DELETED' && (
+                        <span className={cn(
+                            "font-mono text-lg font-bold px-1",
+                            "text-slate-400 cursor-not-allowed" // Disabled look
+                        )}>
+                            {entry.sheet_roll || '-'}
+                        </span>
+                    )}
+
+                    {entry.sheet_id && viewMode !== 'DELETED' && (
                         <Popover open={isOpen} onOpenChange={onOpenChange}>
                             <PopoverTrigger asChild>
                                 <button
@@ -444,7 +454,6 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
                                 </button>
                             </PopoverTrigger>
                             <PopoverContent className="w-[400px] p-0 bg-slate-900/95 border-slate-700 text-slate-100 backdrop-blur-sm" align="start">
-                                {/* ... Command content ... */}
                                 <Command shouldFilter={false} className="bg-transparent text-slate-100">
                                     <CommandInput
                                         placeholder="Search student ID..."
@@ -488,7 +497,7 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
                                                         <div className="flex flex-col">
                                                             <span className="font-bold text-white">Suggested: {student.student_name} ({student.master_roll})</span>
                                                             <span className={cn("text-xs", student.row_status === 'MISSING' ? "text-green-400" : "text-orange-400")}>
-                                                                Status: {student.row_status}
+                                                                Status: {getThaiRowStatus(student.row_status)}
                                                             </span>
                                                         </div>
                                                     </CommandItem>
@@ -496,7 +505,7 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
                                             </CommandGroup>
                                         )}
 
-                                        {/* Matches ... */}
+                                        {/* Matches */}
                                         {exactMatches.length > 0 && (
                                             <CommandGroup heading="Exact Match" className="text-slate-300">
                                                 {exactMatches.map((student, idx) => (
@@ -508,7 +517,7 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
                                                     >
                                                         <div className="flex flex-col">
                                                             <span className="font-bold text-white">{student.student_name} ({student.master_roll})</span>
-                                                            <span className={cn("text-xs", student.row_status === 'MISSING' ? "text-green-400" : "text-orange-400")}>Status: {student.row_status}</span>
+                                                            <span className={cn("text-xs", student.row_status === 'MISSING' ? "text-green-400" : "text-orange-400")}>Status: {getThaiRowStatus(student.row_status)}</span>
                                                         </div>
                                                     </CommandItem>
                                                 ))}
@@ -525,7 +534,7 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
                                                     >
                                                         <div className="flex flex-col">
                                                             <span className="text-slate-200">{student.student_name} ({student.master_roll})</span>
-                                                            <span className={cn("text-xs", student.row_status === 'MISSING' ? "text-green-400" : "text-orange-400")}>Status: {student.row_status}</span>
+                                                            <span className={cn("text-xs", student.row_status === 'MISSING' ? "text-green-400" : "text-orange-400")}>Status: {getThaiRowStatus(student.row_status)}</span>
                                                         </div>
                                                     </CommandItem>
                                                 ))}
@@ -542,7 +551,7 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
                                                     >
                                                         <div className="flex flex-col">
                                                             <span className="text-slate-200">{student.student_name} ({student.master_roll})</span>
-                                                            <span className={cn("text-xs", student.row_status === 'MISSING' ? "text-green-400" : "text-orange-400")}>Status: {student.row_status}</span>
+                                                            <span className={cn("text-xs", student.row_status === 'MISSING' ? "text-green-400" : "text-orange-400")}>Status: {getThaiRowStatus(student.row_status)}</span>
                                                         </div>
                                                     </CommandItem>
                                                 ))}
@@ -552,7 +561,9 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
                                 </Command>
                             </PopoverContent>
                         </Popover>
-                    ) : (
+                    )}
+
+                    {!entry.sheet_id && (
                         <span className="font-mono text-slate-400">-</span>
                     )}
                 </div>
@@ -586,7 +597,7 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
                             className="h-7 px-2 text-xs bg-white/50 hover:bg-white text-green-700 border border-green-200 whitespace-nowrap"
                             onClick={(e) => handleQuickAction(e, 'present')}
                         >
-                            Confirm Present
+                            มาสอบจริง
                         </Button>
                     )}
                     {hasTooFewError && (
@@ -596,7 +607,7 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
                             className="h-7 px-2 text-xs bg-white/50 hover:bg-white text-orange-700 border border-orange-200 whitespace-nowrap"
                             onClick={(e) => handleQuickAction(e, 'too_few')}
                         >
-                            Accept
+                            ตอบไม่ครบจริง
                         </Button>
                     )}
                 </div>

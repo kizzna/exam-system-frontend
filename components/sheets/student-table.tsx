@@ -4,6 +4,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { tasksApi } from '@/lib/api/tasks';
 import { sheetsApi } from '@/lib/api/sheets';
 import { RosterEntry } from '@/lib/types/tasks';
+import { ROW_STATUS_TRANSLATIONS } from '@/lib/translations';
 import { Loader2, ArrowUpDown, ListOrdered, Navigation, CheckSquare, Square } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -47,6 +48,21 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
         setSelectedSheetIds(new Set());
         setLastClickedId(null);
     }, [viewMode]);
+
+    // Shortcut for Deletion Mode
+    useEffect(() => {
+        const handleShortcut = (e: KeyboardEvent) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Delete') {
+                e.preventDefault();
+                setIsSelectionMode(prev => {
+                    if (prev) setSelectedSheetIds(new Set()); // Clear on disable
+                    return !prev;
+                });
+            }
+        };
+        window.addEventListener('keydown', handleShortcut);
+        return () => window.removeEventListener('keydown', handleShortcut);
+    }, []);
 
     const displayRoster = useMemo(() => {
         if (!roster) return [];
@@ -366,7 +382,7 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [displayRoster, selectedSheetId, onSelectSheet, rowVirtualizer, viewMode, queryClient, editingSheetId, jumperStatus]);
+    }, [displayRoster, selectedSheetId, onSelectSheet, rowVirtualizer, viewMode, queryClient, editingSheetId, jumperStatus, isSelectionMode]);
 
     // ... (Focus Retention and Auto-Scroll effects) ...
     const lastSelectedIdRef = useRef<string | undefined>();
@@ -445,17 +461,17 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
 
                 <div className="flex items-center gap-2 ml-auto">
                     <div className="flex items-center gap-1 border-r pr-2 mr-2 border-slate-200">
-                        <span className="text-xs text-slate-400 mr-1">Selection Mode</span>
+                        <span className="text-xs text-slate-400 mr-1">Deletion Mode</span>
                         {/* Selection Toggle */}
                         <Button
                             variant={isSelectionMode ? "secondary" : "ghost"}
                             size="sm"
-                            className={`h-7 w-7 p-0 ${isSelectionMode ? 'bg-slate-200 text-slate-900' : 'text-slate-400'}`}
+                            className={`h-7 w-7 p-0 ${isSelectionMode ? 'bg-red-100 text-red-600 hover:bg-red-200' : 'text-slate-400'}`}
                             onClick={() => {
                                 setIsSelectionMode(!isSelectionMode);
-                                if (isSelectionMode) setSelectedSheetIds(new Set()); // Clear on disable? User didn't specify, but usually safer.
+                                if (isSelectionMode) setSelectedSheetIds(new Set());
                             }}
-                            title="Toggle Selection Mode"
+                            title="Toggle Deletion Mode (Ctrl+Delete)"
                         >
                             {isSelectionMode ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
                         </Button>
@@ -478,14 +494,14 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                             <SelectValue placeholder="Jump Mode" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="DEFAULT">Default (Sequential)</SelectItem>
-                            <SelectItem value="DUPLICATE">DUPLICATE</SelectItem>
-                            <SelectItem value="GHOST">GHOST</SelectItem>
-                            <SelectItem value="ABSENT_MISMATCH">ABSENT_MISMATCH</SelectItem>
-                            <SelectItem value="ERROR">ERROR</SelectItem>
-                            <SelectItem value="MISSING">MISSING</SelectItem>
-                            <SelectItem value="ABSENT">ABSENT</SelectItem>
-                            <SelectItem value="OK">OK</SelectItem>
+                            <SelectItem value="DEFAULT">{ROW_STATUS_TRANSLATIONS['DEFAULT']}</SelectItem>
+                            <SelectItem value="DUPLICATE">{ROW_STATUS_TRANSLATIONS['DUPLICATE']}</SelectItem>
+                            <SelectItem value="GHOST">{ROW_STATUS_TRANSLATIONS['GHOST']}</SelectItem>
+                            <SelectItem value="ABSENT_MISMATCH">{ROW_STATUS_TRANSLATIONS['ABSENT_MISMATCH']}</SelectItem>
+                            <SelectItem value="ERROR">{ROW_STATUS_TRANSLATIONS['ERROR']}</SelectItem>
+                            <SelectItem value="MISSING">{ROW_STATUS_TRANSLATIONS['MISSING']}</SelectItem>
+                            <SelectItem value="ABSENT">{ROW_STATUS_TRANSLATIONS['ABSENT']}</SelectItem>
+                            <SelectItem value="OK">{ROW_STATUS_TRANSLATIONS['OK']}</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>
@@ -494,7 +510,7 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
             {/* List */}
             <div
                 ref={parentRef}
-                className="flex-1 overflow-auto p-2 outline-none"
+                className={`flex-1 overflow-auto p-2 outline-none ${isSelectionMode ? 'select-none' : ''}`}
                 tabIndex={-1}
             >
                 <div
