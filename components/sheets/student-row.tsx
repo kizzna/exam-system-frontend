@@ -291,7 +291,7 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
             toast.success(`Assigned sheet to ${targetStudent.student_name}`);
             onOpenChange(false);
 
-            queryClient.setQueryData<RosterEntry[]>(['roster', taskId], (oldRoster) => {
+            queryClient.setQueryData<RosterEntry[]>(['roster', taskId, viewMode], (oldRoster) => {
                 if (!oldRoster) return oldRoster;
                 return applyRosterUpdates(oldRoster, updatedRows);
             });
@@ -325,7 +325,7 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
             toast.success(`Assigned sheet to ${name}`);
             onOpenChange(false);
 
-            queryClient.setQueryData<RosterEntry[]>(['roster', taskId], (oldRoster) => {
+            queryClient.setQueryData<RosterEntry[]>(['roster', taskId, viewMode], (oldRoster) => {
                 if (!oldRoster) return oldRoster;
                 return applyRosterUpdates(oldRoster, updatedRows);
             });
