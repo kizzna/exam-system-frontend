@@ -27,6 +27,7 @@ export const tasksApi = {
     size?: number;
     sort_by?: string;
     sort_order?: 'asc' | 'desc';
+    status?: 'active' | 'deleted' | 'all';
   }): Promise<PaginatedResponse<Task>> => {
     const response = await apiClient.get<PaginatedResponse<Task>>('/tasks/', { params });
     return response.data;
@@ -84,8 +85,8 @@ export const tasksApi = {
     await apiClient.delete(`/tasks/${task_id}`);
   },
 
-  getRoster: async (task_id: number): Promise<RosterEntry[]> => {
-    const response = await apiClient.get<RosterEntry[]>(`/tasks/${task_id}/roster`);
+  getRoster: async (task_id: number, status: 'active' | 'deleted' | 'all' = 'active'): Promise<RosterEntry[]> => {
+    const response = await apiClient.get<RosterEntry[]>(`/tasks/${task_id}/roster`, { params: { status } });
     return response.data;
   },
 

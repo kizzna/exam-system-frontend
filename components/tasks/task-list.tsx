@@ -19,6 +19,7 @@ interface TaskListProps {
     sorting: SortingState;
     onSortingChange: OnChangeFn<SortingState>;
     isLoading: boolean;
+    listParams?: Record<string, any>;
 }
 
 // 1. Move helper function outside
@@ -231,11 +232,34 @@ export function TaskList({
     sorting,
     onSortingChange,
     isLoading,
+    listParams,
 }: TaskListProps) {
-    // 3. The component is now lightweight and only handles data passing
+    // Update columns to include listParams in review link
+    const columnsWithParams = columns.map(col => {
+        if (col.id === 'review') {
+            return {
+                ...col,
+                cell: ({ row }: { row: import('@tanstack/react-table').Row<Task> }) => (
+                    <Button variant="outline" size="sm" className="h-8 border-primary text-primary hover:bg-primary hover:text-primary-foreground" asChild>
+                        <Link
+                            href={{
+                                pathname: `/dashboard/sheets/review/${row.original.task_id}`,
+                                query: listParams,
+                            }}
+                        >
+                            <SearchCheck className="mr-2 h-4 w-4" />
+                            ตรวจ
+                        </Link>
+                    </Button>
+                ),
+            };
+        }
+        return col;
+    });
+
     return (
         <DataTable
-            columns={columns}
+            columns={columnsWithParams}
             data={tasks}
             pageCount={pageCount}
             pagination={pagination}

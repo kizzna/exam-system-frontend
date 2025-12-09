@@ -15,8 +15,8 @@ interface StudentRowProps {
     style: React.CSSProperties;
     isSelected: boolean;
     isClickable: boolean;
-    onSelect: () => void;
-    viewMode: 'PRIORITY' | 'SEQUENTIAL';
+    onSelect: (e?: React.MouseEvent) => void;
+    viewMode: 'SEQUENTIAL' | 'DELETED';
     fullRoster: RosterEntry[];
     classLevel: number;
     group: number;
@@ -393,7 +393,7 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
             className="p-0.5" // Reduced padding wrapper
         >
             <div
-                onClick={() => isClickable && onSelect()}
+                onClick={(e) => isClickable && onSelect(e)}
                 className={cn(
                     "px-2 py-1 rounded-sm text-base flex items-center transition-colors h-full gap-2", // Increased text-base, reduced py-1
                     getRowStyle(entry.row_status),

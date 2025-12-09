@@ -126,6 +126,14 @@ export default function TasksPage() {
         sorting={sorting}
         onSortingChange={setSorting}
         isLoading={isLoading}
+        // Pass current list state params
+        listParams={{
+          ...filters,
+          page: pagination.pageIndex + 1,
+          size: pagination.pageSize,
+          sort_by: sorting[0]?.id,
+          sort_order: sorting[0]?.desc ? 'desc' : 'asc',
+        }}
       />
 
       <AssignTasksDialog

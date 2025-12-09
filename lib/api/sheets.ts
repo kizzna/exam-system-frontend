@@ -58,4 +58,12 @@ export const sheetsApi = {
   verifySheet: async (id: string, data: SheetVerificationRequest): Promise<void> => {
     await apiClient.patch(`/sheets/${id}/verify`, data);
   },
+
+  batchDelete: async (sheet_ids: number[]): Promise<void> => {
+    await apiClient.post('/sheets/batch-delete', { sheet_ids });
+  },
+
+  batchRestore: async (sheet_ids: number[]): Promise<void> => {
+    await apiClient.post('/sheets/batch-restore', { sheet_ids });
+  },
 };
