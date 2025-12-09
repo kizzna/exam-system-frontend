@@ -203,6 +203,7 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                                     });
                                     toast.success("Updated sheet status via shortcut");
                                     queryClient.invalidateQueries({ queryKey: ['roster'] });
+                                    queryClient.invalidateQueries({ queryKey: ['task-stats', taskId] });
 
                                     // Trigger Auto-Advance for Quick Fix
                                     handleCorrect();
@@ -559,6 +560,18 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                                     onOpenChange={onOpenChange}
                                     taskId={taskId}
                                     onCorrect={handleCorrect}
+                                    suggestedRoll={(() => {
+                                        const prevEntry = displayRoster[virtualRow.index - 1];
+                                        const nextEntry = displayRoster[virtualRow.index + 1];
+                                        if (prevEntry && nextEntry) {
+                                            const prevRoll = parseInt(prevEntry.master_roll || prevEntry.sheet_roll || '0', 10);
+                                            const nextRoll = parseInt(nextEntry.master_roll || nextEntry.sheet_roll || '0', 10);
+                                            if (prevRoll > 0 && nextRoll > 0 && (nextRoll - prevRoll === 2)) {
+                                                return (prevRoll + 1).toString();
+                                            }
+                                        }
+                                        return undefined;
+                                    })()}
                                 />
                             );
                         })}

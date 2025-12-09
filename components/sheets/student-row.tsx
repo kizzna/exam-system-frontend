@@ -132,7 +132,7 @@ function applyRosterUpdates(oldRoster: RosterEntry[], updatedRows: RosterEntry[]
     return [...rowsWithoutSheet, ...Array.from(uniqueSheetMap.values())];
 }
 
-export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, onSelect, viewMode, fullRoster, classLevel, group, taskId, isOpen, onOpenChange, onCorrect }: StudentRowProps & { isOpen: boolean; onOpenChange: (open: boolean) => void }) => {
+export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, onSelect, viewMode, fullRoster, classLevel, group, taskId, isOpen, onOpenChange, onCorrect, suggestedRoll }: StudentRowProps & { isOpen: boolean; onOpenChange: (open: boolean) => void; suggestedRoll?: string }) => {
     const queryClient = useQueryClient();
     const [search, setSearch] = useState("");
     const listRef = React.useRef<HTMLDivElement>(null);
@@ -144,9 +144,34 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
         }
     }, [search]);
 
-    const { exactMatches, startsWithMatches, otherMatches } = React.useMemo(() => {
-        const empty = { exactMatches: [], startsWithMatches: [], otherMatches: [] };
-        if (!search) return { ...empty, otherMatches: fullRoster.slice(0, 50) };
+    const { exactMatches, startsWithMatches, otherMatches, suggestedMatches } = React.useMemo(() => {
+        // Filter out GHOST from search results as requested
+        const filterGhost = (r: RosterEntry) => r.row_status !== 'GHOST';
+
+        const empty = { exactMatches: [], startsWithMatches: [], otherMatches: [], suggestedMatches: [] };
+
+        if (!search) {
+            // Default View: Show Suggestion (if any) + Top 50 non-ghosts
+            let suggestions: RosterEntry[] = [];
+            if (suggestedRoll) {
+                // Find student with this master_roll (padded or raw)
+                // We try exact match on master_roll
+                const target = fullRoster.find(r =>
+                    r.row_status !== 'GHOST' &&
+                    (r.master_roll === suggestedRoll || parseInt(r.master_roll || '0') === parseInt(suggestedRoll))
+                );
+                if (target) {
+                    suggestions.push(target);
+                }
+            }
+
+            // Get others (excluding suggested)
+            const others = fullRoster
+                .filter(r => filterGhost(r) && (!suggestions.length || r !== suggestions[0]))
+                .slice(0, 50);
+
+            return { ...empty, suggestedMatches: suggestions, otherMatches: others };
+        }
 
         const searchTrimmed = search.trim();
         const searchLower = searchTrimmed.toLowerCase();
@@ -216,15 +241,12 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
             return ra - rb;
         };
 
-        // Filter out GHOST from search results as requested
-        const filterGhost = (r: RosterEntry) => r.row_status !== 'GHOST';
-
         exact = exact.filter(filterGhost).sort(sortNumeric);
         starts = starts.filter(filterGhost).sort(sortNumeric);
         others = others.filter(filterGhost).sort(sortNumeric);
 
-        return { exactMatches: exact, startsWithMatches: starts, otherMatches: others };
-    }, [fullRoster, search, classLevel, group]);
+        return { exactMatches: exact, startsWithMatches: starts, otherMatches: others, suggestedMatches: [] };
+    }, [fullRoster, search, classLevel, group, suggestedRoll]);
 
     const getStatusIcon = (status: RosterEntry['row_status']) => {
         switch (status) {
@@ -453,6 +475,27 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
                                                 </span>
                                             </CommandItem>
                                         )}
+                                        {/* Suggested Matches */}
+                                        {suggestedMatches && suggestedMatches.length > 0 && (
+                                            <CommandGroup heading="Suggested Correction" className="text-emerald-400">
+                                                {suggestedMatches.map((student, idx) => (
+                                                    <CommandItem
+                                                        key={`${student.source}-${student.master_roll}-suggested-${idx}`}
+                                                        value={`${student.master_roll} ${student.student_name}`}
+                                                        onSelect={() => handleAssignStudent(student)}
+                                                        className="aria-selected:bg-emerald-600 aria-selected:text-white data-[disabled]:opacity-90 data-[disabled]:pointer-events-auto cursor-pointer"
+                                                    >
+                                                        <div className="flex flex-col">
+                                                            <span className="font-bold text-white">Suggested: {student.student_name} ({student.master_roll})</span>
+                                                            <span className={cn("text-xs", student.row_status === 'MISSING' ? "text-green-400" : "text-orange-400")}>
+                                                                Status: {student.row_status}
+                                                            </span>
+                                                        </div>
+                                                    </CommandItem>
+                                                ))}
+                                            </CommandGroup>
+                                        )}
+
                                         {/* Matches ... */}
                                         {exactMatches.length > 0 && (
                                             <CommandGroup heading="Exact Match" className="text-slate-300">

@@ -17,3 +17,4 @@ Case 2. Student roll 10024 has 3 sheets marked as 10024.
 When user press Ctrl-Right arrow, it will go to the next sheet with roll 10024.
 
 ### Note: This works on any mode (Sequential or Priority).
+Implemented.
