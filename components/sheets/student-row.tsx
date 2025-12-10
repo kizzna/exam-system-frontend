@@ -17,7 +17,7 @@ interface StudentRowProps {
     isSelected: boolean;
     isClickable: boolean;
     onSelect: (e?: React.MouseEvent) => void;
-    viewMode: 'SEQUENTIAL' | 'DELETED';
+    viewMode: 'SEQUENTIAL' | 'DELETED' | 'MISSING';
     fullRoster: RosterEntry[];
     classLevel: number;
     group: number;
@@ -491,7 +491,7 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
                                                 {suggestedMatches.map((student, idx) => (
                                                     <CommandItem
                                                         key={`${student.source}-${student.master_roll}-suggested-${idx}`}
-                                                        value={`${student.master_roll} ${student.student_name}`}
+                                                        value={`${student.master_roll} ${student.student_name} suggested-${idx}`}
                                                         onSelect={() => handleAssignStudent(student)}
                                                         className="aria-selected:bg-emerald-600 aria-selected:text-white data-[disabled]:opacity-90 data-[disabled]:pointer-events-auto cursor-pointer"
                                                     >
@@ -512,7 +512,7 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
                                                 {exactMatches.map((student, idx) => (
                                                     <CommandItem
                                                         key={`${student.source}-${student.master_roll}-${idx}`}
-                                                        value={`${student.master_roll} ${student.student_name}`}
+                                                        value={`${student.master_roll} ${student.student_name} exact-${idx}`}
                                                         onSelect={() => handleAssignStudent(student)}
                                                         className="aria-selected:bg-emerald-600 aria-selected:text-white data-[disabled]:opacity-90 data-[disabled]:pointer-events-auto cursor-pointer"
                                                     >
@@ -529,7 +529,7 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
                                                 {startsWithMatches.map((student, idx) => (
                                                     <CommandItem
                                                         key={`${student.source}-${student.master_roll}-${idx}`}
-                                                        value={`${student.master_roll} ${student.student_name}`}
+                                                        value={`${student.master_roll} ${student.student_name} starts-${idx}`}
                                                         onSelect={() => handleAssignStudent(student)}
                                                         className="aria-selected:bg-emerald-600 aria-selected:text-white data-[disabled]:opacity-90 data-[disabled]:pointer-events-auto cursor-pointer"
                                                     >
@@ -546,7 +546,7 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
                                                 {otherMatches.map((student, idx) => (
                                                     <CommandItem
                                                         key={`${student.source}-${student.master_roll}-${idx}`}
-                                                        value={`${student.master_roll} ${student.student_name}`}
+                                                        value={`${student.master_roll} ${student.student_name} other-${idx}`}
                                                         onSelect={() => handleAssignStudent(student)}
                                                         className="aria-selected:bg-emerald-600 aria-selected:text-white data-[disabled]:opacity-90 data-[disabled]:pointer-events-auto cursor-pointer"
                                                     >
@@ -611,6 +611,7 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
                             ไม่ครบจริง
                         </Button>
                     )}
+
                 </div>
             </div>
         </div>

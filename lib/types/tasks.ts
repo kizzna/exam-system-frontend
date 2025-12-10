@@ -38,7 +38,7 @@ export interface Task {
   err_absent_count?: number;
   created_at: string;
   access_source?: string;
-
+  review_results?: number;
 }
 
 export interface TaskStats {

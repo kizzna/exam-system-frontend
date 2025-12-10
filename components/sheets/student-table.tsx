@@ -5,7 +5,7 @@ import { tasksApi } from '@/lib/api/tasks';
 import { sheetsApi } from '@/lib/api/sheets';
 import { RosterEntry } from '@/lib/types/tasks';
 import { ROW_STATUS_TRANSLATIONS } from '@/lib/translations';
-import { Loader2, ArrowUpDown, ListOrdered, Navigation, CheckSquare, Square } from 'lucide-react';
+import { Loader2, ArrowUpDown, ListOrdered, Navigation, CheckSquare, Square, UserX } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
@@ -27,7 +27,7 @@ interface StudentTableProps {
     onSelectSheet: (id: string) => void;
 }
 
-type ViewMode = 'SEQUENTIAL' | 'DELETED';
+type ViewMode = 'SEQUENTIAL' | 'DELETED' | 'MISSING';
 
 export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: StudentTableProps) {
     const parentRef = useRef<HTMLDivElement>(null);
@@ -77,6 +77,19 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
             queryClient.invalidateQueries({ queryKey: ['task-stats', taskId] });
         },
         onError: () => toast.error("Failed to delete sheet(s)")
+    });
+
+    const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+    const [reviewBitmask, setReviewBitmask] = useState(0);
+
+    const updateReviewMutation = useMutation({
+        mutationFn: (val: number) => tasksApi.updateReviewResults(parseInt(taskId), val),
+        onSuccess: () => {
+            toast.success("Review submitted successfully");
+            setReviewDialogOpen(false);
+            queryClient.invalidateQueries({ queryKey: ['task', taskId] });
+        },
+        onError: () => toast.error("Failed to submit review")
     });
 
     const restoreSheetsMutation = useMutation({
@@ -131,6 +144,15 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                 const nameB = b.original_filename || '';
                 return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
             });
+        } else if (viewMode === 'MISSING') {
+            // Missing View: Filter row_status === 'MISSING', sort by master_roll
+            return roster
+                .filter(r => r.row_status === 'MISSING')
+                .sort((a, b) => {
+                    const rollA = parseInt(a.master_roll || '0', 10);
+                    const rollB = parseInt(b.master_roll || '0', 10);
+                    return rollA - rollB;
+                });
         } else {
             // Sequential View
             return roster
@@ -522,11 +544,35 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                         className={`text-xs px-3 ${viewMode === 'DELETED' ? 'bg-red-100 text-red-700 hover:bg-red-200 hover:text-red-800' : 'text-slate-600'}`}
                         onClick={() => setViewMode('DELETED')}
                     >
-                        {/* Use Trash Icon? */}
                         <span className="mr-1">🗑️</span>
                         DELETED ({deletedCount})
                     </Button>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className={`text-xs px-3 ${viewMode === 'MISSING' ? ((task?.review_results || 0) > 0 ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' : 'bg-orange-100 text-orange-700 hover:bg-orange-200') : 'text-slate-600'}`}
+                        onClick={() => setViewMode('MISSING')}
+                    >
+                        <UserX className="w-3 h-3 mr-1" />
+                        MISSING
+                    </Button>
                 </div>
+
+                {viewMode === 'MISSING' && (
+                    <div className="flex items-center gap-2 px-2 border-l border-slate-200">
+                        <Button
+                            size="sm"
+                            variant={((task?.review_results || 0) > 0) ? "outline" : "default"}
+                            className="h-7 text-xs"
+                            onClick={() => {
+                                setReviewBitmask(task?.review_results || 0);
+                                setReviewDialogOpen(true);
+                            }}
+                        >
+                            {((task?.review_results || 0) > 0) ? "Update Review" : "Submit Review"}
+                        </Button>
+                    </div>
+                )}
 
                 {/* Batch Actions Toolbar */}
                 {selectedSheetIds.size > 0 && (
@@ -696,6 +742,52 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                             }
                         }}>
                             ลบ
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Review Missing Students</DialogTitle>
+                        <DialogDescription>
+                            Please confirm your review of the missing student list.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex flex-col gap-3 py-4">
+                        <div className="flex items-center space-x-2">
+                            <CheckSquare
+                                className={`w-5 h-5 cursor-pointer ${(reviewBitmask & 1) ? "text-blue-600" : "text-slate-300"}`}
+                                onClick={() => setReviewBitmask(prev => prev ^ 1)}
+                            />
+                            <label className="text-sm cursor-pointer select-none" onClick={() => setReviewBitmask(prev => prev ^ 1)}>
+                                Missing student checked (ตรวจสอบรายชื่อขาดแล้ว)
+                            </label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <CheckSquare
+                                className={`w-5 h-5 cursor-pointer ${(reviewBitmask & 2) ? "text-blue-600" : "text-slate-300"}`}
+                                onClick={() => setReviewBitmask(prev => prev ^ 2)}
+                            />
+                            <label className="text-sm cursor-pointer select-none" onClick={() => setReviewBitmask(prev => prev ^ 2)}>
+                                Less than expected student checked (นักเรียนน้อยกว่ายอดเข้าสอบ)
+                            </label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                            <CheckSquare
+                                className={`w-5 h-5 cursor-pointer ${(reviewBitmask & 4) ? "text-blue-600" : "text-slate-300"}`}
+                                onClick={() => setReviewBitmask(prev => prev ^ 4)}
+                            />
+                            <label className="text-sm cursor-pointer select-none" onClick={() => setReviewBitmask(prev => prev ^ 4)}>
+                                More than expected student checked (นักเรียนมากกว่ายอดเข้าสอบ)
+                            </label>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setReviewDialogOpen(false)}>Cancel</Button>
+                        <Button onClick={() => updateReviewMutation.mutate(reviewBitmask)}>
+                            Submit
                         </Button>
                     </DialogFooter>
                 </DialogContent>

@@ -95,4 +95,8 @@ export const tasksApi = {
     return response.data;
   },
 
+  updateReviewResults: async (task_id: number, review_results: number): Promise<void> => {
+    await apiClient.patch(`/tasks/${task_id}/review-results`, { review_results });
+  },
+
 };
