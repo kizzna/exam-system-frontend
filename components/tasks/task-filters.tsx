@@ -33,9 +33,10 @@ export interface TaskFiltersState {
 interface TaskFiltersProps {
     filters: TaskFiltersState;
     onFilterChange: (filters: TaskFiltersState) => void;
+    onRefresh?: () => void;
 }
 
-export function TaskFilters({ filters, onFilterChange }: TaskFiltersProps) {
+export function TaskFilters({ filters, onFilterChange, onRefresh }: TaskFiltersProps) {
     const { user, isAdmin } = useAuth();
 
     // Fetch evaluation centers
@@ -80,6 +81,13 @@ export function TaskFilters({ filters, onFilterChange }: TaskFiltersProps) {
 
     const handleClassGroupChange = (value: string) => {
         onFilterChange({ ...filters, class_group: value === 'all' ? undefined : parseInt(value) });
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter') {
+            onFilterChange({ ...filters });
+            onRefresh?.();
+        }
     };
 
     return (
@@ -175,6 +183,7 @@ export function TaskFilters({ filters, onFilterChange }: TaskFiltersProps) {
                         placeholder="ค้นหา..."
                         value={filters.task_id || ''}
                         onChange={(e) => onFilterChange({ ...filters, task_id: e.target.value || undefined })}
+                        onKeyDown={handleKeyDown}
                     />
                 </div>
 
@@ -186,6 +195,7 @@ export function TaskFilters({ filters, onFilterChange }: TaskFiltersProps) {
                         placeholder="> 0"
                         value={filters.error_count || ''}
                         onChange={(e) => onFilterChange({ ...filters, error_count: e.target.value ? parseInt(e.target.value) : undefined })}
+                        onKeyDown={handleKeyDown}
                     />
                 </div>
 
@@ -197,6 +207,7 @@ export function TaskFilters({ filters, onFilterChange }: TaskFiltersProps) {
                         placeholder="> 0"
                         value={filters.err_duplicate_sheets_count || ''}
                         onChange={(e) => onFilterChange({ ...filters, err_duplicate_sheets_count: e.target.value ? parseInt(e.target.value) : undefined })}
+                        onKeyDown={handleKeyDown}
                     />
                 </div>
 
@@ -208,6 +219,7 @@ export function TaskFilters({ filters, onFilterChange }: TaskFiltersProps) {
                         placeholder="> 0"
                         value={filters.err_low_answer_count || ''}
                         onChange={(e) => onFilterChange({ ...filters, err_low_answer_count: e.target.value ? parseInt(e.target.value) : undefined })}
+                        onKeyDown={handleKeyDown}
                     />
                 </div>
 
@@ -219,6 +231,7 @@ export function TaskFilters({ filters, onFilterChange }: TaskFiltersProps) {
                         placeholder="> 0"
                         value={filters.err_student_id_count || ''}
                         onChange={(e) => onFilterChange({ ...filters, err_student_id_count: e.target.value ? parseInt(e.target.value) : undefined })}
+                        onKeyDown={handleKeyDown}
                     />
                 </div>
 
@@ -230,6 +243,7 @@ export function TaskFilters({ filters, onFilterChange }: TaskFiltersProps) {
                         placeholder="> 0"
                         value={filters.err_absent_count || ''}
                         onChange={(e) => onFilterChange({ ...filters, err_absent_count: e.target.value ? parseInt(e.target.value) : undefined })}
+                        onKeyDown={handleKeyDown}
                     />
                 </div>
 
@@ -256,6 +270,7 @@ export function TaskFilters({ filters, onFilterChange }: TaskFiltersProps) {
                                             placeholder="> 0"
                                             value={filters.err_exam_center_id_count || ''}
                                             onChange={(e) => onFilterChange({ ...filters, err_exam_center_id_count: e.target.value ? parseInt(e.target.value) : undefined })}
+                                            onKeyDown={handleKeyDown}
                                         />
                                     </div>
                                     <div className="space-y-1">
@@ -267,6 +282,7 @@ export function TaskFilters({ filters, onFilterChange }: TaskFiltersProps) {
                                             placeholder="> 0"
                                             value={filters.err_class_group_count || ''}
                                             onChange={(e) => onFilterChange({ ...filters, err_class_group_count: e.target.value ? parseInt(e.target.value) : undefined })}
+                                            onKeyDown={handleKeyDown}
                                         />
                                     </div>
                                     <div className="space-y-1">
@@ -278,6 +294,7 @@ export function TaskFilters({ filters, onFilterChange }: TaskFiltersProps) {
                                             placeholder="> 0"
                                             value={filters.err_class_level_count || ''}
                                             onChange={(e) => onFilterChange({ ...filters, err_class_level_count: e.target.value ? parseInt(e.target.value) : undefined })}
+                                            onKeyDown={handleKeyDown}
                                         />
                                     </div>
 

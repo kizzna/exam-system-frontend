@@ -37,13 +37,13 @@ SELECT
     END as row_status,
     -- Debug/Error Message for UI Tooltip
     CASE
-        WHEN (s.error_flags & 1) THEN 'Duplicate Sheet'
-        WHEN (s.error_flags & 2) THEN 'Too few answers'
-        WHEN (s.error_flags & 4) THEN 'ID Out of Range'
-        WHEN (s.error_flags & 8) THEN 'Center Code Mismatch'
-        WHEN (s.error_flags & 16) THEN 'Group Mismatch'
-        WHEN (s.error_flags & 32) THEN 'Level Mismatch'
-        WHEN s.id IS NOT NULL AND e.absent1 = 1 THEN 'Marked Absent in DB but Sheet Exists'
+        WHEN (s.error_flags & 1) THEN 'ซ้ำ'
+        WHEN (s.error_flags & 2) THEN 'ตอบไม่ครบ'
+        WHEN (s.error_flags & 4) THEN 'เลขที่สอบไม่ถูกต้อง'
+        WHEN (s.error_flags & 8) THEN 'รหัสสนามผิด'
+        WHEN (s.error_flags & 16) THEN 'ช่วงชั้นผิด'
+        WHEN (s.error_flags & 32) THEN 'ชั้นผิด'
+        WHEN s.id IS NOT NULL AND e.absent1 = 1 THEN 'ขาดสอบมีใบตอบ'
         ELSE NULL
     END as error_message
 FROM moe67.examinee e
@@ -59,14 +59,14 @@ UNION ALL
 SELECT 
     'ghost' as source,
     NULL as master_roll,
-    'Unknown / Unregistered' as student_name,
+    '(ไม่พบข้อมูล)' as student_name,
     NULL as is_absent_in_master,
     s.id as sheet_id,
     s.student_roll as sheet_roll,
     s.error_flags,
     s.original_filename,
     'GHOST' as row_status,
-    'Unknown Student ID' as error_message
+    'ไม่พบข้อมูล' as error_message
 FROM omr_sheets s
 LEFT JOIN moe67.examinee e
     ON s.task_id = e.task_id

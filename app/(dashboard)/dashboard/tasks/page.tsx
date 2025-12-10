@@ -114,7 +114,14 @@ export default function TasksPage() {
 
       <TaskStatsSummary stats={stats} isLoading={isLoadingStats} />
 
-      <TaskFilters filters={filters} onFilterChange={handleFilterChange} />
+      <TaskFilters
+        filters={filters}
+        onFilterChange={handleFilterChange}
+        onRefresh={() => {
+          queryClient.invalidateQueries({ queryKey: ['tasks'] });
+          queryClient.invalidateQueries({ queryKey: ['tasks-stats'] });
+        }}
+      />
 
       <TaskList
         tasks={tasks}

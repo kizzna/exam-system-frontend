@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState, useMemo } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { tasksApi } from '@/lib/api/tasks';
 import { sheetsApi } from '@/lib/api/sheets';
@@ -8,9 +8,18 @@ import { ROW_STATUS_TRANSLATIONS } from '@/lib/translations';
 import { Loader2, ArrowUpDown, ListOrdered, Navigation, CheckSquare, Square } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TooltipProvider } from '@/components/ui/tooltip';
+
 import { Button } from '@/components/ui/button';
 import { StudentRow } from './student-row';
 import { toast } from 'sonner';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 
 interface StudentTableProps {
     taskId: string;
@@ -28,6 +37,8 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
     const [selectedSheetIds, setSelectedSheetIds] = useState<Set<string>>(new Set());
     const [isSelectionMode, setIsSelectionMode] = useState(false);
     const [lastClickedId, setLastClickedId] = useState<string | null>(null);
+    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+    const [sheetToDelete, setSheetToDelete] = useState<RosterEntry | null>(null);
     const queryClient = useQueryClient();
 
     // Fetch Roster using task_id and viewMode
@@ -41,6 +52,52 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
         queryKey: ['task-stats', taskId],
         queryFn: () => tasksApi.getTaskStats({ task_id: taskId }),
         // Refresh every 5s or invalidations
+    });
+
+    // Fetch Task Details for Class Info
+    const { data: task } = useQuery({
+        queryKey: ['task', taskId],
+        queryFn: () => tasksApi.getTask(parseInt(taskId)),
+        staleTime: Infinity, // Task details unlikely to change often
+    });
+
+    const deleteSheetsMutation = useMutation({
+        mutationFn: (sheetIds: string[]) => sheetsApi.batchDelete(sheetIds.map(id => parseInt(id))),
+        onSuccess: (_data, variables) => {
+            toast.success(`Deleted ${variables.length} sheet(s)`);
+            // Remove deleted IDs from selection
+            setSelectedSheetIds(prev => {
+                const next = new Set(prev);
+                variables.forEach(id => next.delete(id));
+                return next;
+            });
+            setDeleteConfirmOpen(false);
+            setSheetToDelete(null);
+            queryClient.invalidateQueries({ queryKey: ['roster'] });
+            queryClient.invalidateQueries({ queryKey: ['task-stats', taskId] });
+        },
+        onError: () => toast.error("Failed to delete sheet(s)")
+    });
+
+    const restoreSheetsMutation = useMutation({
+        mutationFn: (sheetIds: string[]) => sheetsApi.batchRestore(sheetIds.map(id => parseInt(id))),
+        onSuccess: (_data, variables) => {
+            toast.success(`Restored ${variables.length} sheet(s)`);
+            setSelectedSheetIds(prev => {
+                const next = new Set(prev);
+                variables.forEach(id => next.delete(id));
+                return next;
+            });
+            queryClient.invalidateQueries({ queryKey: ['roster'] });
+            queryClient.invalidateQueries({ queryKey: ['task-stats', taskId] });
+        },
+        onError: (error: any) => {
+            if (error.response?.status === 409) {
+                toast.error("Cannot restore: Active sheets with same ID already exist");
+            } else {
+                toast.error("Failed to restore sheets");
+            }
+        }
     });
 
     // Reset selection when view mode changes
@@ -198,8 +255,9 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
         if (displayRoster.length === 0) return;
 
         const handleKeyDown = async (e: KeyboardEvent) => {
-            if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) return;
-            if (editingSheetId) return;
+            const tagName = (e.target as HTMLElement).tagName;
+            if (['INPUT', 'TEXTAREA'].includes(tagName) || editingSheetId || deleteConfirmOpen) return;
+
 
             const currentIndex = displayRoster.findIndex(r => r.sheet_id === selectedSheetId);
             let nextIndex = currentIndex;
@@ -366,6 +424,8 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                     break;
             }
 
+
+
             if (nextIndex !== currentIndex && nextIndex !== -1) {
                 const nextItem = displayRoster[nextIndex];
                 if (nextItem.sheet_id) {
@@ -375,14 +435,37 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                         setSelectedSheetIds(new Set([nextItem.sheet_id]));
                         setLastClickedId(nextItem.sheet_id);
                     }
-                    rowVirtualizer.scrollToIndex(nextIndex, { align: 'center' });
+                    // Adjusted scroll to keep visual context (2 rows above)
+                    rowVirtualizer.scrollToIndex(Math.max(0, nextIndex - 2), { align: 'start' });
                 }
             }
         };
 
+        const handleQuickActions = (e: KeyboardEvent) => {
+            // Quick Delete: Shift + Delete (When Deletion Mode is OFF)
+            if (!isSelectionMode && e.shiftKey && e.key === 'Delete' && selectedSheetId) {
+                e.preventDefault();
+                const entry = displayRoster.find(r => r.sheet_id === selectedSheetId);
+                if (entry) {
+                    setSheetToDelete(entry);
+                    setDeleteConfirmOpen(true);
+                }
+            }
+            // Quick Restore: Shift + Insert
+            if (e.shiftKey && (e.key === 'Insert' || e.code === 'Insert') && selectedSheetId && viewMode === 'DELETED') {
+                e.preventDefault();
+                // Immediate restore without confirmation
+                restoreSheetsMutation.mutate([selectedSheetId]);
+            }
+        };
+
         window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [displayRoster, selectedSheetId, onSelectSheet, rowVirtualizer, viewMode, queryClient, editingSheetId, jumperStatus, isSelectionMode]);
+        window.addEventListener('keydown', handleQuickActions);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('keydown', handleQuickActions);
+        };
+    }, [displayRoster, selectedSheetId, onSelectSheet, rowVirtualizer, viewMode, queryClient, editingSheetId, jumperStatus, isSelectionMode, deleteSheetsMutation, restoreSheetsMutation]);
 
     // ... (Focus Retention and Auto-Scroll effects) ...
     const lastSelectedIdRef = useRef<string | undefined>();
@@ -391,7 +474,10 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
         const isFirstLoad = !lastSelectedIdRef.current && selectedSheetId;
         if ((hasSelectionChanged || isFirstLoad) && selectedSheetId && displayRoster.length > 0) {
             const index = displayRoster.findIndex(r => r.sheet_id === selectedSheetId);
-            if (index !== -1) rowVirtualizer.scrollToIndex(index, { align: 'center' });
+            if (index !== -1) {
+                // Adjusted scroll to keep visual context (2 rows above)
+                rowVirtualizer.scrollToIndex(Math.max(0, index - 2), { align: 'start' });
+            }
         }
         lastSelectedIdRef.current = selectedSheetId;
     }, [selectedSheetId, displayRoster, rowVirtualizer]);
@@ -524,13 +610,8 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                         {rowVirtualizer.getVirtualItems().map((virtualRow) => {
                             const entry = displayRoster[virtualRow.index];
                             // Selection Logic for Props
-                            // If user is batch selecting, isSelected logic might need adjustment?
-                            // Currently `isSelected` prop in StudentRow drives visual "Blue" Focus.
-                            // We should probably allow multiple rows to be blue.
-
                             const isBatchSelected = entry.sheet_id ? selectedSheetIds.has(entry.sheet_id) : false;
                             const isFocused = entry.sheet_id === selectedSheetId;
-
                             const isClickable = !!entry.sheet_id;
 
                             // Editing Logic
@@ -540,9 +621,27 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                                 else setEditingSheetId(null);
                             };
 
+                            // Logic for suggested roll (re-implemented from previous broken state)
+                            const suggestedRoll = (() => {
+                                const prevEntry = displayRoster[virtualRow.index - 1];
+                                const nextEntry = displayRoster[virtualRow.index + 1];
+                                if (prevEntry && nextEntry) {
+                                    const prevRoll = parseInt(prevEntry.master_roll || prevEntry.sheet_roll || '0', 10);
+                                    const nextRoll = parseInt(nextEntry.master_roll || nextEntry.sheet_roll || '0', 10);
+                                    if (prevRoll > 0 && nextRoll > 0 && (nextRoll - prevRoll === 2)) {
+                                        return (prevRoll + 1).toString();
+                                    }
+                                }
+                                return undefined;
+                            })();
+
+                            // Valid Class/Group extraction from Task
+                            const classLevel = task?.class_level || 0;
+                            const group = task?.class_group || 0;
+
                             return (
                                 <StudentRow
-                                    key={entry.sheet_id || `missing-${entry.master_roll}`}
+                                    key={entry.sheet_id || `missing-${entry.master_roll}-${virtualRow.index}`}
                                     entry={entry}
                                     style={{
                                         position: 'absolute',
@@ -554,6 +653,7 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                                     }}
                                     isSelected={isBatchSelected || isFocused}
                                     isClickable={isClickable}
+                                    isBatchSelected={isBatchSelected}
                                     onSelect={(e) => handleRowClick(entry, e)}
                                     viewMode={viewMode}
                                     fullRoster={roster || []}
@@ -562,28 +662,44 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                                     isOpen={isOpen}
                                     onOpenChange={onOpenChange}
                                     taskId={taskId}
-                                    onCorrect={handleCorrect}
-                                    suggestedRoll={(() => {
-                                        const prevEntry = displayRoster[virtualRow.index - 1];
-                                        const nextEntry = displayRoster[virtualRow.index + 1];
-                                        if (prevEntry && nextEntry) {
-                                            const prevRoll = parseInt(prevEntry.master_roll || prevEntry.sheet_roll || '0', 10);
-                                            const nextRoll = parseInt(nextEntry.master_roll || nextEntry.sheet_roll || '0', 10);
-                                            if (prevRoll > 0 && nextRoll > 0 && (nextRoll - prevRoll === 2)) {
-                                                return (prevRoll + 1).toString();
-                                            }
-                                        }
-                                        return undefined;
-                                    })()}
+                                    onCorrect={() => {
+                                        queryClient.invalidateQueries({ queryKey: ['roster'] });
+                                        queryClient.invalidateQueries({ queryKey: ['task-stats', taskId] });
+                                    }}
+                                    suggestedRoll={suggestedRoll}
                                 />
                             );
                         })}
                     </TooltipProvider>
                 </div>
             </div>
+
             {(!roster || roster.length === 0) && (
                 <div className="text-center text-slate-400 mt-10">No sheets found in this view</div>
             )}
+
+            <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>ยืนยันการลบ</DialogTitle>
+                        <DialogDescription>
+                            ต้องการลบใบคำตอบของ <span className="font-bold text-slate-900">{sheetToDelete?.student_name || 'Unknown'}</span> ({sheetToDelete?.sheet_roll})?
+                            <br />
+                            ท่านสามารถกู้คืนได้ในแท็บ Deleted
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>ยกเลิก</Button>
+                        <Button variant="destructive" onClick={() => {
+                            if (sheetToDelete && sheetToDelete.sheet_id) {
+                                deleteSheetsMutation.mutate([sheetToDelete.sheet_id]);
+                            }
+                        }}>
+                            ลบ
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

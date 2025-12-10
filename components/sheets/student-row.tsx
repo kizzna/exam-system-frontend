@@ -23,6 +23,7 @@ interface StudentRowProps {
     group: number;
     taskId: string;
     onCorrect?: () => void;
+    isBatchSelected: boolean;
 }
 
 function applyRosterUpdates(oldRoster: RosterEntry[], updatedRows: RosterEntry[]): RosterEntry[] {
@@ -133,7 +134,7 @@ function applyRosterUpdates(oldRoster: RosterEntry[], updatedRows: RosterEntry[]
     return [...rowsWithoutSheet, ...Array.from(uniqueSheetMap.values())];
 }
 
-export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, onSelect, viewMode, fullRoster, classLevel, group, taskId, isOpen, onOpenChange, onCorrect, suggestedRoll }: StudentRowProps & { isOpen: boolean; onOpenChange: (open: boolean) => void; suggestedRoll?: string }) => {
+export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, onSelect, viewMode, fullRoster, classLevel, group, taskId, isOpen, onOpenChange, onCorrect, suggestedRoll, isBatchSelected }: StudentRowProps & { isOpen: boolean; onOpenChange: (open: boolean) => void; suggestedRoll?: string }) => {
     const queryClient = useQueryClient();
     const [search, setSearch] = useState("");
     const listRef = React.useRef<HTMLDivElement>(null);
@@ -607,7 +608,7 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
                             className="h-7 px-2 text-xs bg-white/50 hover:bg-white text-orange-700 border border-orange-200 whitespace-nowrap"
                             onClick={(e) => handleQuickAction(e, 'too_few')}
                         >
-                            ตอบไม่ครบจริง
+                            ไม่ครบจริง
                         </Button>
                     )}
                 </div>
