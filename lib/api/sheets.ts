@@ -66,4 +66,12 @@ export const sheetsApi = {
   batchRestore: async (sheet_ids: number[]): Promise<void> => {
     await apiClient.post('/sheets/batch-restore', { sheet_ids });
   },
+
+  relocate: async (data: { sheet_ids: number[]; source_task_id: number; target_task_id: number; target_class_level?: number; target_class_group?: number }): Promise<void> => {
+    await apiClient.post('/sheets/relocate', data);
+  },
+
+  swap: async (data: { task_id_a: number; task_id_b: number }): Promise<void> => {
+    await apiClient.post('/sheets/swap', data);
+  },
 };

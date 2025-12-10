@@ -5,9 +5,10 @@ import { tasksApi } from '@/lib/api/tasks';
 import { sheetsApi } from '@/lib/api/sheets';
 import { RosterEntry } from '@/lib/types/tasks';
 import { ROW_STATUS_TRANSLATIONS } from '@/lib/translations';
-import { Loader2, ArrowUpDown, ListOrdered, Navigation, CheckSquare, Square, UserX } from 'lucide-react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Loader2, ListOrdered, CheckSquare, Square, UserX, ArrowRightToLine } from 'lucide-react';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { TaskSearchPopover } from '@/components/tasks/task-search-popover';
+import { Task } from '@/lib/types/tasks';
 
 import { Button } from '@/components/ui/button';
 import { StudentRow } from './student-row';
@@ -32,7 +33,7 @@ type ViewMode = 'SEQUENTIAL' | 'DELETED' | 'MISSING';
 export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: StudentTableProps) {
     const parentRef = useRef<HTMLDivElement>(null);
     const [viewMode, setViewMode] = useState<ViewMode>('SEQUENTIAL');
-    const [jumperStatus, setJumperStatus] = useState<RosterEntry['row_status'] | 'DEFAULT'>('DEFAULT');
+    // Jumper status removed
     const [editingSheetId, setEditingSheetId] = useState<string | null>(null);
     const [selectedSheetIds, setSelectedSheetIds] = useState<Set<string>>(new Set());
     const [isSelectionMode, setIsSelectionMode] = useState(false);
@@ -111,6 +112,28 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                 toast.error("Failed to restore sheets");
             }
         }
+    });
+
+    const [relocateDialogOpen, setRelocateDialogOpen] = useState(false);
+    const [targetRelocateTask, setTargetRelocateTask] = useState<Task | null>(null);
+
+    const relocateSheetsMutation = useMutation({
+        mutationFn: (targetTask: Task) => sheetsApi.relocate({
+            sheet_ids: Array.from(selectedSheetIds).map(id => parseInt(id)),
+            source_task_id: parseInt(taskId),
+            target_task_id: targetTask.task_id,
+            target_class_level: targetTask.class_level,
+            target_class_group: targetTask.class_group
+        }),
+        onSuccess: () => {
+            toast.success(`Relocated ${selectedSheetIds.size} sheets successfully`);
+            setRelocateDialogOpen(false);
+            setTargetRelocateTask(null);
+            setSelectedSheetIds(new Set());
+            queryClient.invalidateQueries({ queryKey: ['roster'] });
+            queryClient.invalidateQueries({ queryKey: ['task-stats', taskId] });
+        },
+        onError: () => toast.error("Failed to relocate sheets")
     });
 
     // Reset selection when view mode changes
@@ -225,13 +248,6 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                 const start = Math.min(lastIndex, currIndex);
                 const end = Math.max(lastIndex, currIndex);
 
-                // Clear and select range (standard OS behavior usually extends, but let's just select range + existing? 
-                // User said "click row 2 -> hold shift click row 20 -> row 2-20 gets selected".
-                // Usually this wipes other selections unless Ctrl is also held. Let's assume wipe non-range for simplicity or stick to standard.
-                // Standard: Shift+Click extends selection from 'anchor' (lastClickedId) to current.
-
-                // We'll add range to existing if Ctrl held, or replace if not?
-                // Visual Studio Code style: Shift click selects range from anchor.
                 if (!e.ctrlKey) {
                     newSelection.clear();
                 }
@@ -259,32 +275,25 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
         setSelectedSheetIds(newSelection);
     };
 
-    // Keyboard Navigation (Update to ensure selection follows focus if simple nav?)
-    // Actually keyboard nav usually moves focus. Selection follows if 'Selection Follows Focus' is on.
-    // For batch actions, maybe keep them separate.
-    // However, the existing code calls `onSelectSheet` on arrow keys.
-    // Let's keep existing keyboard logic (moves focus/selectedSheetId) but NOT modify `selectedSheetIds` (batch) 
-    // UNLESS the user explicitly engages with selection keys (Space? Shift+Arrow?).
-    // For now, let's keep keyboard as "View Focus" only, and Mouse for "Batch Selection". 
-    // Or simpler: When keyboard moves focus, we verify if it updates batch selection.
-    // Standard: Arrow keys change selection.
-    // Let's make Arrow keys update `selectedSheetIds` to JUST the new focused item (resetting batch), matches standardized behavior.
-
-    // ... Copying the huge useEffect for keyboard ...
-    // Modifying the `onSelectSheet(nextItem.sheet_id)` part to also `setSelectedSheetIds(new Set([nextItem.sheet_id]))`.
-
+    // Keyboard Navigation
     useEffect(() => {
         if (displayRoster.length === 0) return;
 
         const handleKeyDown = async (e: KeyboardEvent) => {
-            const tagName = (e.target as HTMLElement).tagName;
+            const tempTarget = e.target as HTMLElement;
+            const tagName = tempTarget.tagName;
+
+            // Prevent handling if a dialog or popover is open
+            if (tempTarget.closest('[role="dialog"]') || tempTarget.closest('[role="combobox"]') || tempTarget.closest('[data-radix-popper-content-wrapper]')) {
+                return;
+            }
+
             if (['INPUT', 'TEXTAREA'].includes(tagName) || editingSheetId || deleteConfirmOpen) return;
 
 
             const currentIndex = displayRoster.findIndex(r => r.sheet_id === selectedSheetId);
             let nextIndex = currentIndex;
 
-            // ... (Existing Switch Logic, preserved accurately) ...
             switch (e.key) {
                 case 'ArrowDown':
                     e.preventDefault();
@@ -299,13 +308,6 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                             );
                         }
                         if (nextErrorIndex !== -1) nextIndex = nextErrorIndex;
-                    } else if (jumperStatus !== 'DEFAULT') {
-                        const statusToFind = jumperStatus;
-                        let nextStatusIndex = displayRoster.findIndex((r, idx) => idx > currentIndex && r.row_status === statusToFind);
-                        if (nextStatusIndex === -1) {
-                            nextStatusIndex = displayRoster.findIndex((r) => r.row_status === statusToFind);
-                        }
-                        if (nextStatusIndex !== -1) nextIndex = nextStatusIndex;
                     } else {
                         nextIndex = Math.min(displayRoster.length - 1, currentIndex + 1);
                     }
@@ -321,17 +323,6 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                             const prevErrors = errorIndices.filter(idx => idx < currentIndex);
                             if (prevErrors.length > 0) nextIndex = prevErrors[prevErrors.length - 1];
                             else nextIndex = errorIndices[errorIndices.length - 1];
-                        }
-                    } else if (jumperStatus !== 'DEFAULT') {
-                        const statusToFind = jumperStatus;
-                        const matchingIndices = displayRoster
-                            .map((r, idx) => ({ status: r.row_status, index: idx }))
-                            .filter(item => item.status === statusToFind)
-                            .map(item => item.index);
-                        if (matchingIndices.length > 0) {
-                            const prevIndices = matchingIndices.filter(idx => idx < currentIndex);
-                            if (prevIndices.length > 0) nextIndex = prevIndices[prevIndices.length - 1];
-                            else nextIndex = matchingIndices[matchingIndices.length - 1];
                         }
                     } else {
                         nextIndex = Math.max(0, currentIndex - 1);
@@ -386,10 +377,7 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                         }
                     }
                     break;
-                // ... Left/Right Arrow logic preserved ...
                 case 'ArrowLeft':
-                    // ... (omitted for brevity, assume preservation or copy raw from previous verify)
-                    // Since I am replacing the whole function, I MUST include it.
                     if (e.ctrlKey) {
                         e.preventDefault();
                         const currentRoll = displayRoster[currentIndex]?.master_roll || displayRoster[currentIndex]?.sheet_roll;
@@ -446,8 +434,6 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                     break;
             }
 
-
-
             if (nextIndex !== currentIndex && nextIndex !== -1) {
                 const nextItem = displayRoster[nextIndex];
                 if (nextItem.sheet_id) {
@@ -487,7 +473,7 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
             window.removeEventListener('keydown', handleKeyDown);
             window.removeEventListener('keydown', handleQuickActions);
         };
-    }, [displayRoster, selectedSheetId, onSelectSheet, rowVirtualizer, viewMode, queryClient, editingSheetId, jumperStatus, isSelectionMode, deleteSheetsMutation, restoreSheetsMutation]);
+    }, [displayRoster, selectedSheetId, onSelectSheet, rowVirtualizer, viewMode, queryClient, editingSheetId, isSelectionMode, deleteSheetsMutation, restoreSheetsMutation]);
 
     // ... (Focus Retention and Auto-Scroll effects) ...
     const lastSelectedIdRef = useRef<string | undefined>();
@@ -505,7 +491,6 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
     }, [selectedSheetId, displayRoster, rowVirtualizer]);
 
     // Cleanup / Auto-Advance Logic
-    // Legacy auto-advance is disabled in favor of the effect-based logic above.
     const handleCorrect = () => { };
 
 
@@ -556,6 +541,18 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                         <UserX className="w-3 h-3 mr-1" />
                         MISSING
                     </Button>
+                    {/* Relocate Button (Only visible if selection > 0) */}
+                    {selectedSheetIds.size > 0 && viewMode === 'SEQUENTIAL' && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100 ml-2"
+                            onClick={() => setRelocateDialogOpen(true)}
+                        >
+                            <ArrowRightToLine className="w-4 h-4 mr-1" />
+                            ย้ายใบตอบไปที่...
+                        </Button>
+                    )}
                 </div>
 
                 {viewMode === 'MISSING' && (
@@ -593,7 +590,7 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
 
                 <div className="flex items-center gap-2 ml-auto">
                     <div className="flex items-center gap-1 border-r pr-2 mr-2 border-slate-200">
-                        <span className="text-xs text-slate-400 mr-1">Deletion Mode</span>
+                        <span className="text-xs text-slate-400 mr-1">เลือก</span>
                         {/* Selection Toggle */}
                         <Button
                             variant={isSelectionMode ? "secondary" : "ghost"}
@@ -603,39 +600,11 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                                 setIsSelectionMode(!isSelectionMode);
                                 if (isSelectionMode) setSelectedSheetIds(new Set());
                             }}
-                            title="Toggle Deletion Mode (Ctrl+Delete)"
+                            title="เปิด/ปิดโหมดเลือก (Ctrl+Delete)"
                         >
                             {isSelectionMode ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
                         </Button>
                     </div>
-
-                    <Navigation className="w-4 h-4 text-slate-500" />
-                    <Select
-                        value={jumperStatus}
-                        onValueChange={(val) => setJumperStatus(val as RosterEntry['row_status'] | 'DEFAULT')}
-                        onOpenChange={(open) => {
-                            if (!open) {
-                                setTimeout(() => {
-                                    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
-                                    parentRef.current?.focus();
-                                }, 50);
-                            }
-                        }}
-                    >
-                        <SelectTrigger className="h-8 w-[180px] text-xs bg-white">
-                            <SelectValue placeholder="Jump Mode" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="DEFAULT">{ROW_STATUS_TRANSLATIONS['DEFAULT']}</SelectItem>
-                            <SelectItem value="DUPLICATE">{ROW_STATUS_TRANSLATIONS['DUPLICATE']}</SelectItem>
-                            <SelectItem value="GHOST">{ROW_STATUS_TRANSLATIONS['GHOST']}</SelectItem>
-                            <SelectItem value="ABSENT_MISMATCH">{ROW_STATUS_TRANSLATIONS['ABSENT_MISMATCH']}</SelectItem>
-                            <SelectItem value="ERROR">{ROW_STATUS_TRANSLATIONS['ERROR']}</SelectItem>
-                            <SelectItem value="MISSING">{ROW_STATUS_TRANSLATIONS['MISSING']}</SelectItem>
-                            <SelectItem value="ABSENT">{ROW_STATUS_TRANSLATIONS['ABSENT']}</SelectItem>
-                            <SelectItem value="OK">{ROW_STATUS_TRANSLATIONS['OK']}</SelectItem>
-                        </SelectContent>
-                    </Select>
                 </div>
             </div>
 
@@ -667,7 +636,7 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                                 else setEditingSheetId(null);
                             };
 
-                            // Logic for suggested roll (re-implemented from previous broken state)
+                            // Logic for suggested roll
                             const suggestedRoll = (() => {
                                 const prevEntry = displayRoster[virtualRow.index - 1];
                                 const nextEntry = displayRoster[virtualRow.index + 1];
@@ -788,6 +757,40 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                         <Button variant="outline" onClick={() => setReviewDialogOpen(false)}>Cancel</Button>
                         <Button onClick={() => updateReviewMutation.mutate(reviewBitmask)}>
                             Submit
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Relocate Dialog */}
+            <Dialog open={relocateDialogOpen} onOpenChange={setRelocateDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Relocate Sheets (ย้ายใบตอบ)</DialogTitle>
+                        <DialogDescription>
+                            Attempting to move <strong>{selectedSheetIds.size}</strong> selected sheets.
+                            <br />
+                            Please select the target task (Exams center/Class) to move these sheets to.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4 space-y-2">
+                        <label className="text-sm font-medium">Target Task:</label>
+                        <TaskSearchPopover
+                            onSelect={setTargetRelocateTask}
+                            selectedTask={targetRelocateTask}
+                            buttonLabel="เลือกสนามสอบปลายทาง..."
+                        />
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setRelocateDialogOpen(false)}>Cancel</Button>
+                        <Button
+                            onClick={() => {
+                                if (targetRelocateTask) relocateSheetsMutation.mutate(targetRelocateTask);
+                            }}
+                            disabled={!targetRelocateTask || relocateSheetsMutation.isPending}
+                        >
+                            {relocateSheetsMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                            Confirm Move
                         </Button>
                     </DialogFooter>
                 </DialogContent>

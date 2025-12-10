@@ -89,8 +89,17 @@ export default function UsersPage() {
 
   // Update user mutation
   const updateMutation = useMutation({
-    mutationFn: ({ userId, data }: { userId: number; data: UpdateUserRequest }) =>
-      usersApi.updateUser(userId, data),
+    mutationFn: async ({ userId, data, password }: { userId: number; data: UpdateUserRequest; password?: string }) => {
+      // First update the user details
+      const user = await usersApi.updateUser(userId, data);
+
+      // If password is provided, update it separately
+      if (password && password.trim() !== '') {
+        await usersApi.changePassword(userId, password);
+      }
+
+      return user;
+    },
     onSuccess: () => {
       toast.success('User updated successfully');
       queryClient.invalidateQueries({ queryKey: ['users'] });
@@ -155,7 +164,11 @@ export default function UsersPage() {
       scopes: formData.scopes,
     };
 
-    updateMutation.mutate({ userId: selectedUser.user_id, data: updateData });
+    updateMutation.mutate({
+      userId: selectedUser.user_id,
+      data: updateData,
+      password: formData.password
+    });
   };
 
   const handleDeleteUser = (userId: number) => {
@@ -422,6 +435,16 @@ export default function UsersPage() {
                       value={formData.full_name}
                       onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
                       required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-password">Password</Label>
+                    <Input
+                      id="edit-password"
+                      type="password"
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      placeholder="Leave blank to keep current password"
                     />
                   </div>
                   <div>
