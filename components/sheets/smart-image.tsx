@@ -97,7 +97,11 @@ export function SmartImage({ src, width, height, items, alignment = 'center', ch
                                 <div className="flex items-center justify-center w-full h-full drop-shadow-md">
                                     {item.type === 'correct' && (
                                         <div className="bg-white/80 rounded-full p-0.5">
-                                            <Check className="w-5 h-5 text-green-600" strokeWidth={4} />
+                                            <Check
+                                                className={`w-10 h-10 ${item.color ? '' : 'text-green-600'}`}
+                                                style={item.color ? { color: item.color } : undefined}
+                                                strokeWidth={4}
+                                            />
                                         </div>
                                     )}
                                     {item.type === 'incorrect' && (

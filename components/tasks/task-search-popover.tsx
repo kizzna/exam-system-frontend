@@ -26,9 +26,10 @@ interface TaskSearchPopoverProps {
     buttonLabel?: string;
     disabled?: boolean;
     selectedTask?: Task | null;
+    excludedTaskId?: number;
 }
 
-export function TaskSearchPopover({ onSelect, buttonLabel = "Select Task...", disabled = false, selectedTask }: TaskSearchPopoverProps) {
+export function TaskSearchPopover({ onSelect, buttonLabel = "Select Task...", disabled = false, selectedTask, excludedTaskId }: TaskSearchPopoverProps) {
     const [open, setOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const debouncedSearch = useDebounce(searchQuery, 300);
@@ -54,7 +55,7 @@ export function TaskSearchPopover({ onSelect, buttonLabel = "Select Task...", di
         staleTime: 1000 * 60, // 1 min (don't refetch too often)
     });
 
-    const tasks = tasksData?.items || [];
+    const tasks = (tasksData?.items || []).filter(task => task.task_id !== excludedTaskId);
 
     return (
         <Popover open={open} onOpenChange={setOpen}>
@@ -90,7 +91,7 @@ export function TaskSearchPopover({ onSelect, buttonLabel = "Select Task...", di
                         )}
                         {!isLoading && tasks.length > 0 && (
                             <div className="max-h-[300px] overflow-auto">
-                                <div className="grid grid-cols-9 gap-2 px-2 py-2 text-xs font-semibold text-muted-foreground bg-slate-50 border-b sticky top-0 z-10">
+                                <div className="grid grid-cols-9 gap-2 px-2 py-2 text-sm font-semibold text-slate-700 bg-slate-50 border-b sticky top-0 z-10">
                                     <div className="col-span-1">ID (Task)</div>
                                     <div className="col-span-1">รหัสสนามสอบ</div>
                                     <div className="col-span-1 text-center">ชั้น</div>
@@ -110,14 +111,14 @@ export function TaskSearchPopover({ onSelect, buttonLabel = "Select Task...", di
                                                 onSelect(task);
                                                 setOpen(false);
                                             }}
-                                            className="grid grid-cols-9 gap-2 py-2 cursor-pointer hover:bg-slate-100 items-center text-xs data-[selected=true]:bg-slate-100"
+                                            className="grid grid-cols-9 gap-2 py-2 cursor-pointer hover:bg-emerald-50 aria-selected:bg-emerald-50 data-[selected=true]:bg-emerald-50 items-center text-sm !text-slate-900 !opacity-100"
                                         >
-                                            <div className="col-span-1 font-mono">{task.task_id}</div>
+                                            <div className="col-span-1 font-mono font-medium">{task.task_id}</div>
                                             <div className="col-span-1">{task.exam_center_code}</div>
                                             <div className="col-span-1 text-center">{task.class_level}</div>
                                             <div className="col-span-1 text-center">{task.class_group}</div>
-                                            <div className="col-span-1 text-center text-slate-500">{task.registered_amount}</div>
-                                            <div className="col-span-1 text-center text-slate-500">{task.present_amount}</div>
+                                            <div className="col-span-1 text-center text-slate-600">{task.registered_amount}</div>
+                                            <div className="col-span-1 text-center text-slate-600">{task.present_amount}</div>
                                             <div className="col-span-1 text-center font-semibold text-blue-600">
                                                 {task.actual_sheet_count}
                                             </div>
@@ -129,11 +130,20 @@ export function TaskSearchPopover({ onSelect, buttonLabel = "Select Task...", di
                                                 )}
                                             </div>
                                             <div className="col-span-1 text-center">
-                                                <Button size="sm" variant="secondary" className="h-6 text-[10px] px-2" onClick={(e) => {
-                                                    e.stopPropagation(); // Parent CommandItem handles selection, but button is good for visual affordance
-                                                    onSelect(task);
-                                                    setOpen(false);
-                                                }}>
+                                                <Button
+                                                    size="sm"
+                                                    className="h-7 text-xs px-3 bg-blue-600 hover:bg-blue-700 text-white shadow-sm pointer-events-auto relative z-20 !opacity-100"
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        onSelect(task);
+                                                        setOpen(false);
+                                                    }}
+                                                    onPointerDown={(e) => {
+                                                        // Prevent cmdk from stealing focus/selection on mousedown
+                                                        e.stopPropagation();
+                                                    }}
+                                                >
                                                     Select
                                                 </Button>
                                             </div>

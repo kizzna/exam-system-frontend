@@ -779,6 +779,7 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                             onSelect={setTargetRelocateTask}
                             selectedTask={targetRelocateTask}
                             buttonLabel="เลือกสนามสอบปลายทาง..."
+                            excludedTaskId={parseInt(taskId)}
                         />
                     </div>
                     <DialogFooter>

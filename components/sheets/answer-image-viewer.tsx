@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { sheetsApi } from '@/lib/api/sheets';
 import { SmartImage, SmartImageItem } from './smart-image';
 import { Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface AnswerImageViewerProps {
     sheetId?: string;
@@ -18,6 +19,10 @@ const SUBJECTS = [
 ];
 
 export function AnswerImageViewer({ sheetId, taskId }: AnswerImageViewerProps & { taskId: string }) {
+    const [showCorrectAnswers, setShowCorrectAnswers] = React.useState(true);
+    const [showStudentMarks, setShowStudentMarks] = React.useState(true);
+    const [showAllOverlays, setShowAllOverlays] = React.useState(true);
+
     const { data: overlay, isLoading: isLoadingOverlay } = useQuery({
         queryKey: ['sheet-overlay', sheetId],
         queryFn: () => sheetsApi.getOverlay(sheetId!),
@@ -71,9 +76,11 @@ export function AnswerImageViewer({ sheetId, taskId }: AnswerImageViewerProps & 
 
     // Calculate items for overlay (must be before conditional returns)
     const items: SmartImageItem[] = useMemo(() => {
+        if (!showAllOverlays) return [];
         if (!overlay?.bottom?.answers || !layout?.questions || !layout?.config?.bottom || !answerKey) return [];
 
-        const items: SmartImageItem[] = [];
+        const studentItems: SmartImageItem[] = [];
+        const correctItems: SmartImageItem[] = [];
         const { answers } = overlay.bottom;
         const { questions, config } = layout;
 
@@ -99,7 +106,7 @@ export function AnswerImageViewer({ sheetId, taskId }: AnswerImageViewerProps & 
             if (!questionCoords) return;
 
             // 1. Draw Student Answer (if any)
-            if (ans.val !== null && ans.val !== undefined && ans.val !== 0) {
+            if (showStudentMarks && ans.val !== null && ans.val !== undefined && ans.val !== 0) {
                 // Determine which option was selected (A=1, B=2, C=4, D=8)
                 const values = [1, 2, 4, 8];
                 const options = ['A', 'B', 'C', 'D'];
@@ -111,7 +118,7 @@ export function AnswerImageViewer({ sheetId, taskId }: AnswerImageViewerProps & 
                         if (coord) {
                             const { x, y } = transform(coord.x, coord.y);
                             const isCorrect = (ans.val === correctVal);
-                            items.push({
+                            studentItems.push({
                                 id: `q_${qNum}_student`,
                                 x,
                                 y,
@@ -128,7 +135,7 @@ export function AnswerImageViewer({ sheetId, taskId }: AnswerImageViewerProps & 
             // 2. Draw Correct Answer (if student was wrong or didn't answer)
             // If student was wrong (ans.val !== correctVal) OR didn't answer (ans.val === 0/null)
             // But only if we know the correct value
-            if (correctVal !== undefined && (ans.val !== correctVal)) {
+            if (showCorrectAnswers && correctVal !== undefined && (ans.val !== correctVal)) {
                 const values = [1, 2, 4, 8, 16];
                 const options = ['A', 'B', 'C', 'D', 'E'];
 
@@ -138,16 +145,12 @@ export function AnswerImageViewer({ sheetId, taskId }: AnswerImageViewerProps & 
                         const coord = questionCoords[option];
                         if (coord) {
                             const { x, y } = transform(coord.x, coord.y);
-                            // If student didn't answer, show neutral (blue), else show correct (green)
-                            // The user's logic had 'neutral' for missing answers.
-                            // Let's stick to: Green circle for correct answer location.
-                            items.push({
+                            correctItems.push({
                                 id: `q_${qNum}_correct`,
                                 x,
                                 y,
-                                type: 'circle',
-                                color: 'rgba(0, 0, 255, 0.8)', // Blue Circle
-                                lineWidth: 2
+                                type: 'correct',
+                                color: 'rgba(0, 0, 255, 0.8)',
                             });
                         }
                     }
@@ -155,8 +158,8 @@ export function AnswerImageViewer({ sheetId, taskId }: AnswerImageViewerProps & 
             }
         });
 
-        return items;
-    }, [overlay, layout, answerKey]);
+        return [...studentItems, ...correctItems];
+    }, [overlay, layout, answerKey, showAllOverlays, showStudentMarks, showCorrectAnswers]);
 
     if (!sheetId) {
         return (
@@ -197,6 +200,34 @@ export function AnswerImageViewer({ sheetId, taskId }: AnswerImageViewerProps & 
 
                 {/* Subject Statistics Display - Right Side (Outside of Image) */}
                 <div className="flex flex-col gap-2 flex-shrink-0">
+                    {/* View Controls */}
+                    <div className="flex flex-col gap-2 mb-2">
+                        <Button
+                            variant={showCorrectAnswers ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setShowCorrectAnswers(!showCorrectAnswers)}
+                            className="w-full text-xs justify-start"
+                        >
+                            แสดง / ซ่อน เฉลย
+                        </Button>
+                        <Button
+                            variant={showStudentMarks ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setShowStudentMarks(!showStudentMarks)}
+                            className="w-full text-xs justify-start"
+                        >
+                            แสดง / ซ่อน การตรวจ
+                        </Button>
+                        <Button
+                            variant={showAllOverlays ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setShowAllOverlays(!showAllOverlays)}
+                            className="w-full text-xs justify-start"
+                        >
+                            แสดง / ซ่อน การระบายทั้งหมด
+                        </Button>
+                    </div>
+
                     {subjectStats.map((subject) => (
                         <div
                             key={subject.name}
