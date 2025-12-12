@@ -36,6 +36,7 @@ export interface Task {
   err_class_level_count?: number;
   err_absent_count_total?: number;
   err_absent_count?: number;
+  deleted_sheets_total?: number;
   created_at: string;
   access_source?: string;
   review_results?: number;

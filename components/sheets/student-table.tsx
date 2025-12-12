@@ -535,11 +535,11 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                     <Button
                         variant="ghost"
                         size="sm"
-                        className={`text-xs px-3 ${viewMode === 'MISSING' ? ((task?.review_results || 0) > 0 ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' : 'bg-orange-100 text-orange-700 hover:bg-orange-200') : 'text-slate-600'}`}
+                        className={`text-xs px-3 ${viewMode === 'MISSING' ? ((task?.review_results || 0) > 0 ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' : 'bg-orange-100 text-orange-700 hover:bg-orange-200') : (roster?.filter(r => r.row_status === 'MISSING').length || 0) > 0 ? 'text-red-600 font-medium' : 'text-slate-600'}`}
                         onClick={() => setViewMode('MISSING')}
                     >
                         <UserX className="w-3 h-3 mr-1" />
-                        MISSING
+                        ใบตอบหาย {(roster?.filter(r => r.row_status === 'MISSING').length || 0) > 0 && `( ${roster?.filter(r => r.row_status === 'MISSING').length || 0} )`}
                     </Button>
                     {/* Relocate Button (Only visible if selection > 0) */}
                     {selectedSheetIds.size > 0 && viewMode === 'SEQUENTIAL' && (

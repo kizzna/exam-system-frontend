@@ -112,17 +112,33 @@ const columns: ColumnDef<Task>[] = [
     },
     {
         id: 'progress',
-        header: 'ส่ง/คง/สแกน',
+        header: 'ส่ง/คง/สแกน/ขาด-เกิน',
         cell: ({ row }) => {
             const task = row.original;
-            return `${task.registered_amount} / ${task.present_amount} / ${task.actual_sheet_count}`;
+            const diff = task.present_amount - task.actual_sheet_count;
+
+            let extraInfo = null;
+            if (diff > 0) {
+                // Missing sheets
+                extraInfo = <span className="text-red-500 font-bold"> / ขาด {diff}</span>;
+            } else if (diff < 0) {
+                // Excessive sheets
+                extraInfo = <span className="text-red-500 font-bold"> / เกิน {Math.abs(diff)}</span>;
+            }
+
+            return (
+                <span>
+                    {task.registered_amount} / {task.present_amount} / {task.actual_sheet_count}
+                    {extraInfo}
+                </span>
+            );
         },
     },
-    {
-        accessorKey: 'assigned_user_id',
-        header: 'ผู้รับผิดชอบ',
-        cell: ({ row }) => row.getValue('assigned_user_id') || '-',
-    },
+    // {
+    //     accessorKey: 'assigned_user_id',
+    //     header: 'ผู้รับผิดชอบ',
+    //     cell: ({ row }) => row.getValue('assigned_user_id') || '-',
+    // },
     // {
     //     accessorKey: 'created_at',
     //     header: 'สร้างเมื่อ',
@@ -191,6 +207,15 @@ const columns: ColumnDef<Task>[] = [
         cell: ({ row }) => {
             const count = row.original.err_absent_count || 0;
             return count > 0 ? <Badge className="bg-gray-500 hover:bg-gray-600 rounded-full">{count}</Badge> : null;
+        },
+    },
+    {
+        accessorKey: 'deleted_sheets_total',
+        header: 'ถูกลบ',
+        enableSorting: true,
+        cell: ({ row }) => {
+            const count = row.original.deleted_sheets_total || 0;
+            return count > 0 ? <Badge className="bg-red-500 hover:bg-red-600 rounded-full">{count}</Badge> : null;
         },
     },
     // {

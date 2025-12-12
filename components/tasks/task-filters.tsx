@@ -28,6 +28,13 @@ export interface TaskFiltersState {
     err_class_group_count?: number;
     err_class_level_count?: number;
     err_absent_count?: number;
+    missing_sheet_count?: number;
+    excessive_sheet_count?: number;
+    empty_task?: boolean;
+    registered_amount?: number;
+    present_amount?: number;
+    actual_sheet_count?: number;
+    trash_count?: number;
 }
 
 interface TaskFiltersProps {
@@ -188,15 +195,25 @@ export function TaskFilters({ filters, onFilterChange, onRefresh }: TaskFiltersP
                 </div>
 
                 <div className="space-y-2 w-40">
-                    <Label htmlFor="error-count">เฉพาะที่มีปัญหาอย่างน้อย...</Label>
-                    <Input
-                        id="error-count"
-                        type="number"
-                        placeholder="> 0"
-                        value={filters.error_count || ''}
-                        onChange={(e) => onFilterChange({ ...filters, error_count: e.target.value ? parseInt(e.target.value) : undefined })}
-                        onKeyDown={handleKeyDown}
-                    />
+                    <Label htmlFor="error-count">มีปัญหา</Label>
+                    <div className="flex items-center gap-2">
+                        <Input
+                            id="error-count"
+                            type="number"
+                            placeholder="> 0"
+                            value={filters.error_count || ''}
+                            onChange={(e) => onFilterChange({ ...filters, error_count: e.target.value ? parseInt(e.target.value) : undefined })}
+                            onKeyDown={handleKeyDown}
+                        />
+                        <div className="flex items-center space-x-2">
+                            <Checkbox
+                                id="empty-task"
+                                checked={!!filters.empty_task}
+                                onCheckedChange={(checked) => onFilterChange({ ...filters, empty_task: checked ? true : undefined })}
+                            />
+                            <Label htmlFor="empty-task" className="text-xs whitespace-nowrap">ไม่มีใบตอบ</Label>
+                        </div>
+                    </div>
                 </div>
 
                 <div className="space-y-2 w-28">
@@ -212,7 +229,7 @@ export function TaskFilters({ filters, onFilterChange, onRefresh }: TaskFiltersP
                 </div>
 
                 <div className="space-y-2 w-28">
-                    <Label htmlFor="err-low" className="text-xs">อ่านไม่ถึง 140 ข้อ</Label>
+                    <Label htmlFor="err-low" className="text-xs">&lt; 141 ข้อ</Label>
                     <Input
                         id="err-low"
                         type="number"
@@ -247,6 +264,30 @@ export function TaskFilters({ filters, onFilterChange, onRefresh }: TaskFiltersP
                     />
                 </div>
 
+                <div className="space-y-2 w-28">
+                    <Label htmlFor="missing-sheet" className="text-xs">ใบตอบขาด</Label>
+                    <Input
+                        id="missing-sheet"
+                        type="number"
+                        placeholder="> 0"
+                        value={filters.missing_sheet_count || ''}
+                        onChange={(e) => onFilterChange({ ...filters, missing_sheet_count: e.target.value ? parseInt(e.target.value) : undefined })}
+                        onKeyDown={handleKeyDown}
+                    />
+                </div>
+
+                <div className="space-y-2 w-28">
+                    <Label htmlFor="excessive-sheet" className="text-xs">ใบตอบเกิน</Label>
+                    <Input
+                        id="excessive-sheet"
+                        type="number"
+                        placeholder="> 0"
+                        value={filters.excessive_sheet_count || ''}
+                        onChange={(e) => onFilterChange({ ...filters, excessive_sheet_count: e.target.value ? parseInt(e.target.value) : undefined })}
+                        onKeyDown={handleKeyDown}
+                    />
+                </div>
+
 
                 <div className="flex items-end">
                     <Popover>
@@ -261,7 +302,8 @@ export function TaskFilters({ filters, onFilterChange, onRefresh }: TaskFiltersP
                                 {/* Specific Errors */}
                                 <div className="grid grid-cols-2 gap-2">
 
-                                    <div className="space-y-1">
+                                    {/* This error is not used anymore but keep it for future use */}
+                                    {/* <div className="space-y-1">
                                         <Label htmlFor="err-center" className="text-xs">รหัสสนามสอบผิด</Label>
                                         <Input
                                             id="err-center"
@@ -272,8 +314,9 @@ export function TaskFilters({ filters, onFilterChange, onRefresh }: TaskFiltersP
                                             onChange={(e) => onFilterChange({ ...filters, err_exam_center_id_count: e.target.value ? parseInt(e.target.value) : undefined })}
                                             onKeyDown={handleKeyDown}
                                         />
-                                    </div>
-                                    <div className="space-y-1">
+                                    </div> */}
+                                    {/* This error is not used anymore but keep it for future use */}
+                                    {/* <div className="space-y-1">
                                         <Label htmlFor="err-grp" className="text-xs">ช่วงชั้นผิด</Label>
                                         <Input
                                             id="err-grp"
@@ -284,8 +327,9 @@ export function TaskFilters({ filters, onFilterChange, onRefresh }: TaskFiltersP
                                             onChange={(e) => onFilterChange({ ...filters, err_class_group_count: e.target.value ? parseInt(e.target.value) : undefined })}
                                             onKeyDown={handleKeyDown}
                                         />
-                                    </div>
-                                    <div className="space-y-1">
+                                    </div> */}
+                                    {/* This error is not used anymore but keep it for future use */}
+                                    {/* <div className="space-y-1">
                                         <Label htmlFor="err-lvl" className="text-xs">ชั้นผิด</Label>
                                         <Input
                                             id="err-lvl"
@@ -294,6 +338,55 @@ export function TaskFilters({ filters, onFilterChange, onRefresh }: TaskFiltersP
                                             placeholder="> 0"
                                             value={filters.err_class_level_count || ''}
                                             onChange={(e) => onFilterChange({ ...filters, err_class_level_count: e.target.value ? parseInt(e.target.value) : undefined })}
+                                            onKeyDown={handleKeyDown}
+                                        />
+                                    </div> */}
+                                    <div className="col-span-2 border-t my-2"></div>
+                                    <div className="space-y-1">
+                                        <Label htmlFor="reg-amt" className="text-xs">จำนวนสมัครสอบ</Label>
+                                        <Input
+                                            id="reg-amt"
+                                            type="number"
+                                            className="h-8"
+                                            placeholder=">= ..."
+                                            value={filters.registered_amount || ''}
+                                            onChange={(e) => onFilterChange({ ...filters, registered_amount: e.target.value ? parseInt(e.target.value) : undefined })}
+                                            onKeyDown={handleKeyDown}
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label htmlFor="pres-amt" className="text-xs">จำนวนเข้าสอบ</Label>
+                                        <Input
+                                            id="pres-amt"
+                                            type="number"
+                                            className="h-8"
+                                            placeholder=">= ..."
+                                            value={filters.present_amount || ''}
+                                            onChange={(e) => onFilterChange({ ...filters, present_amount: e.target.value ? parseInt(e.target.value) : undefined })}
+                                            onKeyDown={handleKeyDown}
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label htmlFor="act-sheet" className="text-xs">จำนวนสแกน</Label>
+                                        <Input
+                                            id="act-sheet"
+                                            type="number"
+                                            className="h-8"
+                                            placeholder=">= ..."
+                                            value={filters.actual_sheet_count || ''}
+                                            onChange={(e) => onFilterChange({ ...filters, actual_sheet_count: e.target.value ? parseInt(e.target.value) : undefined })}
+                                            onKeyDown={handleKeyDown}
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label htmlFor="trash-cnt" className="text-xs">ใบตอบที่ถูกลบ</Label>
+                                        <Input
+                                            id="trash-cnt"
+                                            type="number"
+                                            className="h-8"
+                                            placeholder=">= ..."
+                                            value={filters.trash_count || ''}
+                                            onChange={(e) => onFilterChange({ ...filters, trash_count: e.target.value ? parseInt(e.target.value) : undefined })}
                                             onKeyDown={handleKeyDown}
                                         />
                                     </div>

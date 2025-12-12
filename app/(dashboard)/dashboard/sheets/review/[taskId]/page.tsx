@@ -78,7 +78,7 @@ export default function OMRReviewPage({ params }: { params: Promise<{ taskId: st
                     <p className="text-slate-600">The OMR Correction Editor requires a large screen to display documents and data side-by-side. Please open this task on a computer.</p>
                 </div>
             </div>
-            <main className="hidden lg:flex h-screen w-screen bg-slate-50 p-2 overflow-hidden flex-col">
+            <div className="hidden lg:flex w-full h-[calc(100vh-3rem)] bg-slate-50 p-2 overflow-hidden flex-col">
 
                 {/* Optional: Minimal Global Header (Breadcrumbs/Back Button) */}
                 <header className="h-10 shrink-0 flex items-center justify-center px-2 mb-2 gap-4">
@@ -144,7 +144,7 @@ export default function OMRReviewPage({ params }: { params: Promise<{ taskId: st
                     </section>
 
                 </div>
-            </main>
+            </div>
         </>
     );
 }
