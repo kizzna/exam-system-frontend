@@ -104,14 +104,22 @@ export default function OMRReviewPage({ params }: { params: Promise<{ taskId: st
                         <HeaderImageViewer sheetId={selectedSheetId} />
                     </section>
 
-                    {/* --- PANEL B: Top Right (Stats & Tools) --- */}
-                    {/* Proportions: ~42% width, ~42% height */}
-                    <section className="col-span-5 row-span-5 bg-white rounded-lg border shadow-sm p-4 overflow-y-auto">
-                        {/* <div className="mb-4 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                            แผง B: สถิติและเครื่องมือ
-                        </div> */}
-                        <StatsPanel taskId={taskId} />
-                    </section>
+                    {/* --- RIGHT COLUMN WRAPPER (Panel B + Panel D) --- */}
+                    {/* Occupies full right height (12 rows), Internal Flex 3:9 */}
+                    <div className="col-span-5 row-span-12 flex flex-col gap-3 min-h-0">
+                        {/* --- PANEL B: Top Right (Stats & Tools) --- */}
+                        <section className="flex-[3] bg-white rounded-lg border shadow-sm p-4 overflow-y-auto min-h-0">
+                            <StatsPanel taskId={taskId} />
+                        </section>
+
+                        {/* --- PANEL D: Bottom Right (Answer Image) --- */}
+                        <section className="flex-[9] bg-white rounded-lg border shadow-sm relative overflow-hidden flex flex-col min-h-0">
+                            <AnswerImageViewer
+                                sheetId={selectedSheetId}
+                                taskId={taskId}
+                            />
+                        </section>
+                    </div>
 
                     {/* --- PANEL C: Bottom Left (Data Table) --- */}
                     {/* Proportions: ~58% width, ~58% height */}
@@ -129,18 +137,6 @@ export default function OMRReviewPage({ params }: { params: Promise<{ taskId: st
                                 onSelectSheet={setSelectedSheetId}
                             />
                         </div>
-                    </section>
-
-                    {/* --- PANEL D: Bottom Right (Answer Image) --- */}
-                    {/* Proportions: ~42% width, ~58% height */}
-                    <section className="col-span-5 row-span-7 bg-white rounded-lg border shadow-sm relative overflow-hidden flex flex-col">
-                        {/* <div className="absolute top-2 left-2 z-10 bg-black/50 text-white text-xs px-2 py-1 rounded">
-                            แผง D: คำตอบ 150 ข้อ
-                        </div> */}
-                        <AnswerImageViewer
-                            sheetId={selectedSheetId}
-                            taskId={taskId}
-                        />
                     </section>
 
                 </div>
