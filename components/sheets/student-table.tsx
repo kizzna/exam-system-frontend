@@ -43,9 +43,12 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
     const queryClient = useQueryClient();
 
     // Fetch Roster using task_id and viewMode
+    const rosterStatus = viewMode === 'DELETED' ? 'deleted' : 'active';
+
     const { data: roster, isLoading } = useQuery({
-        queryKey: ['roster', taskId, viewMode],
-        queryFn: () => tasksApi.getRoster(parseInt(taskId), viewMode === 'DELETED' ? 'deleted' : 'active'),
+        queryKey: ['roster', taskId, rosterStatus],
+        queryFn: () => tasksApi.getRoster(parseInt(taskId), rosterStatus),
+        staleTime: 5 * 60 * 1000, // 5 minutes
     });
 
     // Fetch Stats for Deleted Count
