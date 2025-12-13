@@ -140,3 +140,7 @@ export interface SheetVerificationRequest {
     manual_corrected?: boolean;
   };
 }
+
+export interface AnswerEditPayload {
+  answers: Record<string, number>;
+}

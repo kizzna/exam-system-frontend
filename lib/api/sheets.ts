@@ -1,5 +1,5 @@
 import apiClient from './client';
-import { Sheet, SheetCorrectionRequest, BulkSheetUpdateRequest, OverlayResponse, OMRLayout, AnswerKey, SheetInfoUpdateRequest, SheetVerificationRequest } from '../types/sheets';
+import { Sheet, SheetCorrectionRequest, BulkSheetUpdateRequest, OverlayResponse, OMRLayout, AnswerKey, SheetInfoUpdateRequest, SheetVerificationRequest, AnswerEditPayload } from '../types/sheets';
 import { PaginatedResponse } from '../types/api';
 import { RosterEntry } from '../types/tasks';
 
@@ -57,6 +57,10 @@ export const sheetsApi = {
 
   verifySheet: async (id: string, data: SheetVerificationRequest): Promise<void> => {
     await apiClient.patch(`/sheets/${id}/verify`, data);
+  },
+
+  updateSheetAnswers: async (id: string, data: AnswerEditPayload): Promise<void> => {
+    await apiClient.patch(`/sheets/${id}/answers`, data);
   },
 
   batchDelete: async (sheet_ids: number[]): Promise<void> => {

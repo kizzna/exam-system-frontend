@@ -4,8 +4,10 @@ import React, { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { sheetsApi } from '@/lib/api/sheets';
 import { SmartImage, SmartImageItem } from './smart-image';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { AnswerEditor } from './answer-editor';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface AnswerImageViewerProps {
     sheetId?: string;
@@ -22,6 +24,8 @@ export function AnswerImageViewer({ sheetId, taskId }: AnswerImageViewerProps & 
     const [showCorrectAnswers, setShowCorrectAnswers] = React.useState(true);
     const [showStudentMarks, setShowStudentMarks] = React.useState(true);
     const [showAllOverlays, setShowAllOverlays] = React.useState(true);
+    const [isEditorOpen, setIsEditorOpen] = React.useState(false);
+    const queryClient = useQueryClient();
 
     const { data: overlay, isLoading: isLoadingOverlay } = useQuery({
         queryKey: ['sheet-overlay', sheetId],
@@ -186,8 +190,11 @@ export function AnswerImageViewer({ sheetId, taskId }: AnswerImageViewerProps & 
     }
 
     return (
-        <div className="w-full h-full flex items-start justify-start bg-slate-100/50 p-4">
-            <div className="flex items-start gap-2 h-full">
+        <div className="w-full h-full flex items-start justify-start bg-slate-100/50 p-4 overflow-hidden">
+            {/* Main Flex Container */}
+            <div className="flex items-start gap-2 h-full flex-1">
+
+                {/* 1. Image Area */}
                 <div className="h-full flex-shrink-0">
                     <SmartImage
                         src={sheetsApi.getSheetImageUrl(sheetId, 'bottom', 350)}
@@ -198,17 +205,18 @@ export function AnswerImageViewer({ sheetId, taskId }: AnswerImageViewerProps & 
                     />
                 </div>
 
-                {/* Subject Statistics Display - Right Side (Outside of Image) */}
+                {/* 2. Stats Column */}
                 <div className="flex flex-col gap-2 flex-shrink-0">
                     {/* View Controls */}
                     <div className="flex flex-col gap-2 mb-2">
+                        {/* ... Existing Toggle Buttons ... */}
                         <Button
                             variant={showCorrectAnswers ? "default" : "outline"}
                             size="sm"
                             onClick={() => setShowCorrectAnswers(!showCorrectAnswers)}
                             className="w-full text-xs justify-start"
                         >
-                            แสดง / ซ่อน เฉลย
+                            เฉลย
                         </Button>
                         <Button
                             variant={showStudentMarks ? "default" : "outline"}
@@ -216,7 +224,7 @@ export function AnswerImageViewer({ sheetId, taskId }: AnswerImageViewerProps & 
                             onClick={() => setShowStudentMarks(!showStudentMarks)}
                             className="w-full text-xs justify-start"
                         >
-                            แสดง / ซ่อน การตรวจ
+                            การตรวจ
                         </Button>
                         <Button
                             variant={showAllOverlays ? "default" : "outline"}
@@ -224,29 +232,37 @@ export function AnswerImageViewer({ sheetId, taskId }: AnswerImageViewerProps & 
                             onClick={() => setShowAllOverlays(!showAllOverlays)}
                             className="w-full text-xs justify-start"
                         >
-                            แสดง / ซ่อน การระบายทั้งหมด
+                            ทั้งหมด
+                        </Button>
+
+                        {/* Button acts as Trigger only now */}
+                        <Button
+                            variant={isEditorOpen ? "secondary" : "default"}
+                            size="sm"
+                            onClick={() => setIsEditorOpen(!isEditorOpen)}
+                            className="w-full text-xs justify-start gap-2"
+                        >
+                            <Edit className="w-3 h-3" />
+                            {isEditorOpen ? 'ปิด' : 'แก้ไข'}
                         </Button>
                     </div>
 
+                    {/* Stats Cards */}
                     {subjectStats.map((subject) => (
                         <div
                             key={subject.name}
                             className={`w-20 bg-white border-2 ${subject.borderColor} rounded shadow-md overflow-hidden`}
                         >
-                            {/* Subject Header */}
+                            {/* ... stats content ... */}
                             <div className={`${subject.color} text-white text-xs font-bold text-center py-1`}>
                                 {subject.label}
                             </div>
-
-                            {/* Answered Count */}
                             <div className="px-2 py-1 border-b border-slate-200">
                                 <div className="text-[10px] text-slate-600 leading-tight">ตอบ</div>
                                 <div className="text-sm font-bold text-slate-800 leading-tight">
                                     {subject.answered} ข้อ
                                 </div>
                             </div>
-
-                            {/* Score */}
                             <div className="px-2 py-1">
                                 <div className="text-[10px] text-slate-600 leading-tight">คะแนน</div>
                                 <div className="text-sm font-bold text-slate-800 leading-tight">
@@ -256,6 +272,19 @@ export function AnswerImageViewer({ sheetId, taskId }: AnswerImageViewerProps & 
                         </div>
                     ))}
                 </div>
+
+                {/* 3. Editor Panel - Rendered Conditionally as a sibling */}
+                {isEditorOpen && (
+                    <AnswerEditor
+                        sheetId={sheetId!}
+                        initialAnswers={overlay?.bottom?.answers || []}
+                        isOpen={isEditorOpen}
+                        onClose={() => setIsEditorOpen(false)}
+                        onSaveSuccess={() => {
+                            queryClient.invalidateQueries({ queryKey: ['sheet-overlay', sheetId] });
+                        }}
+                    />
+                )}
             </div>
         </div>
     );
