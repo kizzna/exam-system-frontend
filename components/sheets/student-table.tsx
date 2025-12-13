@@ -208,6 +208,12 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
         try {
             await sheetsApi.batchDelete(Array.from(selectedSheetIds).map(id => parseInt(id)));
             toast.success(`Deleted ${selectedSheetIds.size} sheets`);
+
+            // Clear current view if it was part of the deleted batch
+            if (selectedSheetId && selectedSheetIds.has(selectedSheetId)) {
+                onSelectSheet(undefined);
+            }
+
             setSelectedSheetIds(new Set());
             queryClient.invalidateQueries({ queryKey: ['roster'] });
             queryClient.invalidateQueries({ queryKey: ['task-stats', taskId] });
