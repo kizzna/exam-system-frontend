@@ -76,7 +76,7 @@ export function TaskSearchPopover({ onSelect, buttonLabel = "Select Task...", di
             <PopoverContent className="w-[800px] p-0" align="start">
                 <Command shouldFilter={false}>
                     <CommandInput
-                        placeholder="Search task ID..."
+                        placeholder="รหัสสนามสอบ"
                         value={searchQuery}
                         onValueChange={setSearchQuery}
                     />
@@ -87,20 +87,20 @@ export function TaskSearchPopover({ onSelect, buttonLabel = "Select Task...", di
                             </div>
                         )}
                         {!isLoading && tasks.length === 0 && (
-                            <CommandEmpty>No tasks found.</CommandEmpty>
+                            <CommandEmpty>ไม่พบสนามสอบ</CommandEmpty>
                         )}
                         {!isLoading && tasks.length > 0 && (
-                            <div className="max-h-[300px] overflow-auto">
+                            <div>
                                 <div className="grid grid-cols-9 gap-2 px-2 py-2 text-sm font-semibold text-slate-700 bg-slate-50 border-b sticky top-0 z-10">
                                     <div className="col-span-1">ID (Task)</div>
-                                    <div className="col-span-1">รหัสสนามสอบ</div>
+                                    <div className="col-span-1">รหัสสนาม</div>
                                     <div className="col-span-1 text-center">ชั้น</div>
                                     <div className="col-span-1 text-center">ช่วงชั้น</div>
                                     <div className="col-span-1 text-center">สมัครสอบ</div>
                                     <div className="col-span-1 text-center">เข้าสอบ</div>
-                                    <div className="col-span-1 text-center">จำนวนใบตอบ</div>
-                                    <div className="col-span-1 text-center">จำนวนปัญหา</div>
-                                    <div className="col-span-1 text-center">Action</div>
+                                    <div className="col-span-1 text-center">ใบตอบ</div>
+                                    <div className="col-span-1 text-center">ปัญหา</div>
+                                    <div className="col-span-1 text-center">#</div>
                                 </div>
                                 <CommandGroup>
                                     {tasks.map((task) => (
@@ -144,7 +144,7 @@ export function TaskSearchPopover({ onSelect, buttonLabel = "Select Task...", di
                                                         e.stopPropagation();
                                                     }}
                                                 >
-                                                    Select
+                                                    เลือก
                                                 </Button>
                                             </div>
                                         </CommandItem>

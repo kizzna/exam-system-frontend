@@ -25,7 +25,7 @@ import {
 interface StudentTableProps {
     taskId: string;
     selectedSheetId?: string;
-    onSelectSheet: (id: string) => void;
+    onSelectSheet: (id: string | undefined) => void;
 }
 
 type ViewMode = 'SEQUENTIAL' | 'DELETED' | 'MISSING';
@@ -48,7 +48,7 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
     const { data: roster, isLoading } = useQuery({
         queryKey: ['roster', taskId, rosterStatus],
         queryFn: () => tasksApi.getRoster(parseInt(taskId), rosterStatus),
-        staleTime: 5 * 60 * 1000, // 5 minutes
+        staleTime: 2 * 60 * 1000, // 2 minutes (Cache รายชื่อไว้เท่านี้ จะได้ไม่ต้อง Query บ่อยๆ)
     });
 
     // Fetch Stats for Deleted Count
@@ -68,19 +68,23 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
     const deleteSheetsMutation = useMutation({
         mutationFn: (sheetIds: string[]) => sheetsApi.batchDelete(sheetIds.map(id => parseInt(id))),
         onSuccess: (_data, variables) => {
-            toast.success(`Deleted ${variables.length} sheet(s)`);
+            toast.success(`ลบใบตอบ ${variables.length} ฉบับ`);
             // Remove deleted IDs from selection
             setSelectedSheetIds(prev => {
                 const next = new Set(prev);
                 variables.forEach(id => next.delete(id));
                 return next;
             });
+            // Clear selection if the currently viewed sheet was deleted
+            if (selectedSheetId && variables.includes(selectedSheetId)) {
+                onSelectSheet(undefined);
+            }
             setDeleteConfirmOpen(false);
             setSheetToDelete(null);
             queryClient.invalidateQueries({ queryKey: ['roster'] });
             queryClient.invalidateQueries({ queryKey: ['task-stats', taskId] });
         },
-        onError: () => toast.error("Failed to delete sheet(s)")
+        onError: () => toast.error("ลบใบตอบไม่สำเร็จ")
     });
 
     const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
@@ -89,17 +93,17 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
     const updateReviewMutation = useMutation({
         mutationFn: (val: number) => tasksApi.updateReviewResults(parseInt(taskId), val),
         onSuccess: () => {
-            toast.success("Review submitted successfully");
+            toast.success("ส่งผลการตรวจสำเร็จ");
             setReviewDialogOpen(false);
             queryClient.invalidateQueries({ queryKey: ['task', taskId] });
         },
-        onError: () => toast.error("Failed to submit review")
+        onError: () => toast.error("ส่งผลการตรวจไม่สำเร็จ")
     });
 
     const restoreSheetsMutation = useMutation({
         mutationFn: (sheetIds: string[]) => sheetsApi.batchRestore(sheetIds.map(id => parseInt(id))),
         onSuccess: (_data, variables) => {
-            toast.success(`Restored ${variables.length} sheet(s)`);
+            toast.success(`กู้คืนใบตอบ ${variables.length} ฉบับ`);
             setSelectedSheetIds(prev => {
                 const next = new Set(prev);
                 variables.forEach(id => next.delete(id));
@@ -110,9 +114,9 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
         },
         onError: (error: any) => {
             if (error.response?.status === 409) {
-                toast.error("Cannot restore: Active sheets with same ID already exist");
+                toast.error("ไม่สามารถกู้คืนได้ เนื่องจากมีใบคำตอบที่มีเลขที่เดียวกัน");
             } else {
-                toast.error("Failed to restore sheets");
+                toast.error("ไม่สามารถกู้คืนได้");
             }
         }
     });
@@ -129,14 +133,14 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
             target_class_group: targetTask.class_group
         }),
         onSuccess: () => {
-            toast.success(`Relocated ${selectedSheetIds.size} sheets successfully`);
+            toast.success(`ย้ายใบตอบ ${selectedSheetIds.size} ฉบับสำเร็จ`);
             setRelocateDialogOpen(false);
             setTargetRelocateTask(null);
             setSelectedSheetIds(new Set());
             queryClient.invalidateQueries({ queryKey: ['roster'] });
             queryClient.invalidateQueries({ queryKey: ['task-stats', taskId] });
         },
-        onError: () => toast.error("Failed to relocate sheets")
+        onError: () => toast.error("ไม่สามารถย้ายใบตอบได้")
     });
 
     // Reset selection when view mode changes
@@ -222,9 +226,9 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
             queryClient.invalidateQueries({ queryKey: ['task-stats', taskId] });
         } catch (error: any) {
             if (error.response?.status === 409) {
-                toast.error("Cannot restore: Active sheets with same ID already exist");
+                toast.error("ไม่สามารถกู้คืนได้ เนื่องจากมีใบตอบที่มีเลขที่เดียวกัน");
             } else {
-                toast.error("Failed to restore sheets");
+                toast.error("ไม่สามารถกู้คืนได้");
             }
         }
     };
@@ -365,12 +369,15 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                                             too_few_answers: actionType === 'too_few' ? true : undefined
                                         }
                                     });
-                                    toast.success("Updated sheet status via shortcut");
+                                    let msg = "";
+                                    if (actionType === 'present') msg = "ยืนยันว่ามาสอบสำเร็จ";
+                                    else if (actionType === 'too_few') msg = "ยืนยันว่าตอบไม่ครบสำเร็จ";
+                                    toast.success(msg);
                                     queryClient.invalidateQueries({ queryKey: ['roster'] });
                                     queryClient.invalidateQueries({ queryKey: ['task-stats', taskId] });
                                     handleCorrect();
-                                } catch (err) { toast.error("Failed to update status"); }
-                            } else { toast.info("No quick fix available"); }
+                                } catch (err) { toast.error("อัปเดตสถานะใบตอบไม่สำเร็จ"); }
+                            } else { toast.info("ไม่มีการแก้ไข"); }
                         }
                     } else {
                         e.preventDefault();
@@ -524,7 +531,7 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                         onClick={() => setViewMode('SEQUENTIAL')}
                     >
                         <ListOrdered className="w-3 h-3 mr-1" />
-                        Sequential
+                        ตรวจใบตอบ
                     </Button>
                     <Button
                         variant="ghost"
@@ -533,7 +540,7 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                         onClick={() => setViewMode('DELETED')}
                     >
                         <span className="mr-1">🗑️</span>
-                        DELETED ({deletedCount})
+                        ถูกลบ ({deletedCount})
                     </Button>
                     <Button
                         variant="ghost"
@@ -542,7 +549,7 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                         onClick={() => setViewMode('MISSING')}
                     >
                         <UserX className="w-3 h-3 mr-1" />
-                        ใบตอบหาย {(roster?.filter(r => r.row_status === 'MISSING').length || 0) > 0 && `( ${roster?.filter(r => r.row_status === 'MISSING').length || 0} )`}
+                        ไม่มีใบตอบ {(roster?.filter(r => r.row_status === 'MISSING').length || 0) > 0 && `( ${roster?.filter(r => r.row_status === 'MISSING').length || 0} )`}
                     </Button>
                     {/* Relocate Button (Only visible if selection > 0) */}
                     {selectedSheetIds.size > 0 && viewMode === 'SEQUENTIAL' && (
@@ -569,7 +576,7 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                                 setReviewDialogOpen(true);
                             }}
                         >
-                            {((task?.review_results || 0) > 0) ? "Update Review" : "Submit Review"}
+                            {((task?.review_results || 0) > 0) ? "เปลี่ยนการยืนยัน" : "ยืนยันไม่มีใบตอบ"}
                         </Button>
                     </div>
                 )}
@@ -580,12 +587,12 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                         <span className="text-xs text-slate-500">{selectedSheetIds.size} selected</span>
                         {viewMode === 'SEQUENTIAL' && (
                             <Button size="sm" variant="destructive" className="h-7 text-xs" onClick={handleBatchDelete}>
-                                Delete Selected
+                                ลบ
                             </Button>
                         )}
                         {viewMode === 'DELETED' && (
                             <Button size="sm" variant="default" className="h-7 text-xs bg-green-600 hover:bg-green-700" onClick={handleBatchRestore}>
-                                Restore Selected
+                                กู้คืน
                             </Button>
                         )}
                     </div>
@@ -703,7 +710,7 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                         <DialogDescription>
                             ต้องการลบใบคำตอบของ <span className="font-bold text-slate-900">{sheetToDelete?.student_name || 'Unknown'}</span> ({sheetToDelete?.sheet_roll})?
                             <br />
-                            ท่านสามารถกู้คืนได้ในแท็บ Deleted
+                            ท่านสามารถกู้คืนได้ในแท็บ ถูกลบ
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
@@ -722,9 +729,9 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
             <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Review Missing Students</DialogTitle>
+                        <DialogTitle>แจ้งผลการตรวจ</DialogTitle>
                         <DialogDescription>
-                            Please confirm your review of the missing student list.
+                            <span className="font-bold text-slate-900">ได้ทำการตรวจแล้ว</span>
                         </DialogDescription>
                     </DialogHeader>
                     <div className="flex flex-col gap-3 py-4">
@@ -734,7 +741,7 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                                 onClick={() => setReviewBitmask(prev => prev ^ 1)}
                             />
                             <label className="text-sm cursor-pointer select-none" onClick={() => setReviewBitmask(prev => prev ^ 1)}>
-                                Missing student checked (ตรวจสอบรายชื่อขาดแล้ว)
+                                นักเรียนที่มีสถานะมาสอบแต่ไม่มีใบตอบจริง
                             </label>
                         </div>
                         <div className="flex items-center space-x-2">
@@ -743,7 +750,7 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                                 onClick={() => setReviewBitmask(prev => prev ^ 2)}
                             />
                             <label className="text-sm cursor-pointer select-none" onClick={() => setReviewBitmask(prev => prev ^ 2)}>
-                                Less than expected student checked (นักเรียนน้อยกว่ายอดเข้าสอบ)
+                                ใบตอบน้อยกว่าจำนวนเข้าสอบจริง
                             </label>
                         </div>
                         <div className="flex items-center space-x-2">
@@ -752,14 +759,14 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                                 onClick={() => setReviewBitmask(prev => prev ^ 4)}
                             />
                             <label className="text-sm cursor-pointer select-none" onClick={() => setReviewBitmask(prev => prev ^ 4)}>
-                                More than expected student checked (นักเรียนมากกว่ายอดเข้าสอบ)
+                                ใบตอบมากกว่าจำนวนเข้าสอบจริง
                             </label>
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setReviewDialogOpen(false)}>Cancel</Button>
+                        <Button variant="outline" onClick={() => setReviewDialogOpen(false)}>ยกเลิก</Button>
                         <Button onClick={() => updateReviewMutation.mutate(reviewBitmask)}>
-                            Submit
+                            ตกลง
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -769,15 +776,15 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
             <Dialog open={relocateDialogOpen} onOpenChange={setRelocateDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Relocate Sheets (ย้ายใบตอบ)</DialogTitle>
+                        <DialogTitle>ย้ายใบตอบ</DialogTitle>
                         <DialogDescription>
-                            Attempting to move <strong>{selectedSheetIds.size}</strong> selected sheets.
+                            ต้องการย้ายใบตอบจำนวน <strong>{selectedSheetIds.size}</strong> ฉบับไปที่
                             <br />
-                            Please select the target task (Exams center/Class) to move these sheets to.
+                            กรุณาเลือกสนามสอบปลายทาง
                         </DialogDescription>
                     </DialogHeader>
                     <div className="py-4 space-y-2">
-                        <label className="text-sm font-medium">Target Task:</label>
+                        <label className="text-sm font-medium">สนามสอบ-ชั้น-ช่วงชั้น</label>
                         <TaskSearchPopover
                             onSelect={setTargetRelocateTask}
                             selectedTask={targetRelocateTask}
@@ -786,7 +793,7 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                         />
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setRelocateDialogOpen(false)}>Cancel</Button>
+                        <Button variant="outline" onClick={() => setRelocateDialogOpen(false)}>ยกเลิก</Button>
                         <Button
                             onClick={() => {
                                 if (targetRelocateTask) relocateSheetsMutation.mutate(targetRelocateTask);
@@ -794,7 +801,7 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                             disabled={!targetRelocateTask || relocateSheetsMutation.isPending}
                         >
                             {relocateSheetsMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                            Confirm Move
+                            ยืนยันการย้าย
                         </Button>
                     </DialogFooter>
                 </DialogContent>
