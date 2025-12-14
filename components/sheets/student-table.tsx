@@ -5,7 +5,7 @@ import { tasksApi } from '@/lib/api/tasks';
 import { sheetsApi } from '@/lib/api/sheets';
 import { RosterEntry } from '@/lib/types/tasks';
 import { ROW_STATUS_TRANSLATIONS } from '@/lib/translations';
-import { Loader2, ListOrdered, CheckSquare, Square, UserX, ArrowRightToLine } from 'lucide-react';
+import { Loader2, ListOrdered, CheckSquare, Square, UserX, ArrowRightToLine, ArrowLeftRight, AlertTriangle } from 'lucide-react';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { TaskSearchPopover } from '@/components/tasks/task-search-popover';
 import { Task } from '@/lib/types/tasks';
@@ -141,6 +141,27 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
             queryClient.invalidateQueries({ queryKey: ['task-stats', taskId] });
         },
         onError: () => toast.error("ไม่สามารถย้ายใบตอบได้")
+    });
+
+    const [swapDialogOpen, setSwapDialogOpen] = useState(false);
+    const [targetSwapTask, setTargetSwapTask] = useState<Task | null>(null);
+
+    const swapTaskMutation = useMutation({
+        mutationFn: (targetTaskId: number) => sheetsApi.swap({
+            task_id_a: parseInt(taskId),
+            task_id_b: targetTaskId
+        }),
+        onSuccess: () => {
+            toast.success("สลับใบตอบสำเร็จ");
+            setSwapDialogOpen(false);
+            setTargetSwapTask(null);
+            queryClient.invalidateQueries({ queryKey: ['task-stats'] });
+            queryClient.invalidateQueries({ queryKey: ['roster'] });
+            queryClient.invalidateQueries({ queryKey: ['task'] });
+        },
+        onError: () => {
+            toast.error("สลับใบตอบไม่สำเร็จ");
+        }
     });
 
     // Reset selection when view mode changes
@@ -606,7 +627,17 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
 
                 <div className="flex items-center gap-2 ml-auto">
                     <div className="flex items-center gap-1 border-r pr-2 mr-2 border-slate-200">
-                        <span className="text-xs text-slate-400 mr-1">เลือก</span>
+                        {/* Swap Button */}
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 text-slate-400 hover:text-orange-600 hover:bg-orange-50"
+                            onClick={() => setSwapDialogOpen(true)}
+                            title="สลับใบตอบทั้งหมดกับสนาม..."
+                        >
+                            <ArrowLeftRight className="w-4 h-4" />
+                        </Button>
+                        <span className="text-xs text-slate-400 mr-1 ml-1">เลือก</span>
                         {/* Selection Toggle */}
                         <Button
                             variant={isSelectionMode ? "secondary" : "ghost"}
@@ -807,7 +838,50 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                             disabled={!targetRelocateTask || relocateSheetsMutation.isPending}
                         >
                             {relocateSheetsMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                            ยืนยันการย้าย
+                            Ok
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Swap All Sheets Dialog */}
+            <Dialog open={swapDialogOpen} onOpenChange={setSwapDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>สลับใบตอบทั้งหมด</DialogTitle>
+                        <DialogDescription asChild>
+                            <div className="text-sm text-muted-foreground">
+                                <div className="p-3 bg-red-50 border border-red-100 rounded-md flex gap-1">
+                                    <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
+                                    <div className="text-sm text-red-700">
+                                        <strong>คำเตือน:</strong> สลับใบตอบทั้งหมด กับสนามที่เลือก
+                                        <br />
+                                        (ใช้เมื่อใบนำสแกนสลับกันเท่านั้น)
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">เลือกสนามที่ต้องการสลับ:</label>
+                                    <TaskSearchPopover
+                                        onSelect={setTargetSwapTask}
+                                        selectedTask={targetSwapTask}
+                                        buttonLabel="เลือกสนามที่ต้องการสลับ..."
+                                        excludedTaskId={parseInt(taskId)}
+                                    />
+                                </div>
+                            </div>
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setSwapDialogOpen(false)}>Cancel</Button>
+                        <Button
+                            variant="destructive"
+                            disabled={!targetSwapTask || swapTaskMutation.isPending}
+                            onClick={() => {
+                                if (targetSwapTask) swapTaskMutation.mutate(targetSwapTask.task_id);
+                            }}
+                        >
+                            {swapTaskMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                            Confirm Swap
                         </Button>
                     </DialogFooter>
                 </DialogContent>

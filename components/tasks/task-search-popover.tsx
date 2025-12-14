@@ -7,6 +7,7 @@ import { tasksApi } from '@/lib/api/tasks';
 import { Task } from '@/lib/types/tasks';
 import { Check, ChevronsUpDown, Search, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getThaiClassLevel, getThaiClassGroup } from '@/lib/translations';
 // Internal simple debounce hook
 function useDebounce<T>(value: T, delay: number): T {
     const [debouncedValue, setDebouncedValue] = React.useState(value);
@@ -115,8 +116,8 @@ export function TaskSearchPopover({ onSelect, buttonLabel = "Select Task...", di
                                         >
                                             <div className="col-span-1 font-mono font-medium">{task.task_id}</div>
                                             <div className="col-span-1">{task.exam_center_code}</div>
-                                            <div className="col-span-1 text-center">{task.class_level}</div>
-                                            <div className="col-span-1 text-center">{task.class_group}</div>
+                                            <div className="col-span-1 text-center">{getThaiClassLevel(task.class_level)}</div>
+                                            <div className="col-span-1 text-center">{getThaiClassGroup(task.class_group)}</div>
                                             <div className="col-span-1 text-center text-slate-600">{task.registered_amount}</div>
                                             <div className="col-span-1 text-center text-slate-600">{task.present_amount}</div>
                                             <div className="col-span-1 text-center font-semibold text-blue-600">
