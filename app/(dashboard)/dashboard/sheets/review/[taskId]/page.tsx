@@ -28,10 +28,13 @@ export default function OMRReviewPage({ params }: { params: Promise<{ taskId: st
         fetchInfo();
     }, [taskId]);
 
+    // 1. OPTIMIZE: Add staleTime to match your prefetching strategy (5 mins)
+    // This prevents the parent from trying to refetch in background immediately
     const { data: overlay, isLoading } = useQuery({
         queryKey: ['sheet-overlay', selectedSheetId],
         queryFn: () => sheetsApi.getOverlay(selectedSheetId!),
         enabled: !!selectedSheetId,
+        staleTime: 1000 * 60 * 2, // (Cache for 2 minutes)
     });
 
     // Prefetching Logic
@@ -58,7 +61,7 @@ export default function OMRReviewPage({ params }: { params: Promise<{ taskId: st
             queryClient.prefetchQuery({
                 queryKey: ['sheet-overlay', sheet.sheet_id],
                 queryFn: () => sheetsApi.getOverlay(sheet.sheet_id!),
-                staleTime: 1000 * 60 * 5, // 5 minutes
+                staleTime: 1000 * 60 * 2, // 2 minutes
             });
 
             // 2. Prefetch Images (Browser Cache)
@@ -113,10 +116,15 @@ export default function OMRReviewPage({ params }: { params: Promise<{ taskId: st
                         </section>
 
                         {/* --- PANEL D: Bottom Right (Answer Image) --- */}
-                        <section className="flex-[9] bg-white rounded-lg border shadow-sm relative overflow-hidden flex flex-col min-h-0">
+                        <section className="col-span-5 row-span-7 bg-white rounded-lg border shadow-sm relative overflow-hidden flex flex-col">
+                            <div className="absolute top-2 left-2 z-10 bg-black/50 text-white text-xs px-2 py-1 rounded">
+                                แผง D: คำตอบ 150 ข้อ
+                            </div>
                             <AnswerImageViewer
                                 sheetId={selectedSheetId}
                                 taskId={taskId}
+                                // 2. PASS THE DATA DOWN
+                                overlayData={overlay}
                             />
                         </section>
                     </div>

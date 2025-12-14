@@ -9,8 +9,24 @@ import { Button } from '@/components/ui/button';
 import { AnswerEditor } from './answer-editor';
 import { useQueryClient } from '@tanstack/react-query';
 
+interface AnswerItem {
+    q: number;
+    val: number | null;
+}
+
+interface SheetOverlayData {
+    bottom?: {
+        dimensions: { w: number; h: number };
+        answers: AnswerItem[];
+    };
+    top?: {
+        scores?: Record<string, number>;
+    };
+}
+
 interface AnswerImageViewerProps {
     sheetId?: string;
+    overlayData?: SheetOverlayData;
 }
 
 // Subject configuration: question ranges and colors
@@ -20,18 +36,21 @@ const SUBJECTS = [
     { name: 'subject3', label: 'วิชา วินัย', range: [101, 150], color: 'bg-orange-500', borderColor: 'border-orange-600' },
 ];
 
-export function AnswerImageViewer({ sheetId, taskId }: AnswerImageViewerProps & { taskId: string }) {
+export function AnswerImageViewer({ sheetId, taskId, overlayData }: AnswerImageViewerProps & { taskId: string }) {
     const [showCorrectAnswers, setShowCorrectAnswers] = React.useState(true);
     const [showStudentMarks, setShowStudentMarks] = React.useState(true);
     const [showAllOverlays, setShowAllOverlays] = React.useState(true);
     const [isEditorOpen, setIsEditorOpen] = React.useState(false);
     const queryClient = useQueryClient();
 
-    const { data: overlay, isLoading: isLoadingOverlay } = useQuery({
+    /* const { data: overlay, isLoading: isLoadingOverlay } = useQuery({
         queryKey: ['sheet-overlay', sheetId],
         queryFn: () => sheetsApi.getOverlay(sheetId!),
         enabled: !!sheetId,
-    });
+    }); */
+
+    // 4. Use the prop instead (rename it to match existing code usage)
+    const overlay = overlayData;
 
     const { data: layout, isLoading: isLoadingLayout } = useQuery({
         queryKey: ['omr-layout'],
@@ -48,11 +67,17 @@ export function AnswerImageViewer({ sheetId, taskId }: AnswerImageViewerProps & 
 
     // Calculate statistics per subject (must be before conditional returns)
     const subjectStats = useMemo(() => {
+        // 1. Guard clause checks existence
         if (!overlay?.bottom?.answers || !answerKey) return [];
+
+        // 2. Extract answers to a const variable here (TypeScript sees this is safe now)
+        const allAnswers = overlay.bottom.answers;
 
         return SUBJECTS.map((subject) => {
             const [start, end] = subject.range;
-            const subjectAnswers = overlay.bottom.answers.filter(
+
+            // 3. Use 'allAnswers' instead of 'overlay.bottom.answers'
+            const subjectAnswers = allAnswers.filter(
                 (ans) => ans.q >= start && ans.q <= end
             );
 
@@ -173,7 +198,8 @@ export function AnswerImageViewer({ sheetId, taskId }: AnswerImageViewerProps & 
         );
     }
 
-    if (isLoadingOverlay || isLoadingLayout || isLoadingAnswerKey) {
+    // 5. Check if overlay is undefined instead of isLoadingOverlay
+    if (!overlay || isLoadingLayout || isLoadingAnswerKey) {
         return (
             <div className="flex-1 flex items-center justify-center bg-slate-100/50 h-full">
                 <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
