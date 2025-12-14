@@ -5,8 +5,17 @@ import { tasksApi } from '@/lib/api/tasks';
 import { sheetsApi } from '@/lib/api/sheets';
 import { RosterEntry } from '@/lib/types/tasks';
 import { ROW_STATUS_TRANSLATIONS } from '@/lib/translations';
-import { Loader2, ListOrdered, CheckSquare, Square, UserX, ArrowRightToLine, ArrowLeftRight, AlertTriangle } from 'lucide-react';
+import { Loader2, ListOrdered, CheckSquare, Square, UserX, ArrowRightToLine, ArrowLeftRight, AlertTriangle, RefreshCw } from 'lucide-react';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { ReprocessTaskStream } from './reprocess-task-stream';
+import { getProfiles } from '@/lib/api/profiles';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 import { TaskSearchPopover } from '@/components/tasks/task-search-popover';
 import { Task } from '@/lib/types/tasks';
 
@@ -163,6 +172,39 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
             toast.error("สลับใบตอบไม่สำเร็จ");
         }
     });
+
+    // Reprocess Logic
+    const [reprocessDialogOpen, setReprocessDialogOpen] = useState(false);
+    const [reprocessTaskId, setReprocessTaskId] = useState<string | null>(null);
+    const [selectedProfileId, setSelectedProfileId] = useState<string>("");
+
+    const { data: profiles } = useQuery({
+        queryKey: ['profiles'],
+        queryFn: getProfiles,
+        enabled: reprocessDialogOpen,
+    });
+
+    const reprocessMutation = useMutation({
+        mutationFn: () => sheetsApi.reprocessSheet({
+            sheet_ids: Array.from(selectedSheetIds).map(id => parseInt(id)),
+            profile_id: parseInt(selectedProfileId)
+        }),
+        onSuccess: (data) => {
+            setReprocessTaskId(data.task_id);
+        },
+        onError: () => {
+            toast.error("ไม่สามารถเริ่มการประมวลผลใหม่ได้");
+        }
+    });
+
+    const handleReprocessComplete = () => {
+        // Refresh everything
+        queryClient.invalidateQueries({ queryKey: ['roster'] });
+        queryClient.invalidateQueries({ queryKey: ['task-stats', taskId] });
+
+        // Wait a bit before closing or letting user close
+        // Actually, let user close it to see the "Completed" state
+    };
 
     // Reset selection when view mode changes
     useEffect(() => {
@@ -627,6 +669,23 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
 
                 <div className="flex items-center gap-2 ml-auto">
                     <div className="flex items-center gap-1 border-r pr-2 mr-2 border-slate-200">
+                        {/* Reprocess Button */}
+                        {selectedSheetIds.size > 0 && viewMode === 'SEQUENTIAL' && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0 text-slate-400 hover:text-blue-600 hover:bg-blue-50"
+                                onClick={() => {
+                                    setReprocessDialogOpen(true);
+                                    setReprocessTaskId(null);
+                                    setSelectedProfileId("");
+                                }}
+                                title="ประมวลผลใหม่ (Reprocess)"
+                            >
+                                <RefreshCw className="w-4 h-4" />
+                            </Button>
+                        )}
+
                         {/* Swap Button */}
                         <Button
                             variant="ghost"
@@ -802,12 +861,72 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setReviewDialogOpen(false)}>ยกเลิก</Button>
-                        <Button onClick={() => updateReviewMutation.mutate(reviewBitmask)}>
-                            ตกลง
-                        </Button>
+                        <Button onClick={() => updateReviewMutation.mutate(reviewBitmask)}>บันทึก</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <Dialog open={reprocessDialogOpen} onOpenChange={(open) => {
+                if (!open && reprocessTaskId) {
+                    // specific cleanup if needed when closing mid-process?
+                    // usually okay to just close
+                }
+                setReprocessDialogOpen(open);
+            }}>
+                <DialogContent className="sm:max-w-[500px]">
+                    <DialogHeader>
+                        <DialogTitle>ประมวลผลใหม่ (Reprocess)</DialogTitle>
+                        <DialogDescription>
+                            เลือกโปรไฟล์ที่ต้องการใช้ในการตรวจใบตอบที่เลือก ({selectedSheetIds.size} ฉบับ) ใหม่
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {!reprocessTaskId ? (
+                        <div className="py-4 space-y-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">เลือกโปรไฟล์ (Scan Profile)</label>
+                                <Select value={selectedProfileId} onValueChange={setSelectedProfileId}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="เลือกโปรไฟล์..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {profiles?.map(p => (
+                                            <SelectItem key={p.id} value={p.id.toString()}>
+                                                {p.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="py-4">
+                            <ReprocessTaskStream
+                                taskId={reprocessTaskId}
+                                onComplete={handleReprocessComplete}
+                            />
+                        </div>
+                    )}
+
+                    <DialogFooter>
+                        {!reprocessTaskId ? (
+                            <>
+                                <Button variant="outline" onClick={() => setReprocessDialogOpen(false)}>ยกเลิก</Button>
+                                <Button
+                                    onClick={() => reprocessMutation.mutate()}
+                                    disabled={!selectedProfileId || reprocessMutation.isPending}
+                                >
+                                    {reprocessMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+                                    เริ่มประมวลผล
+                                </Button>
+                            </>
+                        ) : (
+                            <Button onClick={() => setReprocessDialogOpen(false)}>ปิด</Button>
+                        )}
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
 
             {/* Relocate Dialog */}
             <Dialog open={relocateDialogOpen} onOpenChange={setRelocateDialogOpen}>

@@ -78,4 +78,9 @@ export const sheetsApi = {
   swap: async (data: { task_id_a: number; task_id_b: number }): Promise<void> => {
     await apiClient.post('/sheets/swap', data);
   },
+
+  reprocessSheet: async (data: { sheet_ids: number[]; profile_id: number }): Promise<{ status: string; message: string; task_id: string }> => {
+    const response = await apiClient.post<{ status: string; message: string; task_id: string }>('/sheets/reprocess', data);
+    return response.data;
+  },
 };
