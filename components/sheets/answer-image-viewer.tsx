@@ -31,9 +31,9 @@ interface AnswerImageViewerProps {
 
 // Subject configuration: question ranges and colors
 const SUBJECTS = [
-    { name: 'subject1', label: 'วิชา ธรรม', range: [1, 50], color: 'bg-blue-500', borderColor: 'border-blue-600' },
-    { name: 'subject2', label: 'วิชา พุทธ', range: [51, 100], color: 'bg-green-500', borderColor: 'border-green-600' },
-    { name: 'subject3', label: 'วิชา วินัย', range: [101, 150], color: 'bg-orange-500', borderColor: 'border-orange-600' },
+    { name: 'subject1', label: 'ธรรม', range: [1, 50], color: 'bg-blue-500', borderColor: 'border-blue-600' },
+    { name: 'subject2', label: 'พุทธ', range: [51, 100], color: 'bg-green-500', borderColor: 'border-green-600' },
+    { name: 'subject3', label: 'วินัย', range: [101, 150], color: 'bg-orange-500', borderColor: 'border-orange-600' },
 ];
 
 export function AnswerImageViewer({ sheetId, taskId, overlayData }: AnswerImageViewerProps & { taskId: string }) {
@@ -216,9 +216,9 @@ export function AnswerImageViewer({ sheetId, taskId, overlayData }: AnswerImageV
     }
 
     return (
-        <div className="w-full h-full flex items-start justify-start bg-slate-100/50 p-4 overflow-hidden">
+        <div className="w-full h-full flex items-start justify-start bg-slate-100/50 p-2 overflow-hidden">
             {/* Main Flex Container */}
-            <div className="flex items-start gap-2 h-full flex-1">
+            <div className="flex items-start gap-1 h-full flex-1">
 
                 {/* 1. Image Area */}
                 <div className="h-full flex-shrink-0">
@@ -232,9 +232,9 @@ export function AnswerImageViewer({ sheetId, taskId, overlayData }: AnswerImageV
                 </div>
 
                 {/* 2. Stats Column */}
-                <div className="flex flex-col gap-2 flex-shrink-0">
+                <div className="flex flex-col gap-3 flex-shrink-0 -ml-1">
                     {/* View Controls */}
-                    <div className="flex flex-col gap-2 mb-2">
+                    <div className="flex flex-col gap-2 mb-1">
                         {/* ... Existing Toggle Buttons ... */}
                         <Button
                             variant={showCorrectAnswers ? "default" : "outline"}

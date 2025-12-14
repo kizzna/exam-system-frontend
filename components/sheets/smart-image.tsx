@@ -23,14 +23,14 @@ interface SmartImageProps {
 }
 
 export function SmartImage({ src, width, height, items, alignment = 'center', children }: SmartImageProps) {
-    const justifyClass = {
-        center: 'justify-center',
-        left: 'justify-start',
-        right: 'justify-end',
+    const layoutClass = {
+        center: 'justify-center items-center',
+        left: 'justify-start items-start',
+        right: 'justify-end items-start',
     }[alignment];
 
     return (
-        <div className={`relative w-full h-full flex items-center ${justifyClass} bg-slate-100 overflow-hidden`}>
+        <div className={`relative w-full h-full flex ${layoutClass} bg-slate-100 overflow-hidden`}>
             <div className="relative" style={{ aspectRatio: `${width}/${height}`, height: '100%', maxHeight: '100%' }}>
                 {/* 1. The Cropped Image */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}

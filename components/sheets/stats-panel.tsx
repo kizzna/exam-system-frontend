@@ -65,9 +65,9 @@ export function StatsPanel({ taskId }: StatsPanelProps) {
         : '0.0';
 
     return (
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1">
             {/* Header / Actions Row */}
-            <div className="flex justify-end">
+            {/* <div className="flex justify-end">
                 <Button
                     variant="outline"
                     size="sm"
@@ -77,7 +77,7 @@ export function StatsPanel({ taskId }: StatsPanelProps) {
                     <ArrowLeftRight className="w-4 h-4 mr-2" />
                     สลับใบตอบกับสนาม...
                 </Button>
-            </div>
+            </div> */}
 
             {/* Group 1: Main Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -92,12 +92,12 @@ export function StatsPanel({ taskId }: StatsPanelProps) {
                 {/* <div className="p-3 bg-blue-50 items-center flex rounded-lg border border-blue-100 shadow-sm"> */}
                 <div className="flex flex-col items-center gap-1 p-2 bg-blue-50 rounded-lg border border-blue-100">
                     <div className="text-xs font-medium text-blue-600 uppercase">จำนวนสแกน</div>
-                    <div className="flex items-baseline gap-2 mt-1">
+                    <div className="flex items-baseline gap-1 mt-1">
                         <span className="text-lg font-bold text-blue-700">{stats.actual_sheets_total.toLocaleString()}</span>
 
                         {/* Diff Indicator */}
                         {(stats.actual_sheets_total - stats.present_total) !== 0 && (
-                            <span className={`text-xs px-2 py-0.5 rounded font-bold ml-2 ${(stats.actual_sheets_total < stats.present_total)
+                            <span className={`text-xs px-2 py-0.5 rounded font-bold ${(stats.actual_sheets_total < stats.present_total)
                                 ? 'bg-red-100 text-red-600' // Missing
                                 : 'bg-orange-100 text-orange-600' // Excess
                                 }`}>
@@ -111,7 +111,7 @@ export function StatsPanel({ taskId }: StatsPanelProps) {
                 </div>
                 <div className="flex flex-col items-center gap-1 p-2 bg-red-50 rounded-lg border border-red-100">
                     <span className="text-xs font-medium text-red-600 uppercase tracking-wider">จำนวนปัญหา</span>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1">
                         <span className="text-lg font-bold text-red-700">{stats.error_total.toLocaleString()}</span>
                         <div className="inline-flex items-center rounded-full bg-white border border-red-200 px-2 py-0.5 text-xs font-bold text-red-700">
                             {errorPercentage}%
@@ -149,7 +149,7 @@ export function StatsPanel({ taskId }: StatsPanelProps) {
                         <DialogTitle>Swap Sheets (สลับใบตอบ)</DialogTitle>
                         <DialogDescription asChild>
                             <div className="text-sm text-muted-foreground">
-                                <div className="p-3 bg-red-50 border border-red-100 rounded-md flex gap-2">
+                                <div className="p-3 bg-red-50 border border-red-100 rounded-md flex gap-1">
                                     <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
                                     <div className="text-sm text-red-700">
                                         <strong>Warning:</strong> This will swap ALL sheets between this task and the selected task. Use this only if the physical envelopes were swapped.

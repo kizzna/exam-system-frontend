@@ -8,7 +8,7 @@ import { AnswerImageViewer } from '@/components/sheets/answer-image-viewer';
 import { TaskReviewNavigator } from '@/components/sheets/task-navigator';
 import { tasksApi } from '@/lib/api/tasks';
 import { sheetsApi } from '@/lib/api/sheets';
-import { useQueryClient, useQuery } from '@tanstack/react-query';
+import { useQueryClient, useQuery, keepPreviousData } from '@tanstack/react-query';
 
 export default function OMRReviewPage({ params }: { params: Promise<{ taskId: string }> }) {
     const queryClient = useQueryClient();
@@ -35,6 +35,7 @@ export default function OMRReviewPage({ params }: { params: Promise<{ taskId: st
         queryFn: () => sheetsApi.getOverlay(selectedSheetId!),
         enabled: !!selectedSheetId,
         staleTime: 1000 * 60 * 2, // (Cache for 2 minutes)
+        placeholderData: keepPreviousData, // <--- Add this
     });
 
     // Prefetching Logic
@@ -108,18 +109,18 @@ export default function OMRReviewPage({ params }: { params: Promise<{ taskId: st
                     </section>
 
                     {/* --- RIGHT COLUMN WRAPPER (Panel B + Panel D) --- */}
-                    {/* Occupies full right height (12 rows), Internal Flex 3:9 */}
-                    <div className="col-span-5 row-span-12 flex flex-col gap-3 min-h-0">
+                    {/* Occupies full right height (12 rows), Internal Flex 2:10 */}
+                    <div className="col-span-5 row-span-12 flex flex-col gap-1 min-h-0">
                         {/* --- PANEL B: Top Right (Stats & Tools) --- */}
-                        <section className="flex-[3] bg-white rounded-lg border shadow-sm p-4 overflow-y-auto min-h-0">
+                        <section className="flex-[2] bg-white rounded-lg border shadow-sm p-4 overflow-y-auto min-h-0">
                             <StatsPanel taskId={taskId} />
                         </section>
 
                         {/* --- PANEL D: Bottom Right (Answer Image) --- */}
-                        <section className="col-span-5 row-span-7 bg-white rounded-lg border shadow-sm relative overflow-hidden flex flex-col">
-                            <div className="absolute top-2 left-2 z-10 bg-black/50 text-white text-xs px-2 py-1 rounded">
+                        <section className="flex-[10] col-span-5 row-span-7 bg-white rounded-lg border shadow-sm relative overflow-hidden flex flex-col">
+                            {/* <div className="absolute top-2 left-2 z-10 bg-black/50 text-white text-xs px-2 py-1 rounded">
                                 แผง D: คำตอบ 150 ข้อ
-                            </div>
+                            </div> */}
                             <AnswerImageViewer
                                 sheetId={selectedSheetId}
                                 taskId={taskId}

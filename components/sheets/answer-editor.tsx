@@ -121,14 +121,13 @@ export function AnswerEditor({ sheetId, initialAnswers, isOpen, onClose, onSaveS
     if (!isOpen) return null;
 
     return (
-        <div className="w-[200px] h-full flex flex-col bg-white border-l border-slate-200 shadow-xl flex-shrink-0 animate-in slide-in-from-right duration-200">
+        <div className="w-[140px] h-full flex flex-col bg-white border-l border-slate-200 shadow-xl flex-shrink-0 animate-in slide-in-from-right duration-200">
             {/* Header */}
-            <div className="p-2 border-b flex items-center gap-2 bg-slate-50 justify-between">
-                <div className="flex items-center gap-2">
-                    <Search className="w-4 h-4 text-muted-foreground" />
+            <div className="p-1 border-b flex items-center gap-1 bg-slate-50 justify-between">
+                <div className="flex items-center gap-1">
                     <Input
-                        placeholder="ไปข้อที่..."
-                        className="h-8 text-[10px] px-1 w-20"
+                        placeholder="ไปข้อ..."
+                        className="h-7 text-[10px] px-1 w-14"
                         value={searchQuery}
                         onChange={handleSearch}
                         onKeyDown={(e) => {
@@ -140,11 +139,11 @@ export function AnswerEditor({ sheetId, initialAnswers, isOpen, onClose, onSaveS
                         }}
                     />
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-0.5">
                     <Button
                         size="icon"
                         variant="ghost"
-                        className="h-8 w-8"
+                        className="h-7 w-7"
                         onClick={handleSaveAll}
                         disabled={isSaving}
                         title="บันทึกทุกข้อ"
@@ -154,7 +153,7 @@ export function AnswerEditor({ sheetId, initialAnswers, isOpen, onClose, onSaveS
                     <Button
                         size="icon"
                         variant="ghost"
-                        className="h-8 w-8 hover:bg-red-50 hover:text-red-600"
+                        className="h-7 w-7 hover:bg-red-50 hover:text-red-600"
                         onClick={onClose}
                     >
                         <X className="w-4 h-4" />
@@ -171,11 +170,11 @@ export function AnswerEditor({ sheetId, initialAnswers, isOpen, onClose, onSaveS
                             ref={el => { itemRefs.current[qNum] = el }}
                             className="flex items-center gap-2 text-sm p-1 hover:bg-slate-50 rounded"
                         >
-                            <span className="w-8 font-mono text-slate-500 text-right">{qNum}.</span>
+                            <span className="w-6 font-mono text-slate-500 text-right">{qNum}.</span>
                             <div className="flex-1">
                                 <Input
                                     ref={(el) => { inputRefs.current[qNum] = el; }}
-                                    className="h-7 w-full text-center font-bold transition-colors focus:bg-blue-50"
+                                    className="h-7 w-10 text-center font-bold transition-colors focus:bg-blue-50"
                                     value={REVERSE_MAP[answers[qNum]] || (answers[qNum] === 0 ? '' : '?')}
 
                                     // Logic remains the same
