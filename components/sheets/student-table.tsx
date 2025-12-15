@@ -742,19 +742,18 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                                 else setEditingSheetId(null);
                             };
 
-                            // Logic for suggested roll
-                            const suggestedRoll = (() => {
-                                const prevEntry = displayRoster[virtualRow.index - 1];
-                                const nextEntry = displayRoster[virtualRow.index + 1];
-                                if (prevEntry && nextEntry) {
-                                    const prevRoll = parseInt(prevEntry.master_roll || prevEntry.sheet_roll || '0', 10);
-                                    const nextRoll = parseInt(nextEntry.master_roll || nextEntry.sheet_roll || '0', 10);
-                                    if (prevRoll > 0 && nextRoll > 0 && (nextRoll - prevRoll === 2)) {
-                                        return (prevRoll + 1).toString();
-                                    }
-                                }
-                                return undefined;
-                            })();
+                            // Logic for neighbor context (for smart suggestions)
+                            // Hooks cannot be used in loops. Calculation is cheap enough to be direct.
+                            const prevEntry = displayRoster[virtualRow.index - 1];
+                            const nextEntry = displayRoster[virtualRow.index + 1];
+
+                            const getRoll = (e: RosterEntry | undefined) => {
+                                if (!e) return undefined;
+                                return parseInt(e.master_roll || e.sheet_roll || '0', 10);
+                            };
+
+                            const prevMasterRoll = getRoll(prevEntry);
+                            const nextMasterRoll = getRoll(nextEntry);
 
                             // Valid Class/Group extraction from Task
                             const classLevel = task?.class_level || 0;
@@ -787,7 +786,8 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                                         queryClient.invalidateQueries({ queryKey: ['roster'] });
                                         queryClient.invalidateQueries({ queryKey: ['task-stats', taskId] });
                                     }}
-                                    suggestedRoll={suggestedRoll}
+                                    prevMasterRoll={prevMasterRoll}
+                                    nextMasterRoll={nextMasterRoll}
                                 />
                             );
                         })}

@@ -134,7 +134,7 @@ function applyRosterUpdates(oldRoster: RosterEntry[], updatedRows: RosterEntry[]
     return [...rowsWithoutSheet, ...Array.from(uniqueSheetMap.values())];
 }
 
-export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, onSelect, viewMode, fullRoster, classLevel, group, taskId, isOpen, onOpenChange, onCorrect, suggestedRoll, isBatchSelected }: StudentRowProps & { isOpen: boolean; onOpenChange: (open: boolean) => void; suggestedRoll?: string }) => {
+export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, onSelect, viewMode, fullRoster, classLevel, group, taskId, isOpen, onOpenChange, onCorrect, isBatchSelected, prevMasterRoll, nextMasterRoll }: StudentRowProps & { isOpen: boolean; onOpenChange: (open: boolean) => void; prevMasterRoll?: number; nextMasterRoll?: number }) => {
     const queryClient = useQueryClient();
     const [search, setSearch] = useState("");
     const listRef = React.useRef<HTMLDivElement>(null);
@@ -152,24 +152,53 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
 
         const empty = { exactMatches: [], startsWithMatches: [], otherMatches: [], suggestedMatches: [] };
 
+        // Define suggestions array in the outer scope
+        let suggestions: RosterEntry[] = [];
+
         if (!search) {
-            // Default View: Show Suggestion (if any) + Top 50 non-ghosts
-            let suggestions: RosterEntry[] = [];
-            if (suggestedRoll) {
-                // Find student with this master_roll (padded or raw)
-                // We try exact match on master_roll
+            // Default View: Smart Suggestions + Top 50 non-ghosts
+
+            // Level 1: Gap Fill (Exact middle)
+            // e.g. Prev=10, Next=12 -> Suggest 11
+            if (prevMasterRoll && nextMasterRoll && (nextMasterRoll - prevMasterRoll === 2)) {
+                const targetRoll = prevMasterRoll + 1;
                 const target = fullRoster.find(r =>
-                    r.row_status !== 'GHOST' &&
-                    (r.master_roll === suggestedRoll || parseInt(r.master_roll || '0') === parseInt(suggestedRoll))
+                    r.row_status === 'MISSING' &&
+                    parseInt(r.master_roll || '0', 10) === targetRoll
                 );
-                if (target) {
-                    suggestions.push(target);
-                }
+                if (target) suggestions.push(target);
             }
 
-            // Get others (excluding suggested)
+            // Level 2: Neighborhood (Same Decade)
+            // e.g. Prev=157, Next=160 -> Suggest 150-159 range (MISSING only)
+            const prevDecade = prevMasterRoll ? Math.floor(prevMasterRoll / 10) : undefined;
+            const nextDecade = nextMasterRoll ? Math.floor(nextMasterRoll / 10) : undefined;
+
+            // We want to find MISSING students that are in the same decade as neighbors
+            // But we exclude what is already in Level 1
+            const level2Candidates = fullRoster.filter(r => {
+                if (r.row_status !== 'MISSING') return false;
+                if (suggestions.some(s => s === r)) return false; // Already suggested
+
+                const rRoll = parseInt(r.master_roll || '0', 10);
+                const rDecade = Math.floor(rRoll / 10);
+
+                // Check if in neighbor decades
+                if (prevDecade !== undefined && rDecade === prevDecade) return true;
+                if (nextDecade !== undefined && rDecade === nextDecade) return true;
+
+                return false;
+            }).sort((a, b) => {
+                const ra = parseInt(a.master_roll || '0', 10);
+                const rb = parseInt(b.master_roll || '0', 10);
+                return ra - rb;
+            });
+
+            suggestions = [...suggestions, ...level2Candidates];
+
+            // Level 3: existing logic for others (excluding suggested)
             const others = fullRoster
-                .filter(r => filterGhost(r) && (!suggestions.length || r !== suggestions[0]))
+                .filter(r => filterGhost(r) && (!suggestions.length || !suggestions.includes(r)))
                 .slice(0, 50);
 
             return { ...empty, suggestedMatches: suggestions, otherMatches: others };
@@ -248,7 +277,7 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
         others = others.filter(filterGhost).sort(sortNumeric);
 
         return { exactMatches: exact, startsWithMatches: starts, otherMatches: others, suggestedMatches: [] };
-    }, [fullRoster, search, classLevel, group, suggestedRoll]);
+    }, [fullRoster, search, classLevel, group, prevMasterRoll, nextMasterRoll]);
 
     const getStatusIcon = (status: RosterEntry['row_status']) => {
         switch (status) {
@@ -457,7 +486,7 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
                             <PopoverContent className="w-[400px] p-0 bg-slate-900/95 border-slate-700 text-slate-100 backdrop-blur-sm" align="start">
                                 <Command shouldFilter={false} className="bg-transparent text-slate-100">
                                     <CommandInput
-                                        placeholder="Search student ID..."
+                                        placeholder="ใบตอบนี้เป็นของ..."
                                         value={search}
                                         onValueChange={setSearch}
                                         className="text-white placeholder:text-slate-400"
@@ -496,7 +525,7 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
                                                         className="aria-selected:bg-emerald-600 aria-selected:text-white data-[disabled]:opacity-90 data-[disabled]:pointer-events-auto cursor-pointer"
                                                     >
                                                         <div className="flex flex-col">
-                                                            <span className="font-bold text-white">Suggested: {student.student_name} ({student.master_roll})</span>
+                                                            <span className="font-bold text-white">น่าจะเป็นของ: {student.student_name} ({student.master_roll})</span>
                                                             <span className={cn("text-xs", student.row_status === 'MISSING' ? "text-green-400" : "text-orange-400")}>
                                                                 Status: {getThaiRowStatus(student.row_status)}
                                                             </span>
