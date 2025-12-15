@@ -6,6 +6,7 @@
 'use client';
 
 import { useReprocessTaskStream, type ProcessingStage } from '@/lib/hooks/use-reprocess-task-stream';
+import { translateLog } from '@/lib/utils/logTranslator';
 import { Card } from '@/components/ui/card';
 import { useEffect, useState } from 'react';
 
@@ -92,7 +93,7 @@ export function ReprocessTaskStream({ taskId, onComplete }: ReprocessTaskStreamP
                             {formatDuration(currentEvent.elapsed_seconds)}
                         </div>
                     </div>
-                    <div className="mb-2 text-sm text-gray-700">{currentEvent.message}</div>
+                    <div className="mb-2 text-sm text-gray-700">{translateLog(currentEvent.message)}</div>
                     <div className="flex items-center gap-4 text-xs text-gray-600">
                         <div>Progress: {currentEvent.progress_percentage.toFixed(1)}%</div>
                         {currentEvent.sheets_total > 0 && (
@@ -144,7 +145,7 @@ export function ReprocessTaskStream({ taskId, onComplete }: ReprocessTaskStreamP
                                     </div>
                                     <div className={`flex-1 ${STAGE_COLORS[event.stage]}`}>
                                         <span className="font-medium">[{STAGE_LABELS[event.stage]}]</span>{' '}
-                                        {event.message}
+                                        {translateLog(event.message)}
                                     </div>
                                 </div>
                             ))}

@@ -125,7 +125,7 @@ export function BatchDetailsCard({ batchId, isAdmin = false }: BatchDetailsCardP
       <Card className="p-6">
         <div className="flex items-start justify-between">
           <div className="space-y-1">
-            <h2 className="text-2xl font-bold">Batch Processing</h2>
+            <h2 className="text-2xl font-bold">สถานะการอัปโหลด</h2>
             <div className="text-sm text-gray-600">
               Batch ID: <span className="font-mono">{batch.batch_id}</span>
             </div>
@@ -161,16 +161,16 @@ export function BatchDetailsCard({ batchId, isAdmin = false }: BatchDetailsCardP
 
       {/* Batch Information */}
       <Card className="p-6">
-        <h3 className="mb-4 font-semibold">Batch Information</h3>
+        <h3 className="mb-4 font-semibold">ข้อมูลการอัปโหลด</h3>
         <dl className="grid grid-cols-2 gap-4">
           <div>
-            <dt className="text-sm text-gray-600">Upload Date</dt>
+            <dt className="text-sm text-gray-600">อัปโหลดเมื่อ</dt>
             <dd className="font-medium">{new Date(batch.created_at).toLocaleString()}</dd>
           </div>
 
           {batch.processing_completed_at && (
             <div>
-              <dt className="text-sm text-gray-600">Completion Date</dt>
+              <dt className="text-sm text-gray-600">เสร็จสิ้นเมื่อ</dt>
               <dd className="font-medium">
                 {new Date(batch.processing_completed_at).toLocaleString()}
               </dd>
@@ -178,12 +178,12 @@ export function BatchDetailsCard({ batchId, isAdmin = false }: BatchDetailsCardP
           )}
 
           <div>
-            <dt className="text-sm text-gray-600">Total Sheets</dt>
+            <dt className="text-sm text-gray-600">จำนวนใบตอบ</dt>
             <dd className="text-lg font-medium">{batch.total_sheets.toLocaleString()}</dd>
           </div>
 
           <div>
-            <dt className="text-sm text-gray-600">Processed</dt>
+            <dt className="text-sm text-gray-600">จำนวนใบตอบตรวจผ่าน</dt>
             <dd className="text-lg font-medium text-green-600">
               {batch.processed_sheets.toLocaleString()}
             </dd>
@@ -191,7 +191,7 @@ export function BatchDetailsCard({ batchId, isAdmin = false }: BatchDetailsCardP
 
           {batch.failed_sheets > 0 && (
             <div>
-              <dt className="text-sm text-gray-600">Failed</dt>
+              <dt className="text-sm text-gray-600">จำนวนใบตอบตรวจไม่ผ่าน</dt>
               <dd className="text-lg font-medium text-red-600">
                 {batch.failed_sheets.toLocaleString()}
               </dd>
@@ -201,7 +201,7 @@ export function BatchDetailsCard({ batchId, isAdmin = false }: BatchDetailsCardP
           {batch.processing_started_at && batch.processing_completed_at && (
             <>
               <div>
-                <dt className="text-sm text-gray-600">Total Processing Time</dt>
+                <dt className="text-sm text-gray-600">ใช้เวลาทั้งหมด</dt>
                 <dd className="font-medium text-blue-600">
                   {(() => {
                     const upload = new Date(batch.created_at).getTime();
@@ -215,7 +215,7 @@ export function BatchDetailsCard({ batchId, isAdmin = false }: BatchDetailsCardP
               </div>
 
               <div>
-                <dt className="text-sm text-gray-600">Extraction Time</dt>
+                <dt className="text-sm text-gray-600">อื่นๆ</dt>
                 <dd className="font-medium text-gray-600">
                   {(() => {
                     const upload = new Date(batch.created_at).getTime();
@@ -229,7 +229,7 @@ export function BatchDetailsCard({ batchId, isAdmin = false }: BatchDetailsCardP
               </div>
 
               <div>
-                <dt className="text-sm text-gray-600">OMR Processing Time</dt>
+                <dt className="text-sm text-gray-600">ตรวจใบตอบใช้เวลา</dt>
                 <dd className="font-medium text-green-600">
                   {(() => {
                     const start = new Date(batch.processing_started_at).getTime();
@@ -256,12 +256,12 @@ export function BatchDetailsCard({ batchId, isAdmin = false }: BatchDetailsCardP
 
       {/* Processing Timeline */}
       <Card className="p-6">
-        <h3 className="mb-4 font-semibold">Processing Timeline</h3>
+        <h3 className="mb-4 font-semibold">ลำดับการประมวลผล</h3>
         <div className="space-y-3">
           <div className="flex items-start gap-3">
             <div className="mt-2 h-2 w-2 rounded-full bg-blue-600" />
             <div className="flex-1">
-              <div className="font-medium">Uploaded</div>
+              <div className="font-medium">อัปโหลด</div>
               <div className="text-sm text-gray-600">
                 {new Date(batch.created_at).toLocaleString()}
               </div>
@@ -272,7 +272,7 @@ export function BatchDetailsCard({ batchId, isAdmin = false }: BatchDetailsCardP
             <div className="flex items-start gap-3">
               <div className="mt-2 h-2 w-2 rounded-full bg-purple-600" />
               <div className="flex-1">
-                <div className="font-medium">Processing Started</div>
+                <div className="font-medium">เริ่มประมวลผล</div>
                 <div className="text-sm text-gray-600">
                   {batch.processing_started_at
                     ? new Date(batch.processing_started_at).toLocaleString()
@@ -286,17 +286,17 @@ export function BatchDetailsCard({ batchId, isAdmin = false }: BatchDetailsCardP
             <div className="flex items-start gap-3">
               <div className="mt-2 h-2 w-2 rounded-full bg-green-600" />
               <div className="flex-1">
-                <div className="font-medium">Completed</div>
+                <div className="font-medium">เสร็จสิ้น</div>
                 <div className="text-sm text-gray-600">
                   {new Date(batch.processing_completed_at).toLocaleString()}
                 </div>
                 <div className="text-sm font-medium text-green-600">
-                  All {batch.total_sheets.toLocaleString()} sheets processed successfully
+                  {batch.total_sheets.toLocaleString()} ใบตอบตรวจผ่าน
                 </div>
                 {batch.processing_started_at && (
                   <div className="mt-2 space-y-1 text-xs">
                     <div className="text-gray-600">
-                      <span className="font-medium">Extraction:</span>{' '}
+                      <span className="font-medium">แตกไฟล์ Zip และ อ่าน QR Code:</span>{' '}
                       {(() => {
                         const upload = new Date(batch.created_at).getTime();
                         const start = new Date(batch.processing_started_at).getTime();
@@ -307,7 +307,7 @@ export function BatchDetailsCard({ batchId, isAdmin = false }: BatchDetailsCardP
                       })()}
                     </div>
                     <div className="text-green-600">
-                      <span className="font-medium">OMR Processing:</span>{' '}
+                      <span className="font-medium">การตรวจใบตอบ:</span>{' '}
                       {(() => {
                         const start = new Date(batch.processing_started_at).getTime();
                         const end = new Date(batch.processing_completed_at).getTime();
@@ -318,7 +318,7 @@ export function BatchDetailsCard({ batchId, isAdmin = false }: BatchDetailsCardP
                       })()}
                     </div>
                     <div className="text-blue-600">
-                      <span className="font-medium">Total:</span>{' '}
+                      <span className="font-medium">รวม:</span>{' '}
                       {(() => {
                         const upload = new Date(batch.created_at).getTime();
                         const complete = new Date(batch.processing_completed_at).getTime();
@@ -369,7 +369,7 @@ export function BatchDetailsCard({ batchId, isAdmin = false }: BatchDetailsCardP
       <Card className="p-6">
         <div className="flex items-center gap-4">
           <Link href="/dashboard/batches">
-            <Button variant="outline">Back to Batches</Button>
+            <Button variant="outline">กลับไปหน้ารายการ</Button>
           </Link>
 
           {/* Recovery Button - Only shown if recoverable */}
@@ -378,9 +378,9 @@ export function BatchDetailsCard({ batchId, isAdmin = false }: BatchDetailsCardP
               onClick={handleRecover}
               disabled={isRecovering}
               className="bg-blue-600 hover:bg-blue-700"
-              title={`Recover ${recoveryData.recoverable_sheets_count} sheets`}
+              title={`กู้คืน ${recoveryData.recoverable_sheets_count} ใบ`}
             >
-              {isRecovering ? 'Recovering...' : 'Recover Results'}
+              {isRecovering ? 'กำลังกู้คืน...' : 'กู้คืนผลลัพธ์'}
             </Button>
           )}
 
@@ -391,7 +391,7 @@ export function BatchDetailsCard({ batchId, isAdmin = false }: BatchDetailsCardP
               onClick={handleCancel}
               disabled={cancelBatch.isPending}
             >
-              {cancelBatch.isPending ? 'Cancelling...' : 'Cancel Processing'}
+              {cancelBatch.isPending ? 'กำลังยกเลิก...' : 'ยกเลิกการประมวลผล'}
             </Button>
           )}
         </div>

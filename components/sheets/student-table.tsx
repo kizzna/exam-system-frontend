@@ -202,6 +202,11 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
         queryClient.invalidateQueries({ queryKey: ['roster'] });
         queryClient.invalidateQueries({ queryKey: ['task-stats', taskId] });
 
+        // Invalidate overlays for reprocessed sheets so they reload
+        selectedSheetIds.forEach(id => {
+            queryClient.invalidateQueries({ queryKey: ['sheet-overlay', id] });
+        });
+
         // Wait a bit before closing or letting user close
         // Actually, let user close it to see the "Completed" state
     };

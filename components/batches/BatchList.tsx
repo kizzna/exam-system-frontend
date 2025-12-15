@@ -41,7 +41,7 @@ export function BatchList({ isAdmin = false }: BatchListProps) {
   if (isLoading) {
     return (
       <Card className="p-8 text-center">
-        <div className="text-gray-600">Loading batches...</div>
+        <div className="text-gray-600">กำลังโหลด...</div>
       </Card>
     );
   }
@@ -49,9 +49,9 @@ export function BatchList({ isAdmin = false }: BatchListProps) {
   if (error) {
     return (
       <Card className="p-8 text-center">
-        <div className="text-red-600">Error loading batches: {error.message}</div>
+        <div className="text-red-600">เกิดข้อผิดพลาด: {error.message}</div>
         <Button onClick={() => refetch()} className="mt-4">
-          Retry
+          ลองอีกครั้ง
         </Button>
       </Card>
     );
@@ -66,7 +66,7 @@ export function BatchList({ isAdmin = false }: BatchListProps) {
       {/* Filters */}
       <Card className="p-4">
         <div className="flex items-center gap-4">
-          <label className="text-sm font-medium">Filter by status:</label>
+          <label className="text-sm font-medium">กรองจากสถานะ:</label>
           <select
             value={statusFilter || ''}
             onChange={(e) => {
@@ -75,17 +75,17 @@ export function BatchList({ isAdmin = false }: BatchListProps) {
             }}
             className="rounded-md border border-gray-300 px-3 py-2 text-sm"
           >
-            <option value="">All statuses</option>
-            <option value="uploaded">Uploaded</option>
-            <option value="validating">Validating</option>
-            <option value="processing">Processing</option>
-            <option value="completed">Completed</option>
-            <option value="failed">Failed</option>
-            <option value="reprocessing">Reprocessing</option>
+            <option value="">ทั้งหมด</option>
+            {/* <option value="uploaded">อัปโหลดเสร็จแล้ว</option>
+            <option value="validating">กำลังตรวจสอบ</option>
+            <option value="processing">กำลังประมวลผล</option> */}
+            <option value="completed">เสร็จสิ้น</option>
+            <option value="failed">ไม่สําเร็จ</option>
+            {/* <option value="reprocessing">กำลังประมวลผลอีกครั้ง</option> */}
           </select>
 
           <div className="ml-auto text-sm text-gray-600">
-            Total: {total} batch{total !== 1 ? 'es' : ''}
+            จำนวน: {total} รายการ
           </div>
         </div>
       </Card>
@@ -95,22 +95,22 @@ export function BatchList({ isAdmin = false }: BatchListProps) {
         {batches.length === 0 ? (
           <div className="p-8 text-center text-gray-600">
             {statusFilter
-              ? `No batches with status "${statusFilter}"`
-              : 'No batches found. Upload your first batch to get started.'}
+              ? `ไม่พบข้อมูลอัปโหลดที่มีสถานะ "${statusFilter}"`
+              : 'ไม่พบข้อมูลอัปโหลด'}
           </div>
         ) : (
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Batch Name</TableHead>
-                  <TableHead>Upload Date</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Sheets</TableHead>
-                  <TableHead className="text-right">Processed</TableHead>
-                  <TableHead className="text-right">Failed</TableHead>
-                  {isAdmin && <TableHead>Uploaded By</TableHead>}
-                  {isAdmin && <TableHead>Actions</TableHead>}
+                  <TableHead>ชื่อไฟล์อัปโหลด</TableHead>
+                  <TableHead>วันที่อัปโหลด</TableHead>
+                  <TableHead>สถานะ</TableHead>
+                  <TableHead className="text-right">จำนวนใบตอบ</TableHead>
+                  <TableHead className="text-right">จำนวนที่ตรวจสำเร็จ</TableHead>
+                  <TableHead className="text-right">จำนวนที่ตรวจไม่สำเร็จ</TableHead>
+                  {isAdmin && <TableHead>ผู้อัปโหลด</TableHead>}
+                  {isAdmin && <TableHead>การดำเนินการ</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -159,7 +159,7 @@ export function BatchList({ isAdmin = false }: BatchListProps) {
         <Card className="p-4">
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-600">
-              Page {page} of {totalPages}
+              หน้า {page} จาก {totalPages}
             </div>
             <div className="flex gap-2">
               <Button
@@ -168,7 +168,7 @@ export function BatchList({ isAdmin = false }: BatchListProps) {
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1}
               >
-                Previous
+                หน้าก่อนหน้า
               </Button>
               <Button
                 variant="outline"
@@ -176,11 +176,11 @@ export function BatchList({ isAdmin = false }: BatchListProps) {
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
               >
-                Next
+                หน้าถัดไป
               </Button>
             </div>
             <div className="text-sm text-gray-600">
-              Showing {(page - 1) * pageSize + 1} - {Math.min(page * pageSize, total)} of {total}
+              แสดง {(page - 1) * pageSize + 1} - {Math.min(page * pageSize, total)} จาก {total}
             </div>
           </div>
         </Card>

@@ -17,8 +17,8 @@ export default function BatchesPage() {
 
       <Tabs defaultValue="list" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="list">Batch List</TabsTrigger>
-          <TabsTrigger value="upload">Upload Batch</TabsTrigger>
+          <TabsTrigger value="list">รายการที่อัปโหลดแล้ว</TabsTrigger>
+          <TabsTrigger value="upload">อัปโหลดใบคำตอบ</TabsTrigger>
         </TabsList>
 
         <TabsContent value="list">
@@ -28,34 +28,27 @@ export default function BatchesPage() {
         <TabsContent value="upload">
           <div className="grid gap-6 md:grid-cols-2">
             <div>
-              <h2 className="mb-4 text-xl font-semibold">New Batch Upload</h2>
+              <h2 className="mb-4 text-xl font-semibold">อัปโหลดใบคำตอบ</h2>
               <BatchUploadForm />
             </div>
             <div>
               <Card>
                 <CardHeader>
-                  <CardTitle>Upload Guidelines</CardTitle>
+                  <CardTitle>คำแนะนำในการอัปโหลด</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4 text-sm text-muted-foreground">
                   <p>
-                    <strong>ZIP with QR Codes:</strong> Use this for standard processing. The system
-                    will extract the Task ID from the QR code on each sheet.
+                    <strong>ไฟล์ ZIP ที่มีใบนำสแกน QR Code:</strong> ส่วนมากสำนักเรียนละ 1 ไฟล์
                   </p>
                   <p>
-                    <strong>ZIP without QR Codes:</strong> Use this when sheets don't have QR codes.
-                    You must manually specify the Task ID.
-                  </p>
-                  <p>
-                    <strong>Direct Images:</strong> Upload individual image files directly. Useful
-                    for small batches or testing.
+                    <strong>ไฟล์รูปภาพ:</strong> อัปโหลดรูปภาพที่ต้องการอัปโหลด
                   </p>
                   <div className="rounded-md bg-muted p-4">
-                    <p className="font-medium text-foreground">File Requirements:</p>
+                    <p className="font-medium text-foreground">ข้อกำหนดไฟล์:</p>
                     <ul className="ml-4 list-disc space-y-1 mt-2">
-                      <li>ZIP files up to 10GB</li>
-                      <li>Images in JPG or PNG format</li>
-                      <li>Scans should be at least 300 DPI</li>
-                      <li>Ensure all 4 corner markers are visible</li>
+                      <li>ไฟล์ ZIP ขนาดไม่เกิน 10GB</li>
+                      <li>รูปภาพในรูปแบบ JPG</li>
+                      <li>สแกนที่ความละเอียด 200 DPI A4 แนวตั้ง Grayscale</li>
                     </ul>
                   </div>
                 </CardContent>

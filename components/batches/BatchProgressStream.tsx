@@ -6,6 +6,7 @@
 'use client';
 
 import { useBatchStream, type ProcessingStage } from '@/lib/hooks/use-batch-stream';
+import { translateLog } from '@/lib/utils/logTranslator';
 import { Card } from '@/components/ui/card';
 import { useEffect, useState } from 'react';
 
@@ -15,16 +16,16 @@ interface BatchProgressStreamProps {
 }
 
 const STAGE_LABELS: Record<ProcessingStage, string> = {
-  uploading: 'Uploading Chunks',
-  extracting: 'Extracting ZIP',
-  organizing_qr: 'Organizing by QR Codes',
-  processing_sheets: 'Processing Sheets',
-  collecting_results: 'Collecting Results',
-  generating_csv: 'Generating CSV Files',
-  loading_database: 'Loading to Database',
-  cleanup: 'Cleanup',
-  completed: 'Completed',
-  failed: 'Failed',
+  uploading: 'กำลังอัปโหลดแบบแบ่งชิ้นส่วน',
+  extracting: 'กำลังแตกไฟล์ zip',
+  organizing_qr: 'กำลังแยกใบตอบตามใบนำสแกน (QR Code)',
+  processing_sheets: 'กำลังตรวจใบตอบ',
+  collecting_results: 'กำลังรวมผล',
+  generating_csv: 'กำลังสร้างไฟล์ csv',
+  loading_database: 'กำลังโหลดข้อมูล',
+  cleanup: 'กำลังเก็บความเรียบร้อย',
+  completed: 'เสร็จสิ้น',
+  failed: 'ไม่สามารถดำเนินการ',
 };
 
 const STAGE_COLORS: Record<ProcessingStage, string> = {
@@ -81,7 +82,7 @@ export function BatchProgressStream({ batchId, onComplete }: BatchProgressStream
   return (
     <Card className="p-6">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="font-semibold">Processing Progress</h3>
+        <h3 className="font-semibold">สถานะการทำงาน</h3>
         <div className="flex items-center gap-2">
           {isConnected && !isComplete && (
             <div className="flex items-center gap-2 text-sm text-green-600">
@@ -90,9 +91,9 @@ export function BatchProgressStream({ batchId, onComplete }: BatchProgressStream
             </div>
           )}
           {isComplete && !error && (
-            <div className="text-sm font-medium text-green-600">✓ Complete</div>
+            <div className="text-sm font-medium text-green-600">✓ ทำงานเสร็จสิ้น</div>
           )}
-          {error && <div className="text-sm font-medium text-red-600">✗ Failed</div>}
+          {error && <div className="text-sm font-medium text-red-600">✗ ทำงานไม่สำเร็จ</div>}
         </div>
       </div>
 
@@ -107,12 +108,12 @@ export function BatchProgressStream({ batchId, onComplete }: BatchProgressStream
               {formatDuration(currentEvent.elapsed_seconds)}
             </div>
           </div>
-          <div className="mb-2 text-sm text-gray-700">{currentEvent.message}</div>
+          <div className="mb-2 text-sm text-gray-700">{translateLog(currentEvent.message)}</div>
           <div className="flex items-center gap-4 text-xs text-gray-600">
-            <div>Progress: {currentEvent.progress_percentage.toFixed(1)}%</div>
+            <div>ความคืบหน้า: {currentEvent.progress_percentage.toFixed(1)}%</div>
             {currentEvent.sheets_total > 0 && (
               <div>
-                Sheets: {currentEvent.sheets_processed.toLocaleString()} /{' '}
+                จำนวนใบตอบ: {currentEvent.sheets_processed.toLocaleString()} /{' '}
                 {currentEvent.sheets_total.toLocaleString()}
               </div>
             )}
@@ -136,26 +137,26 @@ export function BatchProgressStream({ batchId, onComplete }: BatchProgressStream
 
       {/* Activity Log */}
       <div className="space-y-1">
-        <div className="text-sm font-medium text-gray-700">Activity Log</div>
+        <div className="text-sm font-medium text-gray-700">รายละเอียดการทำงาน</div>
         <div className="max-h-96 overflow-y-auto rounded-lg border border-gray-200 bg-gray-50 p-3">
           {events.length === 0 ? (
             <div className="py-8 text-center">
               {isConnected ? (
-                <div className="text-sm text-gray-500">Waiting for progress updates...</div>
+                <div className="text-sm text-gray-500">รอข้อมูลการทำงาน...</div>
               ) : isComplete ? (
                 <div className="space-y-2">
                   <div className="text-sm font-medium text-green-600">
-                    ✓ Batch completed successfully
+                    ✅ ทำงานเสร็จสิ้น
                   </div>
                   <div className="text-xs text-gray-400">
-                    The batch finished processing before the stream connected.
+                    ทำงานเสร็จสิ้นก่อนที่จะขอดูสถานะการทำงาน
                   </div>
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <div className="text-sm text-gray-500">No progress events available.</div>
+                  <div className="text-sm text-gray-500">ไม่พบข้อมูลการทำงาน</div>
                   <div className="text-xs text-gray-400">
-                    The backend may not have published progress events yet.
+                    ไม่พบสถานะข้อมูลการทำงาน
                   </div>
                 </div>
               )}
@@ -172,7 +173,7 @@ export function BatchProgressStream({ batchId, onComplete }: BatchProgressStream
                   </div>
                   <div className={`flex-1 ${STAGE_COLORS[event.stage]}`}>
                     <span className="font-medium">[{STAGE_LABELS[event.stage]}]</span>{' '}
-                    {event.message}
+                    {translateLog(event.message)}
                   </div>
                   {event.progress_percentage > 0 && (
                     <div className="flex-shrink-0 text-xs text-gray-500">
@@ -197,7 +198,7 @@ export function BatchProgressStream({ batchId, onComplete }: BatchProgressStream
               onClick={() => window.location.reload()}
               className="mt-3 rounded bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700"
             >
-              Refresh Page
+              โหลดหน้าใหม่
             </button>
           )}
         </div>
@@ -205,7 +206,7 @@ export function BatchProgressStream({ batchId, onComplete }: BatchProgressStream
 
       {/* Connection Status */}
       {!isConnected && !isComplete && (
-        <div className="mt-4 text-center text-sm text-gray-500">Reconnecting to stream...</div>
+        <div className="mt-4 text-center text-sm text-gray-500">กำลังเชื่อมต่อ Server...</div>
       )}
     </Card>
   );

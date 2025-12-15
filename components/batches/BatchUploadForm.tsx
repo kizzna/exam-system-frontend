@@ -175,11 +175,11 @@ export function BatchUploadForm() {
     <Card className="p-6">
       <div className="space-y-6">
         <div>
-          <h3 className="mb-4 text-lg font-semibold">Upload OMR Sheets</h3>
+          <h3 className="mb-4 text-lg font-semibold">อัปโหลดใบคำตอบ</h3>
 
           {/* Upload Strategy Selection */}
           <div className="space-y-3">
-            <Label>Upload Strategy</Label>
+            <Label>ประเภทการอัปโหลด</Label>
             <div className="space-y-2">
               <label className="flex cursor-pointer items-center gap-2">
                 <input
@@ -192,13 +192,17 @@ export function BatchUploadForm() {
                   className="h-4 w-4"
                 />
                 <div>
-                  <div className="font-medium">ZIP with QR Codes</div>
+                  <div className="font-medium">ไฟล์ ZIP ที่มีใบนำสแกน QR code</div>
                   <div className="text-sm text-gray-600">
-                    ZIP file containing images with QR codes (task ID extracted automatically)
+                    ไฟล์ ZIP ที่มีใบนำสแกน QR code
+                    <br />
+                    (QR code คือ Task ID หรือ รหัสสนามสอบ + ชั้น + ช่วงชั้น 8 หลัก)
                   </div>
                 </div>
               </label>
 
+              {/* Disabled for now */}
+              {/*
               <label className="flex cursor-pointer items-center gap-2">
                 <input
                   type="radio"
@@ -209,13 +213,14 @@ export function BatchUploadForm() {
                   disabled={uploading}
                   className="h-4 w-4"
                 />
-                <div>
-                  <div className="font-medium">ZIP without QR Codes</div>
+                 <div>
+                  <div className="font-medium">ไฟล์ ZIP ไม่มีใบนำสแกน QR code</div>
                   <div className="text-sm text-gray-600">
-                    ZIP file without QR codes (requires task ID)
+                    ไฟล์ ZIP ไม่มีใบนำสแกน QR code (ต้องระบุ task ID)
                   </div>
                 </div>
               </label>
+              */}
 
               <label className="flex cursor-pointer items-center gap-2">
                 <input
@@ -228,9 +233,9 @@ export function BatchUploadForm() {
                   className="h-4 w-4"
                 />
                 <div>
-                  <div className="font-medium">Direct Images</div>
+                  <div className="font-medium">ไฟล์รูปภาพ</div>
                   <div className="text-sm text-gray-600">
-                    Individual image files (requires task ID)
+                    ไฟล์รูปภาพ (ต้องระบุ task ID)
                   </div>
                 </div>
               </label>
@@ -241,14 +246,14 @@ export function BatchUploadForm() {
         {/* File Upload */}
         <div className="space-y-2">
           <Label htmlFor="file">
-            {uploadType === 'images' ? 'Image Files' : 'ZIP File'}
-            {uploadType === 'images' && ' (multiple)'}
+            {uploadType === 'images' ? 'ไฟล์รูปภาพ' : 'ไฟล์ ZIP'}
+            {uploadType === 'images' && ' (อัปโหลดได้ทีละหลายไฟล์)'}
           </Label>
           {uploadType === 'images' ? (
             <Input
               id="files"
               type="file"
-              accept=".jpg,.jpeg,.png"
+              accept=".jpg,.jpeg"
               multiple
               onChange={handleFilesChange}
               disabled={uploading}
@@ -272,7 +277,7 @@ export function BatchUploadForm() {
             <div className="text-sm text-gray-600">
               {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
               {file.size > 100 * 1024 * 1024 && (
-                <span className="ml-2 font-medium text-blue-600">(Will use chunked upload)</span>
+                <span className="ml-2 font-medium text-blue-600">(จะใช้การอัปโหลดแบบชิ้นส่วน)</span>
               )}
             </div>
           )}
@@ -280,7 +285,7 @@ export function BatchUploadForm() {
 
         {/* Profile Selection */}
         <div className="space-y-2">
-          <Label htmlFor="profile">Processing Profile</Label>
+          <Label htmlFor="profile">Profile ตรวจข้อสอบ</Label>
           <Select value={profileId} onValueChange={setProfileId}>
             <SelectTrigger>
               <SelectValue placeholder="Select a profile" />
@@ -294,7 +299,7 @@ export function BatchUploadForm() {
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground">
-            Select the configuration profile to use for processing this batch.
+            เลือก profile ตรวจข้อสอบ (แนะนำให้ใช้ Default)
           </p>
         </div>
 
@@ -307,7 +312,7 @@ export function BatchUploadForm() {
             <Input
               id="task_id"
               type="text"
-              placeholder="8-digit task ID (e.g., 14900117)"
+              placeholder="Task ID (เช่น 14900112 ตัวเลข 8 หลัก)"
               value={taskId}
               onChange={(e) => setTaskId(e.target.value)}
               disabled={uploading}
@@ -315,18 +320,18 @@ export function BatchUploadForm() {
               pattern="\d{8}"
             />
             {taskId && !/^\d{8}$/.test(taskId) && (
-              <div className="text-sm text-red-600">Task ID must be exactly 8 digits</div>
+              <div className="text-sm text-red-600">Task ID จะต้องเป็นตัวเลข 8 หลัก</div>
             )}
           </div>
         )}
 
         {/* Notes (optional) */}
         <div className="space-y-2">
-          <Label htmlFor="notes">Notes (Optional)</Label>
+          <Label htmlFor="notes">หมายเหตุ (ใส่หรือไม่ใส่ก็ได้)</Label>
           <Input
             id="notes"
             type="text"
-            placeholder="Add any notes about this batch"
+            placeholder="เพิ่มหมายเหตุเกี่ยวกับข้อมูลนี้"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             disabled={uploading}
@@ -339,8 +344,8 @@ export function BatchUploadForm() {
             <div className="flex items-center justify-between text-sm">
               <span className="font-medium">
                 {uploadProgress.chunksTotal > 1
-                  ? `Uploading chunk ${uploadProgress.currentChunk} / ${uploadProgress.chunksTotal}`
-                  : 'Uploading...'}
+                  ? `กำลังอัปโหลดชิ้นส่วน ${uploadProgress.currentChunk} / ${uploadProgress.chunksTotal}`
+                  : 'กำลังอัปโหลด...'}
               </span>
               <span className="font-mono">{Math.round(uploadProgress.percentage)}%</span>
             </div>
@@ -350,7 +355,7 @@ export function BatchUploadForm() {
               {(uploadProgress.bytesTotal / 1024 / 1024).toFixed(2)} MB
             </div>
             {uploadProgress.chunksTotal > 1 && (
-              <div className="text-xs text-blue-700">⚡ Using chunked upload for large file</div>
+              <div className="text-xs text-blue-700">⚡ ใช้การอัปโหลดแบบชิ้นส่วนสำหรับไฟล์ขนาดใหญ่</div>
             )}
           </div>
         )}
@@ -366,18 +371,18 @@ export function BatchUploadForm() {
         {/* Action Buttons */}
         <div className="flex gap-3">
           <Button onClick={handleUpload} disabled={!isValid() || uploading} className="flex-1">
-            {uploading ? 'Uploading...' : 'Upload Batch'}
+            {uploading ? 'กำลังอัปโหลด...' : 'อัปโหลด'}
           </Button>
 
           {uploading && uploadType === 'zip_with_qr' && (
             <Button variant="destructive" onClick={handleCancelUpload}>
-              Cancel Upload
+              ยกเลิกอัปโหลด
             </Button>
           )}
 
           {!uploading && (file || files.length > 0) && (
             <Button variant="outline" onClick={handleReset}>
-              Clear
+              ล้าง
             </Button>
           )}
         </div>
@@ -385,9 +390,9 @@ export function BatchUploadForm() {
         {/* Info Text */}
         {!uploading && (
           <div className="space-y-1 text-xs text-gray-500">
-            <div>• Files larger than 100MB will automatically use chunked upload</div>
-            <div>• Maximum file size: 10GB (chunked)</div>
-            <div>• Supported formats: ZIP files and JPG/PNG images</div>
+            <div>• ไฟล์ขนาดใหญ่กว่า 100MB จะใช้การอัปโหลดแบบชิ้นส่วน</div>
+            <div>• ขนาดไฟล์สูงสุด: 10GB (ชิ้นส่วน)</div>
+            <div>• รูปแบบที่รองรับ: ไฟล์ ZIP และรูปภาพ JPG</div>
           </div>
         )}
       </div>
