@@ -1,5 +1,6 @@
 import apiClient from './client';
 import { Sheet, SheetCorrectionRequest, BulkSheetUpdateRequest, OverlayResponse, OMRLayout, AnswerKey, SheetInfoUpdateRequest, SheetVerificationRequest, AnswerEditPayload } from '../types/sheets';
+import { API_BASE_URL } from '../utils/constants';
 import { PaginatedResponse } from '../types/api';
 import { RosterEntry } from '../types/tasks';
 
@@ -34,7 +35,9 @@ export const sheetsApi = {
   },
 
   getSheetImageUrl: (id: string, part: 'top' | 'bottom', width?: number): string => {
-    const baseUrl = `${process.env.NEXT_PUBLIC_API_URL}/sheets/${id}/image?part=${part}`;
+    // API_BASE_URL now handles client/server context (client='/api', server='http://...')
+    // Next.js rewrites /api/sheets -> internal/sheets
+    const baseUrl = `${API_BASE_URL}/sheets/${id}/image?part=${part}`;
     return width ? `${baseUrl}&width=${width}` : baseUrl;
   },
 

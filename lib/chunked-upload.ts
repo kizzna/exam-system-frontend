@@ -12,6 +12,8 @@
 
 import type { ChunkUploadProgress, UploadType } from './types/batches';
 import { useAuthStore } from './stores/auth-store';
+import { API_BASE_URL } from './utils/constants';
+import { getApiUrl } from './utils/api';
 
 const CHUNK_SIZE = 50 * 1024 * 1024; // 50MB chunks
 const CLOUDFLARE_LIMIT = 100 * 1024 * 1024; // 100MB Cloudflare limit
@@ -107,7 +109,7 @@ async function uploadDirect(
       return;
     }
 
-    xhr.open('POST', `${process.env.NEXT_PUBLIC_API_URL}/api/batches/upload`);
+    xhr.open('POST', getApiUrl('/batches/upload', true));
     xhr.setRequestHeader('Authorization', `Bearer ${token}`);
     xhr.send(formData);
   });
@@ -181,7 +183,7 @@ async function uploadInChunks(
         }
 
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/batches/upload-chunk`,
+          getApiUrl('/batches/upload-chunk', true),
           {
             method: 'POST',
             headers: {
@@ -396,7 +398,7 @@ export async function uploadImages(
       return;
     }
 
-    xhr.open('POST', `${process.env.NEXT_PUBLIC_API_URL}/api/batches/upload`);
+    xhr.open('POST', `${API_BASE_URL}/batches/upload`);
     xhr.setRequestHeader('Authorization', `Bearer ${token}`);
     xhr.send(formData);
   });

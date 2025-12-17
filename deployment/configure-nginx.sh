@@ -57,11 +57,33 @@ echo "Creating Nginx configuration..."
 cat > "$NGINX_SITES_AVAILABLE/$CONFIG_NAME" << 'EOF'
 # Exam System Frontend - Next.js Application
 # Reverse proxy configuration
+# UNIFIED GATEWAY IMPLEMENTATION
+
+# WebSocket Header Handling
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    '' close;
+}
+
+# Logic to preserve HTTPS protocol status
+# If X-Forwarded-Proto is missing (internal access), default to $scheme (http)
+# If provided (by Cloudflare/Tunnel), trust it.
+map $http_x_forwarded_proto $final_forwarded_proto {
+    default $http_x_forwarded_proto;
+    ''      $scheme;
+}
 
 upstream nextjs_upstream {
     # PM2 cluster mode runs multiple instances
     # Nginx will load balance between them
     server 127.0.0.1:3000;
+    keepalive 64;
+}
+
+# Python Backend Upstream (Unified Gateway Target)
+upstream fastapi_upstream {
+    # Using DNS name as requested for VIP/LoadBalancer support
+    server gt-omr-api.gt:8000;
     keepalive 64;
 }
 
@@ -75,6 +97,19 @@ server {
     
     server_name SERVER_NAME_PLACEHOLDER;
     
+    # --- GLOBAL PROXY HEADERS ---
+    # These headers are applied to ALL locations unless overridden
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    
+    # CRITICAL: Force HTTPS for the app's perspective if we are behind Cloudflare
+    # This uses the mapped logic above.
+    proxy_set_header X-Forwarded-Proto $final_forwarded_proto;
+
     # Security headers
     add_header X-Frame-Options "SAMEORIGIN" always;
     add_header X-Content-Type-Options "nosniff" always;
@@ -92,7 +127,21 @@ server {
     proxy_connect_timeout 60s;
     proxy_send_timeout 60s;
     proxy_read_timeout 60s;
+
+    # --- 1. ROUTE TO PYTHON API (Unified Gateway) ---
+    location /api/ {
+        limit_req zone=api_limit burst=20 nodelay;
+        proxy_pass http://fastapi_upstream;
+        
+        # Extended timeouts for API processing (e.g. big uploads)
+        proxy_read_timeout 300s;
+        proxy_cache_bypass $http_upgrade;
+        
+        # CRITICAL: Disable buffering to allow direct streaming
+        proxy_request_buffering off;
+    }
     
+    # --- 2. ROUTE TO NEXT.JS (Static & App) ---
     # Static files from Next.js
     location /_next/static {
         proxy_cache STATIC;
@@ -109,27 +158,14 @@ server {
         add_header Cache-Control "public, max-age=3600";
     }
     
-    # API routes - higher rate limit
-    location /api {
-        limit_req zone=api_limit burst=20 nodelay;
-        
-        proxy_pass http://nextjs_upstream;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_cache_bypass $http_upgrade;
-    }
+
     
     # WebSocket support for hot reload (development)
     location /_next/webpack-hmr {
         proxy_pass http://nextjs_upstream;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
+        proxy_set_header Connection $connection_upgrade;
     }
     
     # All other requests
@@ -139,11 +175,11 @@ server {
         proxy_pass http://nextjs_upstream;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
+        proxy_set_header Connection $connection_upgrade;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
         proxy_cache_bypass $http_upgrade;
     }
     
@@ -194,12 +230,15 @@ fi
 echo ""
 echo "Testing Nginx configuration..."
 if nginx -t; then
-    echo -e "${GREEN}✓ Nginx configuration is valid${NC}"
-    
-    # Reload Nginx
-    echo "Reloading Nginx..."
-    systemctl reload nginx
-    echo -e "${GREEN}✓ Nginx reloaded${NC}"
+    # Reload or Start Nginx
+    echo "Applying Nginx configuration..."
+    if systemctl is-active --quiet nginx; then
+        systemctl reload nginx
+        echo -e "${GREEN}✓ Nginx reloaded${NC}"
+    else
+        systemctl start nginx
+        echo -e "${GREEN}✓ Nginx started${NC}"
+    fi
 else
     echo -e "${RED}✗ Nginx configuration test failed${NC}"
     echo "Please check the configuration and try again"

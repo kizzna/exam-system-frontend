@@ -17,7 +17,7 @@ import type {
  * Get batch statistics
  */
 export async function getBatchStats(batchId: string): Promise<BatchStats> {
-  const response = await apiClient.get<BatchStats>(`/api/batches/${batchId}/stats`);
+  const response = await apiClient.get<BatchStats>(`/batches/${batchId}/stats`);
   return response.data;
 }
 
@@ -25,7 +25,7 @@ export async function getBatchStats(batchId: string): Promise<BatchStats> {
  * Get batch progress (lightweight polling endpoint)
  */
 export async function getBatchProgress(batchId: string): Promise<BatchProgress> {
-  const response = await apiClient.get<BatchProgress>(`/api/batches/${batchId}/progress`);
+  const response = await apiClient.get<BatchProgress>(`/batches/${batchId}/progress`);
   return response.data;
 }
 
@@ -37,14 +37,14 @@ export async function getBatchStatus(
   includeSheets: boolean = false,
   limit: number = 100
 ): Promise<BatchStatusResponse> {
-  const response = await apiClient.get<BatchStatusResponse>(`/api/batches/${batchId}/status`, {
+  const response = await apiClient.get<BatchStatusResponse>(`/batches/${batchId}/status`, {
     params: {
       include_sheets: includeSheets,
       limit: limit,
     },
   });
 
-  console.log('[Batches API] getBatchStatus response:', response.data);
+  /* console.log('[Batches API] getBatchStatus response:', response.data); */
   return response.data;
 }
 
@@ -54,7 +54,7 @@ export async function getBatchStatus(
 export async function listBatches(params: ListBatchesParams = {}): Promise<ListBatchesResponse> {
   const { status, page = 1, page_size = 50, offset = (page - 1) * page_size } = params;
 
-  const response = await apiClient.get<ListBatchesResponse>('/api/batches/', {
+  const response = await apiClient.get<ListBatchesResponse>('/batches', {
     params: {
       page_size,
       offset,
@@ -63,9 +63,9 @@ export async function listBatches(params: ListBatchesParams = {}): Promise<ListB
   });
 
   // Debug logging
-  if (response.data.batches && response.data.batches.length > 0) {
+  /* if (response.data.batches && response.data.batches.length > 0) {
     console.log('[Batches API] Sample batch data:', response.data.batches[0]);
-  }
+  } */
 
   return response.data;
 }
@@ -74,7 +74,7 @@ export async function listBatches(params: ListBatchesParams = {}): Promise<ListB
  * Delete batch (admin only)
  */
 export async function deleteBatch(batchId: string): Promise<void> {
-  await apiClient.delete(`/api/batches/${batchId}`);
+  await apiClient.delete(`/batches/${batchId}`);
 }
 
 /**
@@ -91,7 +91,7 @@ export interface RecoverBatchResponse {
  * Recover batch from Redis buffer (for failed/timeout batches)
  */
 export async function recoverBatch(batchId: string): Promise<RecoverBatchResponse> {
-  const response = await apiClient.post<RecoverBatchResponse>(`/api/batches/${batchId}/recover`);
+  const response = await apiClient.post<RecoverBatchResponse>(`/batches/${batchId}/recover`);
   return response.data;
 }
 
@@ -118,7 +118,7 @@ export async function checkRecoverable(batchId: string): Promise<{
   total_sheets_count: number;
   is_recoverable: boolean;
 }> {
-  const response = await apiClient.get(`/api/batches/${batchId}/recoverable`);
+  const response = await apiClient.get(`/batches/${batchId}/recoverable`);
   return response.data;
 }
 
@@ -129,6 +129,6 @@ export async function cancelBatch(batchId: string): Promise<{
   success: boolean;
   message: string;
 }> {
-  const response = await apiClient.post(`/api/batches/${batchId}/cancel`);
+  const response = await apiClient.post(`/batches/${batchId}/cancel`);
   return response.data;
 }

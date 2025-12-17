@@ -6,7 +6,7 @@
 set -e
 
 # Configuration
-LOCAL_DIR="/workspace"
+LOCAL_DIR="/workspaces/omr-frontend"
 CEPHFS_BASE="/cephfs/exam-system/frontend"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 RELEASE_DIR="$CEPHFS_BASE/releases/dev-$TIMESTAMP"

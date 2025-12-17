@@ -18,7 +18,7 @@ echo ""
 
 # Sync code first
 echo "Syncing code to CephFS..."
-bash /workspace/scripts/dev-sync-frontend.sh
+bash /workspaces/omr-frontend/scripts/dev-sync-frontend.sh
 
 echo ""
 
@@ -26,10 +26,10 @@ echo ""
 if [ "$TARGET" = "all" ]; then
   for server in gt-omr-web-{1,2,3}; do
     echo -e "${BLUE}Deploying to $server...${NC}"
-    /workspace/deployment/remote-deploy.sh "$server" --build --skip-deps
+    /workspaces/omr-frontend/deployment/remote-deploy.sh "$server" --build --skip-deps
   done
 else
-  /workspace/deployment/remote-deploy.sh "$TARGET" --build --skip-deps
+  /workspaces/omr-frontend/deployment/remote-deploy.sh "$TARGET" --build --skip-deps
 fi
 
 echo ""

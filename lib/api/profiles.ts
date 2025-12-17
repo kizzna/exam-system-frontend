@@ -9,7 +9,7 @@ import type {
  * Get all profiles
  */
 export async function getProfiles(): Promise<Profile[]> {
-    const response = await apiClient.get<Profile[]>('/api/profiles/');
+    const response = await apiClient.get<Profile[]>('/profiles/');
     return response.data;
 }
 
@@ -17,7 +17,7 @@ export async function getProfiles(): Promise<Profile[]> {
  * Get a single profile by ID
  */
 export async function getProfile(id: number): Promise<Profile> {
-    const response = await apiClient.get<Profile>(`/api/profiles/${id}`);
+    const response = await apiClient.get<Profile>(`/profiles/${id}`);
     return response.data;
 }
 
@@ -25,7 +25,7 @@ export async function getProfile(id: number): Promise<Profile> {
  * Create a new profile
  */
 export async function createProfile(data: CreateProfileRequest): Promise<Profile> {
-    const response = await apiClient.post<Profile>('/api/profiles/', data);
+    const response = await apiClient.post<Profile>('/profiles/', data);
     return response.data;
 }
 
@@ -33,7 +33,7 @@ export async function createProfile(data: CreateProfileRequest): Promise<Profile
  * Update a profile
  */
 export async function updateProfile(id: number, data: UpdateProfileRequest): Promise<Profile> {
-    const response = await apiClient.put<Profile>(`/api/profiles/${id}`, data);
+    const response = await apiClient.put<Profile>(`/profiles/${id}`, data);
     return response.data;
 }
 
@@ -41,14 +41,14 @@ export async function updateProfile(id: number, data: UpdateProfileRequest): Pro
  * Delete a profile
  */
 export async function deleteProfile(id: number): Promise<void> {
-    await apiClient.delete(`/api/profiles/${id}`);
+    await apiClient.delete(`/profiles/${id}`);
 }
 
 /**
  * Clone a profile
  */
 export async function cloneProfile(id: number, newName: string): Promise<Profile> {
-    const response = await apiClient.post<Profile>(`/api/profiles/${id}/clone`, null, {
+    const response = await apiClient.post<Profile>(`/profiles/${id}/clone`, null, {
         params: { new_name: newName },
     });
     return response.data;

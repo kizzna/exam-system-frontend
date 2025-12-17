@@ -1,6 +1,10 @@
 // App constants
 export const APP_NAME = 'Exam Management System';
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://gt-omr-api-1.gt:8000';
+// Use relative path on client to leverage Next.js proxy (avoids CORS & Mixed Content)
+// Use internal docker URL on server side
+export const API_BASE_URL = typeof window !== 'undefined'
+    ? '/api'
+    : (process.env.NEXT_PUBLIC_API_URL || 'http://gt-omr-api-1.gt:8000');
 
 // Pagination
 export const DEFAULT_PAGE_SIZE = 20;

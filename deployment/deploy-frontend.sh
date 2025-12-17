@@ -165,9 +165,66 @@ fi
 
 echo ""
 
-# Step 4: Install Node.js dependencies and build
+echo ""
+
+# Step 4: Create/Update environment file
+echo -e "${BLUE}═══ Step 4: Configuring Environment ═══${NC}"
+
+ENV_FILE="$LOCAL_ROOT/.env.local"
+
+if [ -f "$ENV_FILE" ]; then
+    echo -e "${YELLOW}Environment file exists: $ENV_FILE${NC}"
+    echo "Keeping existing configuration"
+else
+    echo "Creating environment file..."
+    cat > "$ENV_FILE" << EOF
+# Production Environment Configuration
+# Server: $HOSTNAME ($SERVER_IP)
+# Generated: $(date)
+
+NODE_ENV=production
+PORT=3000
+
+# API Configuration - UNIFIED GATEWAY
+# Browser uses relative path (proxied by Nginx/Next.js)
+NEXT_PUBLIC_API_URL=/api
+# Server-Side (SSR) uses internal DNS
+INTERNAL_API_URL=http://gt-omr-api.gt:8000
+
+# Server identification
+SERVER_ID=$HOSTNAME
+SERVER_IP=$SERVER_IP
+
+# Logging
+LOG_LEVEL=info
+LOG_DIR=$LOCAL_ROOT/logs
+
+# Cache
+CACHE_DIR=$LOCAL_ROOT/cache
+
+# Uploads
+UPLOAD_DIR=$LOCAL_ROOT/tmp/uploads
+MAX_UPLOAD_SIZE=104857600
+
+# Performance
+NODE_OPTIONS=--max-old-space-size=4096
+EOF
+    
+    chmod 600 "$ENV_FILE"
+    chown www-data:www-data "$ENV_FILE"
+    echo -e "${GREEN}✓ Environment file created${NC}"
+fi
+
+# Link env file to current deployment
+if [ ! -L "$CEPHFS_BASE/current/.env.local" ]; then
+    ln -sf "$ENV_FILE" "$CEPHFS_BASE/current/.env.local"
+fi
+
+echo ""
+
+# Step 5: Install Node.js dependencies and build
 if [ "$SKIP_BUILD" = false ]; then
-    echo -e "${BLUE}═══ Step 4: Installing Dependencies and Building ═══${NC}"
+    echo -e "${BLUE}═══ Step 5: Installing Dependencies and Building ═══${NC}"
     
     cd "$CEPHFS_BASE/current"
     
@@ -219,67 +276,16 @@ fi
 
 echo ""
 
-# Step 5: Create/Update environment file
-echo -e "${BLUE}═══ Step 5: Configuring Environment ═══${NC}"
-
-ENV_FILE="$LOCAL_ROOT/.env.local"
-
-if [ -f "$ENV_FILE" ]; then
-    echo -e "${YELLOW}Environment file exists: $ENV_FILE${NC}"
-    echo "Keeping existing configuration"
-else
-    echo "Creating environment file..."
-    cat > "$ENV_FILE" << EOF
-# Production Environment Configuration
-# Server: $HOSTNAME ($SERVER_IP)
-# Generated: $(date)
-
-NODE_ENV=production
-PORT=3000
-
-# API Configuration
-NEXT_PUBLIC_API_URL=http://gt-omr-api-1:8000
-
-# Server identification
-SERVER_ID=$HOSTNAME
-SERVER_IP=$SERVER_IP
-
-# Logging
-LOG_LEVEL=info
-LOG_DIR=$LOCAL_ROOT/logs
-
-# Cache
-CACHE_DIR=$LOCAL_ROOT/cache
-
-# Uploads
-UPLOAD_DIR=$LOCAL_ROOT/tmp/uploads
-MAX_UPLOAD_SIZE=104857600
-
-# Performance
-NODE_OPTIONS=--max-old-space-size=4096
-EOF
-    
-    chmod 600 "$ENV_FILE"
-    chown www-data:www-data "$ENV_FILE"
-    echo -e "${GREEN}✓ Environment file created${NC}"
-fi
-
-# Link env file to current deployment
-if [ ! -L "$CEPHFS_BASE/current/.env.local" ]; then
-    ln -sf "$ENV_FILE" "$CEPHFS_BASE/current/.env.local"
-fi
-
-echo ""
-
 # Step 6: Configure Nginx
 echo -e "${BLUE}═══ Step 6: Configuring Nginx ═══${NC}"
 
-if [ -f "$SCRIPT_DIR/configure-nginx.sh" ]; then
-    bash "$SCRIPT_DIR/configure-nginx.sh" "_"
-else
-    echo -e "${YELLOW}Warning: configure-nginx.sh not found${NC}"
-    echo "Please configure Nginx manually"
-fi
+# if [ -f "$SCRIPT_DIR/configure-nginx.sh" ]; then
+#     bash "$SCRIPT_DIR/configure-nginx.sh" "_"
+# else
+#     echo -e "${YELLOW}Warning: configure-nginx.sh not found${NC}"
+#     echo "Please configure Nginx manually"
+# fi
+echo -e "${YELLOW}Skipping Nginx configuration (Handled by configure-proxies.sh)${NC}"
 
 echo ""
 

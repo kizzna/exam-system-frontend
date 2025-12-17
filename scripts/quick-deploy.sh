@@ -12,7 +12,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 # Configuration
-LOCAL_DIR="/workspace"
+LOCAL_DIR="/workspaces/omr-frontend"
 CEPHFS_CURRENT="/cephfs/exam-system/frontend/current"
 TARGET="${1:-gt-omr-web-1}"
 

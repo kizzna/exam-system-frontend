@@ -221,7 +221,7 @@ After changing URL configuration:
 **Fix:** Ensure all `NEXT_PUBLIC_API_URL` values use `.gt` domain:
 
 ```bash
-grep -r "NEXT_PUBLIC_API_URL" /workspace/{ecosystem.config.js,lib/utils/constants.ts,.env.local}
+grep -r "NEXT_PUBLIC_API_URL" /workspaces/omr-frontend/{ecosystem.config.js,lib/utils/constants.ts,.env.local}
 ```
 
 All should show: `http://gt-omr-api-1.gt:8000`
@@ -317,5 +317,5 @@ ssh gt-omr-web-1 'cd /cephfs/exam-system/frontend/current && pm2 start ecosystem
 
 ---
 
-**Updated:** November 19, 2025  
+**Updated:** December 16, 2025  
 **Status:** ✅ FIXED

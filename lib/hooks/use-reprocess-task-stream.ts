@@ -6,6 +6,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { fetchEventSource } from '@microsoft/fetch-event-source';
 import { useAuthStore } from '../stores/auth-store';
+import { getApiUrl } from '../utils/api';
 
 export interface ReprocessTaskEvent {
     stage: ProcessingStage;
@@ -76,7 +77,7 @@ export function useReprocessTaskStream(taskId: string | null) {
 
         console.log(`[SSE] Connecting to reprocess stream: ${taskId}`);
 
-        const url = `${process.env.NEXT_PUBLIC_API_URL}/sheets/reprocess/${taskId}/stream`;
+        const url = getApiUrl(`/sheets/reprocess/${taskId}/stream`, true);
 
         try {
             await fetchEventSource(url, {

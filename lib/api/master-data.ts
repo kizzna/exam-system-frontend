@@ -28,7 +28,7 @@ export interface Snr {
 
 export const masterDataApi = {
     getEvaluationCenters: async (): Promise<EvaluationCenter[]> => {
-        const response = await apiClient.get<EvaluationCenter[]>('/api/evaluation-centers');
+        const response = await apiClient.get<EvaluationCenter[]>('/evaluation-centers');
         return response.data;
     },
 

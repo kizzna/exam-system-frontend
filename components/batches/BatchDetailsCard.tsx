@@ -34,7 +34,7 @@ export function BatchDetailsCard({ batchId, isAdmin = false }: BatchDetailsCardP
   } | null>(null);
 
   // Debug logging
-  console.log('[BatchDetailsCard] Rendering with:', {
+  /* console.log('[BatchDetailsCard] Rendering with:', {
     batchId,
     batch: batch
       ? {
@@ -46,7 +46,7 @@ export function BatchDetailsCard({ batchId, isAdmin = false }: BatchDetailsCardP
       : undefined,
     isLoading,
     error,
-  });
+  }); */
 
   const handleRecover = async () => {
     setIsRecovering(true);

@@ -29,7 +29,7 @@ export const tasksApi = {
     sort_order?: 'asc' | 'desc';
     status?: 'active' | 'deleted' | 'all';
   }): Promise<PaginatedResponse<Task>> => {
-    const response = await apiClient.get<PaginatedResponse<Task>>('/tasks/', { params });
+    const response = await apiClient.get<PaginatedResponse<Task>>('/tasks', { params });
     return response.data;
   },
 

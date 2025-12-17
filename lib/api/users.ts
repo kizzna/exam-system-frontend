@@ -9,34 +9,34 @@ import {
 
 export const usersApi = {
   getUsers: async (params?: UserListParams): Promise<UserListResponse> => {
-    const response = await apiClient.get<UserListResponse>('/api/users', { params });
+    const response = await apiClient.get<UserListResponse>('/users', { params });
     return response.data;
   },
 
   getUser: async (userId: number): Promise<User> => {
-    const response = await apiClient.get<User>(`/api/users/${userId}`);
+    const response = await apiClient.get<User>(`/users/${userId}`);
     return response.data;
   },
 
   createUser: async (data: CreateUserRequest): Promise<User> => {
-    const response = await apiClient.post<User>('/api/users', data);
+    const response = await apiClient.post<User>('/users', data);
     return response.data;
   },
 
   updateUser: async (userId: number, data: UpdateUserRequest): Promise<User> => {
-    const response = await apiClient.patch<User>(`/api/users/${userId}`, data);
+    const response = await apiClient.patch<User>(`/users/${userId}`, data);
     return response.data;
   },
 
   deleteUser: async (userId: number): Promise<{ success: boolean; message: string }> => {
     const response = await apiClient.delete<{ success: boolean; message: string }>(
-      `/api/users/${userId}`
+      `/users/${userId}`
     );
     return response.data;
   },
 
   changePassword: async (userId: number, newPassword: string): Promise<{ message: string }> => {
-    const response = await apiClient.post<{ message: string }>(`/api/users/${userId}/password`, {
+    const response = await apiClient.post<{ message: string }>(`/users/${userId}/password`, {
       new_password: newPassword,
     });
     return response.data;

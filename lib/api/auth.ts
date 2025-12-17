@@ -9,12 +9,12 @@ import {
 
 export const authApi = {
   login: async (credentials: LoginRequest): Promise<LoginResponse> => {
-    const response = await apiClient.post<LoginResponse>('/api/auth/login', credentials);
+    const response = await apiClient.post<LoginResponse>('/auth/login', credentials);
     return response.data;
   },
 
   refresh: async (refreshToken: string): Promise<TokenResponse> => {
-    const response = await apiClient.post<TokenResponse>('/api/auth/refresh', {
+    const response = await apiClient.post<TokenResponse>('/auth/refresh', {
       refresh_token: refreshToken,
     });
     return response.data;
@@ -27,7 +27,7 @@ export const authApi = {
 
   verifyToken: async (): Promise<boolean> => {
     try {
-      await apiClient.get('/api/auth/verify');
+      await apiClient.get('/auth/verify');
       return true;
     } catch {
       return false;
@@ -35,7 +35,7 @@ export const authApi = {
   },
 
   getCurrentUser: async (): Promise<UserInfo> => {
-    const response = await apiClient.get<UserInfo>('/api/auth/me');
+    const response = await apiClient.get<UserInfo>('/auth/me');
     return response.data;
   },
 };

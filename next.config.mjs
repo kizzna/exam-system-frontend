@@ -32,9 +32,17 @@ const nextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: `${process.env.NEXT_PUBLIC_API_URL || 'http://gt-omr-api-1.gt:8000'}/:path*`,
+        // DESTINATION: Proxy to Backend Container (Dev Mode)
+        // Uses env var or defaults to the internal DNS name
+        destination: `${process.env.API_PROXY_URL || 'http://gt-omr-api.gt:8000'}/api/:path*`,
       },
     ];
+  },
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '200mb',
+    },
+    proxyTimeout: 300000,
   },
 };
 

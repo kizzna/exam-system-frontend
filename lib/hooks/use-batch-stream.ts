@@ -6,6 +6,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { fetchEventSource } from '@microsoft/fetch-event-source';
 import { useAuthStore } from '../stores/auth-store';
+import { getApiUrl } from '../utils/api';
 
 export interface BatchProgressEvent {
   stage: ProcessingStage;
@@ -73,9 +74,9 @@ export function useBatchStream(batchId: string | null) {
     const abortController = new AbortController();
     abortControllerRef.current = abortController;
 
-    console.log(`[SSE] Connecting to batch stream: ${batchId}`);
+    /* console.log(`[SSE] Connecting to batch stream: ${batchId}`); */
 
-    const url = `${process.env.NEXT_PUBLIC_API_URL}/api/batches/${batchId}/stream`;
+    const url = getApiUrl(`/batches/${batchId}/stream`, true);
 
     try {
       await fetchEventSource(url, {
@@ -87,7 +88,7 @@ export function useBatchStream(batchId: string | null) {
 
         onopen: async (response) => {
           if (response.ok) {
-            console.log('[SSE] Connection established');
+            /* console.log('[SSE] Connection established'); */
             setState((prev) => ({
               ...prev,
               isConnected: true,
@@ -95,7 +96,7 @@ export function useBatchStream(batchId: string | null) {
             }));
           } else if (response.status === 401) {
             // Unauthorized - session expired, stop retrying
-            console.error('[SSE] Session expired (401). Please refresh the page.');
+            /* console.error('[SSE] Session expired (401). Please refresh the page.'); */
             setState((prev) => ({
               ...prev,
               error: 'Session expired. Please refresh the page to continue.',
@@ -106,7 +107,7 @@ export function useBatchStream(batchId: string | null) {
           } else if (response.status >= 400 && response.status < 500 && response.status !== 429) {
             // Client error - don't retry
             const errorText = await response.text();
-            console.error('[SSE] Client error:', response.status, errorText);
+            /* console.error('[SSE] Client error:', response.status, errorText); */
             setState((prev) => ({
               ...prev,
               error: `Connection failed: ${response.statusText}`,
@@ -119,22 +120,22 @@ export function useBatchStream(batchId: string | null) {
         onmessage: (event) => {
           // Skip empty events
           if (!event.data || event.data.trim() === '') {
-            console.log('[SSE] Received empty event, skipping');
+            /* console.log('[SSE] Received empty event, skipping'); */
             return;
           }
 
           try {
             const data: BatchProgressEvent = JSON.parse(event.data);
 
-            console.log(
+            /* console.log(
               `[SSE] Event type: ${event.event || 'message'}, Stage: ${data.stage}, Message: ${data.message}`
-            );
+            ); */
 
             addEvent(data);
 
             // Check if batch is complete
             if (event.event === 'complete' || data.stage === 'completed') {
-              console.log('[SSE] Batch completed');
+              /* console.log('[SSE] Batch completed'); */
               setState((prev) => ({
                 ...prev,
                 isComplete: true,
@@ -142,7 +143,7 @@ export function useBatchStream(batchId: string | null) {
               }));
               abortController.abort();
             } else if (event.event === 'error' || data.stage === 'failed') {
-              console.error('[SSE] Batch failed:', data.error_details || data.message);
+              /* console.error('[SSE] Batch failed:', data.error_details || data.message); */
               setState((prev) => ({
                 ...prev,
                 isComplete: true,
@@ -152,17 +153,17 @@ export function useBatchStream(batchId: string | null) {
               abortController.abort();
             }
           } catch (error) {
-            console.error('[SSE] Failed to parse event:', error, 'Data:', event.data);
+            /* console.error('[SSE] Failed to parse event:', error, 'Data:', event.data); */
           }
         },
 
         onerror: (error) => {
-          console.error('[SSE] Connection error:', error);
+          /* console.error('[SSE] Connection error:', error); */
 
           // If we have a session expired error, don't retry
           const currentState = state;
           if (currentState.error?.includes('Session expired')) {
-            console.log('[SSE] Not retrying due to session expiry');
+            /* console.log('[SSE] Not retrying due to session expiry'); */
             abortController.abort();
             return;
           }
@@ -175,7 +176,7 @@ export function useBatchStream(batchId: string | null) {
         },
 
         onclose: () => {
-          console.log('[SSE] Connection closed');
+          /* console.log('[SSE] Connection closed'); */
           setState((prev) => ({
             ...prev,
             isConnected: false,
@@ -184,9 +185,9 @@ export function useBatchStream(batchId: string | null) {
       });
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
-        console.log('[SSE] Connection aborted');
+        /* console.log('[SSE] Connection aborted'); */
       } else {
-        console.error('[SSE] Connection error:', error);
+        /* console.error('[SSE] Connection error:', error); */
         setState((prev) => ({
           ...prev,
           isConnected: false,
@@ -197,7 +198,7 @@ export function useBatchStream(batchId: string | null) {
   }, [batchId, accessToken, addEvent]);
 
   const disconnect = useCallback(() => {
-    console.log('[SSE] Disconnecting');
+    /* console.log('[SSE] Disconnecting'); */
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
