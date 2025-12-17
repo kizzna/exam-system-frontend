@@ -15,7 +15,7 @@ import { useAuthStore } from './stores/auth-store';
 import { API_BASE_URL } from './utils/constants';
 import { getApiUrl } from './utils/api';
 
-const CHUNK_SIZE = 50 * 1024 * 1024; // 50MB chunks
+const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks (reduced to allow parallelism for smaller files)
 const CLOUDFLARE_LIMIT = 100 * 1024 * 1024; // 100MB Cloudflare limit
 const MAX_RETRIES = 3;
 
@@ -115,8 +115,90 @@ async function uploadDirect(
   });
 }
 
+const CONCURRENCY_LIMIT = process.env.NEXT_PUBLIC_CONCURRENCY_LIMIT
+  ? parseInt(process.env.NEXT_PUBLIC_CONCURRENCY_LIMIT, 10)
+  : 4;
+
 /**
- * Upload file in chunks (> 100MB)
+ * Helper: Uploads a single chunk with internal retry logic
+ */
+async function uploadSingleChunkWithRetry(
+  chunk: Blob,
+  chunkIndex: number,
+  totalChunks: number,
+  file: File,
+  uploadType: UploadType,
+  uploadId: string | null,
+  taskId: string | null,
+  notes: string | null,
+  profileId: number | null,
+  signal?: AbortSignal
+): Promise<{ upload_id: string; batch_id?: string }> {
+  const isLastChunk = chunkIndex === totalChunks - 1;
+  let retryCount = 0;
+
+  while (retryCount < MAX_RETRIES) {
+    if (signal?.aborted) throw new Error('Upload cancelled by user');
+
+    try {
+      const formData = new FormData();
+      formData.append('chunk', chunk, `${file.name}.part${chunkIndex}`);
+      formData.append('chunk_index', chunkIndex.toString());
+      formData.append('total_chunks', totalChunks.toString());
+      formData.append('filename', file.name);
+      formData.append('upload_type', uploadType);
+      formData.append('is_final_chunk', isLastChunk.toString());
+
+      if (uploadId) formData.append('upload_id', uploadId);
+      if (taskId) formData.append('task_id', taskId);
+
+      // Only attach notes/profile to the final chunk
+      if (isLastChunk) {
+        if (notes) formData.append('notes', notes);
+        if (profileId) formData.append('profile_id', profileId.toString());
+      }
+
+      const token = getAuthToken();
+      if (!token) throw new Error('No authentication token found');
+
+      // Note: We use fetch here. Fetch does not give upload progress events.
+      // Progress is calculated based on completed chunks in the main loop.
+      const response = await fetch(getApiUrl('/batches/upload-chunk', true), {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+        signal, // Connect abort signal
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: 'Upload failed' }));
+        throw new Error(error.message || `Chunk ${chunkIndex + 1} failed`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      retryCount++;
+      const isAbort = error instanceof Error && error.name === 'AbortError';
+      if (isAbort) throw error; // Don't retry aborts
+
+      console.error(`[Chunk ${chunkIndex + 1}] Attempt ${retryCount} failed:`, error);
+
+      if (retryCount >= MAX_RETRIES) {
+        throw new Error(
+          `Chunk ${chunkIndex + 1}/${totalChunks} failed after ${MAX_RETRIES} attempts: ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
+      }
+
+      // Exponential backoff
+      const delayMs = Math.pow(2, retryCount) * 1000;
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+  throw new Error('Unexpected error in retry loop');
+}
+
+/**
+ * Upload file in chunks (Parallelized)
  */
 async function uploadInChunks(
   file: File,
@@ -129,124 +211,119 @@ async function uploadInChunks(
 ): Promise<{ batch_id: string }> {
   const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
   let uploadId: string | null = null;
-  let uploadedBytes = 0;
+
+  // Track progress
+  let chunksCompleted = 0;
+
+  const updateProgress = () => {
+    // Calculate approximate bytes based on completed chunks
+    const estimatedBytes = Math.min((chunksCompleted / totalChunks) * file.size, file.size);
+    onProgress({
+      chunksTotal: totalChunks,
+      chunksUploaded: chunksCompleted,
+      bytesUploaded: estimatedBytes,
+      bytesTotal: file.size,
+      percentage: (chunksCompleted / totalChunks) * 100,
+      currentChunk: chunksCompleted
+    });
+  };
 
   console.log(
-    `[Chunked Upload] File: ${file.name}, Size: ${(file.size / 1024 / 1024).toFixed(2)}MB, Chunks: ${totalChunks}`
+    `[Parallel Upload] Starting: ${file.name} (${totalChunks} chunks), Concurrency: ${CONCURRENCY_LIMIT}`
   );
 
-  // Upload each chunk
-  for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
-    if (signal?.aborted) {
-      throw new Error('Upload cancelled by user');
-    }
-    const start = chunkIndex * CHUNK_SIZE;
-    const end = Math.min(start + CHUNK_SIZE, file.size);
-    const chunk = file.slice(start, end);
-    const isLastChunk = chunkIndex === totalChunks - 1;
+  // --- STEP 1: Upload Chunk 0 Serially ---
+  // We MUST do this to get the 'upload_id' from the server to link subsequent chunks
+  const chunk0 = file.slice(0, CHUNK_SIZE);
+  const res0 = await uploadSingleChunkWithRetry(
+    chunk0,
+    0,
+    totalChunks,
+    file,
+    uploadType,
+    null,
+    taskId,
+    notes,
+    profileId,
+    signal
+  );
 
-    console.log(
-      `[Chunked Upload] Chunk ${chunkIndex + 1}/${totalChunks}: ${(chunk.size / 1024 / 1024).toFixed(2)}MB`
-    );
+  uploadId = res0.upload_id;
+  chunksCompleted++;
+  updateProgress();
 
-    // Retry logic for this chunk
-    let retryCount = 0;
-    let chunkUploaded = false;
-
-    while (retryCount < MAX_RETRIES && !chunkUploaded) {
-      try {
-        const formData = new FormData();
-        formData.append('chunk', chunk, `${file.name}.part${chunkIndex}`);
-        formData.append('chunk_index', chunkIndex.toString());
-        formData.append('total_chunks', totalChunks.toString());
-        formData.append('filename', file.name);
-        formData.append('upload_type', uploadType);
-        formData.append('is_final_chunk', isLastChunk.toString());
-
-        if (uploadId) {
-          formData.append('upload_id', uploadId);
-        }
-        if (taskId) {
-          formData.append('task_id', taskId);
-        }
-        if (notes && isLastChunk) {
-          // Only send notes with final chunk
-          formData.append('notes', notes);
-        }
-        if (profileId && isLastChunk) {
-          formData.append('profile_id', profileId.toString());
-        }
-
-        const token = getAuthToken();
-        if (!token) {
-          throw new Error('No authentication token found');
-        }
-
-        const response = await fetch(
-          getApiUrl('/batches/upload-chunk', true),
-          {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-            body: formData,
-          }
-        );
-
-        if (!response.ok) {
-          const error = await response.json().catch(() => ({ message: 'Upload failed' }));
-          throw new Error(error.message || `Chunk ${chunkIndex + 1} upload failed`);
-        }
-
-        const result = await response.json();
-
-        // Save upload_id from first chunk
-        if (chunkIndex === 0) {
-          uploadId = result.upload_id;
-          console.log(`[Chunked Upload] Upload ID: ${uploadId}`);
-        }
-
-        // Update progress
-        uploadedBytes = end;
-        onProgress({
-          chunksTotal: totalChunks,
-          chunksUploaded: chunkIndex + 1,
-          bytesUploaded: uploadedBytes,
-          bytesTotal: file.size,
-          percentage: (uploadedBytes / file.size) * 100,
-          currentChunk: chunkIndex + 1,
-        });
-
-        chunkUploaded = true;
-
-        // If last chunk, return batch info
-        if (isLastChunk) {
-          console.log(`[Chunked Upload] Complete! Batch ID: ${result.batch_id}`);
-          return { batch_id: result.batch_id };
-        }
-      } catch (error) {
-        retryCount++;
-        console.error(
-          `[Chunked Upload] Chunk ${chunkIndex + 1} attempt ${retryCount} failed:`,
-          error
-        );
-
-        if (retryCount >= MAX_RETRIES) {
-          throw new Error(
-            `Chunk ${chunkIndex + 1}/${totalChunks} failed after ${MAX_RETRIES} attempts: ${error instanceof Error ? error.message : 'Unknown error'}`
-          );
-        }
-
-        // Exponential backoff before retry
-        const delayMs = Math.pow(2, retryCount) * 1000;
-        console.log(`[Chunked Upload] Retrying chunk ${chunkIndex + 1} in ${delayMs}ms...`);
-        await new Promise((resolve) => setTimeout(resolve, delayMs));
-      }
-    }
+  if (totalChunks === 1) {
+    // If only one chunk, we are done
+    return { batch_id: res0.batch_id! };
   }
 
-  throw new Error('Upload failed: Unknown error');
+  // --- STEP 2: Upload Chunks 1..N in Parallel ---
+  // We use a pool to limit concurrency
+  const pendingIndices = Array.from({ length: totalChunks - 1 }, (_, i) => i + 1); // [1, 2, 3...]
+  let resultBatchId: string | null = null;
+
+  // Helper to process the queue
+  const processQueue = async (): Promise<void> => {
+    if (pendingIndices.length === 0) return;
+
+    // Grab next index
+    const index = pendingIndices.shift()!;
+    const start = index * CHUNK_SIZE;
+    const end = Math.min(start + CHUNK_SIZE, file.size);
+    const chunkBlob = file.slice(start, end);
+
+    try {
+      const res = await uploadSingleChunkWithRetry(
+        chunkBlob,
+        index,
+        totalChunks,
+        file,
+        uploadType,
+        uploadId,
+        taskId,
+        notes,
+        profileId,
+        signal
+      );
+
+      if (res.batch_id) {
+        resultBatchId = res.batch_id;
+      }
+
+      chunksCompleted++;
+      updateProgress();
+    } catch (error) {
+      // Stop other workings on fatal error? 
+      // For now we just let the error propagate up from Promise.all
+      throw error;
+    }
+
+    // Recursively pick up next job if queue not empty
+    if (pendingIndices.length > 0) {
+      return processQueue();
+    }
+  };
+
+  // Start initial pool
+  const workers = [];
+  const limit = Math.min(CONCURRENCY_LIMIT, pendingIndices.length);
+
+  for (let i = 0; i < limit; i++) {
+    workers.push(processQueue());
+  }
+
+  // Wait for all workers to drain the queue
+  await Promise.all(workers);
+
+  if (!resultBatchId) {
+    throw new Error('Upload completed but no Batch ID returned from server');
+  }
+
+  console.log(`[Parallel Upload] Complete! Batch: ${resultBatchId}`);
+  return { batch_id: resultBatchId };
 }
+
+
 
 /**
  * Main upload function with automatic chunking
@@ -281,7 +358,8 @@ export async function uploadFile(
   }
 
   // Check if chunking is needed
-  const needsChunking = file.size > CLOUDFLARE_LIMIT;
+  // For zip_with_qr, we ALWAYS use chunking to leverage parallel uploads for speed
+  const needsChunking = uploadType === 'zip_with_qr' || file.size > CLOUDFLARE_LIMIT;
 
   console.log(
     `[Upload] File: ${file.name}, Size: ${(file.size / 1024 / 1024).toFixed(2)}MB, Chunking: ${needsChunking}`

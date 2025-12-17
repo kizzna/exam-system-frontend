@@ -91,8 +91,6 @@ Dec 17 12:38:53 gt-omr-api-1 omr-api[124674]: 2025-12-17 12:38:53,272 - src.api.
 Dec 17 12:38:53 gt-omr-api-1 omr-api[124674]: 2025-12-17 12:38:53,834 - src.api.services.chunked_upload - INFO - Upload 90b3208d-b0cb-4f25-8fa2-1a5091741d84: Reassembly complete - 790.16MB total
 Dec 17 12:38:53 gt-omr-api-1 omr-api[124674]: 2025-12-17 12:38:53,837 - src.api.routers.batches - INFO - Upload 90b3208d-b0cb-4f25-8fa2-1a5091741d84: All chunks received, triggering batch processing
 
-VS
-
 # Set 2: 196.01 MB / 291 sheets
 Browser console:
 [Upload] File: 103.zip, Size: 196.01MB, Chunking: true
