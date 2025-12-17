@@ -1,18 +1,25 @@
 'use client';
 
 import { useAuth } from '@/lib/providers/auth-provider';
+import Image from 'next/image';
 
 export default function DashboardPage() {
   const { user } = useAuth();
 
   return (
     <div>
-      <h1 className="text-3xl font-bold mb-6">Dashboard</h1>
       <div className="bg-card p-6 rounded-lg shadow">
-        <p className="text-lg">Welcome back, {user?.full_name}!</p>
-        <p className="text-muted-foreground mt-2">
-          Select an option from the sidebar to get started.
-        </p>
+        <div className="mb-8 flex flex-col items-center text-center">
+          <Image
+            src="/gongtham_logo_108px.png"
+            alt="Gongtham Logo"
+            width={108}
+            height={108}
+            className="mb-4"
+          />
+          <h1 className="mb-2 text-3xl font-bold">ระบบตรวจข้อสอบปรนัย</h1>
+          <h2 className="mb-2 text-xl font-bold">สำนักงานแม่กองธรรมสนามหลวง</h2>
+        </div>
       </div>
     </div>
   );

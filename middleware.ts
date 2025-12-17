@@ -16,7 +16,9 @@ export function middleware(request: NextRequest) {
 
   if (authStorage) {
     try {
-      const authData = JSON.parse(authStorage.value);
+      // Decode the cookie value since it's URL encoded in auth-store
+      const cookieValue = decodeURIComponent(authStorage.value);
+      const authData = JSON.parse(cookieValue);
       isAuthenticated = !!authData?.state?.accessToken;
     } catch {
       isAuthenticated = false;
@@ -33,6 +35,28 @@ export function middleware(request: NextRequest) {
     const url = new URL('/login', request.url);
     url.searchParams.set('redirect', pathname);
     return NextResponse.redirect(url);
+  }
+
+  // Admin only routes protection
+  const adminRoutes = [
+    '/dashboard/profiles',
+    '/dashboard/review',
+    '/dashboard/grading/answer-keys'
+  ];
+
+  if (isAuthenticated && adminRoutes.some(route => pathname.startsWith(route))) {
+    try {
+      const cookieValue = decodeURIComponent(authStorage?.value || '');
+      const authData = JSON.parse(cookieValue);
+      const isAdmin = authData?.state?.user?.is_admin === true;
+
+      if (!isAdmin) {
+        return NextResponse.redirect(new URL('/dashboard', request.url));
+      }
+    } catch {
+      // If parsing fails, treat as not admin
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
   }
 
   return NextResponse.next();

@@ -2,6 +2,7 @@
 
 import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Image from 'next/image';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
@@ -39,7 +40,7 @@ function LoginForm() {
       }, 100);
     },
     onError: (err: any) => {
-      setError(err.response?.data?.detail || 'Login failed. Please try again.');
+      setError(err.response?.data?.detail || 'ลงชื่อใช้งานไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
     },
   });
 
@@ -50,9 +51,17 @@ function LoginForm() {
 
   return (
     <div className="rounded-lg bg-card p-8 shadow-lg">
-      <div className="mb-8 text-center">
-        <h1 className="mb-2 text-3xl font-bold">Welcome Back</h1>
-        <p className="text-muted-foreground">Sign in to your account</p>
+      <div className="mb-8 flex flex-col items-center text-center">
+        <Image
+          src="/gongtham_logo_108px.png"
+          alt="Gongtham Logo"
+          width={108}
+          height={108}
+          className="mb-4"
+        />
+        <h1 className="mb-2 text-3xl font-bold">ระบบตรวจข้อสอบปรนัย</h1>
+        <h2 className="mb-2 text-xl font-bold">สำนักงานแม่กองธรรมสนามหลวง</h2>
+        <p className="text-muted-foreground">กรุณาลงชื่อเพื่อใช้งาน</p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -64,14 +73,14 @@ function LoginForm() {
 
         <div>
           <label htmlFor="username" className="mb-2 block text-sm font-medium">
-            Username
+            ชื่อผู้ใช้
           </label>
           <input
             {...register('username')}
             id="username"
             type="text"
             className="w-full rounded-md border border-input px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring"
-            placeholder="Enter your username"
+            placeholder="กรอกชื่อผู้ใช้"
           />
           {errors.username && (
             <p className="mt-1 text-sm text-destructive">{errors.username.message}</p>
@@ -80,14 +89,14 @@ function LoginForm() {
 
         <div>
           <label htmlFor="password" className="mb-2 block text-sm font-medium">
-            Password
+            รหัสผ่าน
           </label>
           <input
             {...register('password')}
             id="password"
             type="password"
             className="w-full rounded-md border border-input px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring"
-            placeholder="Enter your password"
+            placeholder="กรอกรหัสผ่าน"
           />
           {errors.password && (
             <p className="mt-1 text-sm text-destructive">{errors.password.message}</p>
@@ -99,7 +108,7 @@ function LoginForm() {
           disabled={loginMutation.isPending}
           className="w-full rounded-md bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {loginMutation.isPending ? 'Signing in...' : 'Sign In'}
+          {loginMutation.isPending ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}
         </button>
       </form>
     </div>

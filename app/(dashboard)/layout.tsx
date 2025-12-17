@@ -1,14 +1,16 @@
 'use client';
 
-import { ReactNode } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/providers/auth-provider';
 import { useUIStore } from '@/lib/stores/ui-store';
+import Image from 'next/image';
 import {
   Users,
   Upload,
-  CheckSquare,
+  Cog,
+  BookOpenCheck,
   FileText,
   GraduationCap,
   Download,
@@ -20,21 +22,39 @@ import {
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Menu },
-  { name: 'Users', href: '/dashboard/users', icon: Users },
-  { name: 'Batches', href: '/dashboard/batches', icon: Upload },
-  { name: 'Profiles', href: '/dashboard/profiles', icon: Upload },
-  { name: 'Tasks', href: '/dashboard/tasks', icon: CheckSquare },
-  { name: 'Review', href: '/dashboard/review', icon: FileText },
-  { name: 'Grading', href: '/dashboard/grading/answer-keys', icon: GraduationCap },
-  { name: 'Exports', href: '/dashboard/grading/exports', icon: Download },
-  { name: 'Students', href: '/dashboard/students', icon: Search },
-  { name: 'Audit', href: '/dashboard/audit', icon: FileSearch },
+  { name: 'ผู้ใช้', href: '/dashboard/users', icon: Users },
+  { name: 'อัปโหลดข้อสอบ', href: '/dashboard/batches', icon: Upload },
+  { name: 'ตั้งค่าการตรวจ', href: '/dashboard/profiles', icon: Cog, adminOnly: true },
+  { name: 'งานตรวจข้อสอบ', href: '/dashboard/tasks', icon: BookOpenCheck },
+  { name: 'ตรวจสอบ', href: '/dashboard/review', icon: FileText, adminOnly: true },
+  { name: 'ผลคะแนน', href: '/dashboard/grading/answer-keys', icon: GraduationCap, adminOnly: true },
+  { name: 'บัญชีกรอกคะแนน', href: '/dashboard/grading/exports', icon: Download },
+  { name: 'รายชื่อนักเรียน', href: '/dashboard/students', icon: Search },
+  { name: 'ประวัติการตรวจ', href: '/dashboard/audit', icon: FileSearch },
 ];
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const { user, logout } = useAuth();
+  const { user, logout, isAdmin } = useAuth();
   const { sidebarOpen, toggleSidebar } = useUIStore();
+
+  /* Prevent Hydration Mismatch: Wait for mount before checking admin status */
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const filteredNavigation = navigation.filter((item) => {
+    // Optimization: During SSR/Hydration, effectively skip admin check or default to false to match server
+    if (!mounted) {
+      // Server renders all public items. If item is adminOnly, exclude it on server.
+      // Client must match this initial render.
+      return !item.adminOnly;
+    }
+
+    if (item.adminOnly && !isAdmin) return false;
+    return true;
+  });
 
   return (
     <div className="min-h-screen bg-background">
@@ -45,7 +65,14 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       >
         <div className="flex flex-col h-full">
           <div className="p-6 border-b border-border flex items-center justify-between">
-            <h1 className="text-xl font-bold">Exam System</h1>
+            <div className="flex gap-2 items-center">
+              <Image
+                src="/gongtham_logo_65px.png"
+                alt="Gongtham Logo"
+                width={65}
+                height={65}
+              />
+            </div>
             <button
               onClick={toggleSidebar}
               className="p-1 hover:bg-accent rounded-md"
@@ -55,7 +82,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           </div>
 
           <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-            {navigation.map((item) => {
+            {filteredNavigation.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
 
@@ -68,7 +95,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
                     : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
                     }`}
                 >
-                  <Icon className="h-5 w-5" />
+                  {Icon && <Icon className="h-5 w-5" />}
                   {item.name}
                 </Link>
               );

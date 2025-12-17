@@ -15,7 +15,19 @@ import { useAuthStore } from './stores/auth-store';
 import { API_BASE_URL } from './utils/constants';
 import { getApiUrl } from './utils/api';
 
-const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks (reduced to allow parallelism for smaller files)
+// Dynamic chunk size calculator
+function getChunkSize(totalBytes: number): number {
+  const MB = 1024 * 1024;
+
+  if (totalBytes <= 100 * MB) return 5 * MB;
+  if (totalBytes <= 500 * MB) return 10 * MB;
+  if (totalBytes <= 1000 * MB) return 20 * MB;
+  if (totalBytes <= 2000 * MB) return 30 * MB;
+  if (totalBytes <= 4000 * MB) return 40 * MB; // 2000-4000MB range
+
+  return 50 * MB; // 4000MB+
+}
+
 const CLOUDFLARE_LIMIT = 100 * 1024 * 1024; // 100MB Cloudflare limit
 const MAX_RETRIES = 3;
 
@@ -117,7 +129,7 @@ async function uploadDirect(
 
 const CONCURRENCY_LIMIT = process.env.NEXT_PUBLIC_CONCURRENCY_LIMIT
   ? parseInt(process.env.NEXT_PUBLIC_CONCURRENCY_LIMIT, 10)
-  : 4;
+  : 8;
 
 /**
  * Helper: Uploads a single chunk with internal retry logic
@@ -209,7 +221,8 @@ async function uploadInChunks(
   onProgress: (progress: ChunkUploadProgress) => void,
   signal?: AbortSignal
 ): Promise<{ batch_id: string }> {
-  const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+  const chunkSize = getChunkSize(file.size);
+  const totalChunks = Math.ceil(file.size / chunkSize);
   let uploadId: string | null = null;
 
   // Track progress
@@ -229,12 +242,12 @@ async function uploadInChunks(
   };
 
   console.log(
-    `[Parallel Upload] Starting: ${file.name} (${totalChunks} chunks), Concurrency: ${CONCURRENCY_LIMIT}`
+    `[Parallel Upload] Starting: ${file.name} (${totalChunks} chunks), Chunk Size: ${(chunkSize / 1024 / 1024).toFixed(2)}MB, Concurrency: ${CONCURRENCY_LIMIT}`
   );
 
   // --- STEP 1: Upload Chunk 0 Serially ---
   // We MUST do this to get the 'upload_id' from the server to link subsequent chunks
-  const chunk0 = file.slice(0, CHUNK_SIZE);
+  const chunk0 = file.slice(0, chunkSize);
   const res0 = await uploadSingleChunkWithRetry(
     chunk0,
     0,
@@ -268,8 +281,8 @@ async function uploadInChunks(
 
     // Grab next index
     const index = pendingIndices.shift()!;
-    const start = index * CHUNK_SIZE;
-    const end = Math.min(start + CHUNK_SIZE, file.size);
+    const start = index * chunkSize;
+    const end = Math.min(start + chunkSize, file.size);
     const chunkBlob = file.slice(start, end);
 
     try {

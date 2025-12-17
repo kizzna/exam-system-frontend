@@ -32,16 +32,18 @@ const nextConfig = {
     return [
       {
         source: '/api/:path*',
-        // DESTINATION: Proxy to Backend Container (Dev Mode)
-        // Uses env var or defaults to the internal DNS name
-        destination: `${process.env.API_PROXY_URL || 'http://gt-omr-api.gt:8000'}/api/:path*`,
+        // DESTINATION: Proxy to Nginx Unified Gateway (Dev Mode)
+        // This ensures identical routing logic (Real-time lanes, rewrites) as Prod
+        destination: `${process.env.API_PROXY_URL || 'http://localhost:80'}/api/:path*`,
       },
     ];
   },
   experimental: {
     serverActions: {
-      bodySizeLimit: '200mb',
+      bodySizeLimit: '500mb',
     },
+    // Override default 10MB limit for dev server proxy/middleware
+    middlewareClientMaxBodySize: '500mb',
     proxyTimeout: 300000,
   },
 };

@@ -12,13 +12,13 @@ export default function BatchesPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Batches</h1>
+        <h1 className="text-3xl text-primary items-center font-bold">อัปโหลดข้อสอบ</h1>
       </div>
 
       <Tabs defaultValue="list" className="space-y-4">
         <TabsList>
           <TabsTrigger value="list">รายการที่อัปโหลดแล้ว</TabsTrigger>
-          <TabsTrigger value="upload">อัปโหลดใบคำตอบ</TabsTrigger>
+          <TabsTrigger value="upload">อัปโหลดข้อสอบ</TabsTrigger>
         </TabsList>
 
         <TabsContent value="list">
@@ -28,13 +28,13 @@ export default function BatchesPage() {
         <TabsContent value="upload">
           <div className="grid gap-6 md:grid-cols-2">
             <div>
-              <h2 className="mb-4 text-xl font-semibold">อัปโหลดใบคำตอบ</h2>
+              <h2 className="mb-4 text-xl text-primary font-semibold">อัปโหลดใบคำตอบ</h2>
               <BatchUploadForm />
             </div>
             <div>
               <Card>
                 <CardHeader>
-                  <CardTitle>คำแนะนำในการอัปโหลด</CardTitle>
+                  <CardTitle className="text-primary">คำแนะนำในการอัปโหลด</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4 text-sm text-muted-foreground">
                   <p>
