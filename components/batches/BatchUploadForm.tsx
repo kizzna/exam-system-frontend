@@ -1,13 +1,12 @@
 /**
  * BatchUploadForm Component
- * Phase 2: File upload with chunking support for files > 100MB
+ * Supports multiple ZIP file uploads with queue management
  */
 
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useBatchUpload, useImagesUpload } from '@/lib/hooks/use-batches';
+import { useState, useCallback } from 'react';
+import { useDropzone } from 'react-dropzone';
 import { useQuery } from '@tanstack/react-query';
 import { profilesAPI } from '@/lib/api/profiles';
 import { Button } from '@/components/ui/button';
@@ -22,18 +21,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { UploadType, ChunkUploadProgress } from '@/lib/types/batches';
+import { useUploadQueueStore } from '@/lib/stores/upload-queue-store';
+import { useUploadQueueProcessor } from '@/lib/hooks/use-upload-processor';
+import { CloudUpload } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { BatchProgressItem } from './BatchProgressItem';
 
 export function BatchUploadForm() {
-  const router = useRouter();
-  const batchUpload = useBatchUpload();
-  const imagesUpload = useImagesUpload();
+  // Initialize queue processor
+  useUploadQueueProcessor();
 
-  // Form state
-  const [uploadType, setUploadType] = useState<UploadType>('zip_with_qr');
-  const [file, setFile] = useState<File | null>(null);
-  const [files, setFiles] = useState<File[]>([]);
-  const [taskId, setTaskId] = useState('');
+  const { queue, addFiles, removeItem, resetQueue, isProcessing } = useUploadQueueStore();
+
   const [notes, setNotes] = useState('');
   const [profileId, setProfileId] = useState<string>('');
 
@@ -49,352 +48,106 @@ export function BatchUploadForm() {
     if (defaultProfile) {
       setProfileId(defaultProfile.id.toString());
     } else {
-      // If no default profile, select the first one or handle as needed
-      // For now, we'll select the first one if available
       setProfileId(profiles[0].id.toString());
     }
   }
 
-  // Upload progress state
-  const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<ChunkUploadProgress | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [abortController, setAbortController] = useState<AbortController | null>(null);
+  // Handle drop
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+    addFiles(acceptedFiles, {
+      uploadType: 'zip_with_qr',
+      taskId: null, // Not required for zip_with_qr
+      notes: notes || undefined,
+      profileId: profileId ? parseInt(profileId) : undefined
+    });
+  }, [addFiles, notes, profileId]);
 
-  // Validation
-  const taskIdRequired = uploadType === 'zip_no_qr' || uploadType === 'images';
-  const isValid = () => {
-    if (uploadType === 'images') {
-      return files.length > 0 && (!taskIdRequired || /^\d{8}$/.test(taskId));
-    } else {
-      return file !== null && (!taskIdRequired || /^\d{8}$/.test(taskId));
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'application/zip': ['.zip'],
+      'application/x-zip-compressed': ['.zip']
     }
-  };
-
-  // Handle file selection
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      setFile(selectedFile);
-      setError(null);
-    }
-  };
-
-  // Handle multiple files selection
-  const handleFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = Array.from(e.target.files || []);
-    if (selectedFiles.length > 0) {
-      setFiles(selectedFiles);
-      setError(null);
-    }
-  };
-
-  // Handle upload
-  const handleUpload = async () => {
-    if (!isValid()) {
-      setError('Please fill in all required fields');
-      return;
-    }
-
-    setUploading(true);
-    setError(null);
-    setUploadProgress(null);
-
-    const controller = new AbortController();
-    setAbortController(controller);
-
-    try {
-      let result;
-
-      if (uploadType === 'images' && files.length > 0) {
-        // Upload multiple images
-        result = await imagesUpload.mutateAsync({
-          files,
-          taskId,
-          notes: notes || null,
-          profileId: profileId ? parseInt(profileId) : null,
-          onProgress: (progress) => setUploadProgress(progress),
-          signal: controller.signal,
-        });
-      } else if (file) {
-        // Upload single file (ZIP)
-        result = await batchUpload.mutateAsync({
-          file,
-          uploadType,
-          taskId: taskIdRequired ? taskId : null,
-          notes: notes || null,
-          profileId: profileId ? parseInt(profileId) : null,
-          onProgress: (progress) => setUploadProgress(progress),
-          signal: controller.signal,
-        });
-      }
-
-      if (result) {
-        // Navigate to batch details to monitor processing
-        router.push(`/dashboard/batches/${result.batch_id}`);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Upload failed');
-      setUploading(false);
-    } finally {
-      setAbortController(null);
-    }
-  };
-
-  const handleCancelUpload = () => {
-    if (abortController) {
-      abortController.abort();
-      setAbortController(null);
-      setUploading(false);
-      setError('Upload cancelled by user');
-      setUploadProgress(null);
-    }
-  };
-
-  // Reset form
-  const handleReset = () => {
-    setFile(null);
-    setFiles([]);
-    setTaskId('');
-    setNotes('');
-    // Reset profile to default
-    const defaultProfile = profiles.find((p) => p.is_default);
-    if (defaultProfile) {
-      setProfileId(defaultProfile.id.toString());
-    } else if (profiles.length > 0) {
-      setProfileId(profiles[0].id.toString());
-    } else {
-      setProfileId('');
-    }
-    setError(null);
-    setUploadProgress(null);
-    setUploading(false);
-  };
+  });
 
   return (
     <Card className="p-6">
       <div className="space-y-6">
         <div>
-          <h3 className="mb-4 text-lg font-semibold">อัปโหลดใบคำตอบ</h3>
+          <h3 className="mb-4 text-lg font-semibold">อัปโหลดใบคำตอบ (ZIP)</h3>
 
-          {/* Upload Strategy Selection */}
-          <div className="space-y-3">
-            <Label>ประเภทการอัปโหลด</Label>
+          {/* Settings Section */}
+          <div className="grid gap-4 md:grid-cols-2 mb-4">
+            {/* Profile Selection */}
             <div className="space-y-2">
-              <label className="flex cursor-pointer items-center gap-2">
-                <input
-                  type="radio"
-                  name="upload_type"
-                  value="zip_with_qr"
-                  checked={uploadType === 'zip_with_qr'}
-                  onChange={(e) => setUploadType(e.target.value as UploadType)}
-                  disabled={uploading}
-                  className="h-4 w-4"
-                />
-                <div>
-                  <div className="font-medium">ไฟล์ ZIP ที่มีใบนำสแกน QR code</div>
-                  <div className="text-sm text-gray-600">
-                    ไฟล์ ZIP ที่มีใบนำสแกน QR code
-                    <br />
-                    (QR code คือ Task ID หรือ รหัสสนามสอบ + ชั้น + ช่วงชั้น 8 หลัก)
-                  </div>
-                </div>
-              </label>
+              <Label htmlFor="profile">Profile ตรวจข้อสอบ</Label>
+              <Select value={profileId} onValueChange={setProfileId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a profile" />
+                </SelectTrigger>
+                <SelectContent>
+                  {profiles.map((profile) => (
+                    <SelectItem key={profile.id} value={profile.id.toString()}>
+                      {profile.name} {profile.is_default && '(Default)'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-              {/* Disabled for now */}
-              {/*
-              <label className="flex cursor-pointer items-center gap-2">
-                <input
-                  type="radio"
-                  name="upload_type"
-                  value="zip_no_qr"
-                  checked={uploadType === 'zip_no_qr'}
-                  onChange={(e) => setUploadType(e.target.value as UploadType)}
-                  disabled={uploading}
-                  className="h-4 w-4"
-                />
-                 <div>
-                  <div className="font-medium">ไฟล์ ZIP ไม่มีใบนำสแกน QR code</div>
-                  <div className="text-sm text-gray-600">
-                    ไฟล์ ZIP ไม่มีใบนำสแกน QR code (ต้องระบุ task ID)
-                  </div>
-                </div>
-              </label>
-              */}
-
-              <label className="flex cursor-pointer items-center gap-2">
-                <input
-                  type="radio"
-                  name="upload_type"
-                  value="images"
-                  checked={uploadType === 'images'}
-                  onChange={(e) => setUploadType(e.target.value as UploadType)}
-                  disabled={uploading}
-                  className="h-4 w-4"
-                />
-                <div>
-                  <div className="font-medium">ไฟล์รูปภาพ</div>
-                  <div className="text-sm text-gray-600">
-                    ไฟล์รูปภาพ (ต้องระบุ task ID)
-                  </div>
-                </div>
-              </label>
+            {/* Notes */}
+            <div className="space-y-2">
+              <Label htmlFor="notes">หมายเหตุ (ทุกไฟล์)</Label>
+              <Input
+                id="notes"
+                type="text"
+                placeholder="เพิ่มหมายเหตุสำหรับชุดไฟล์นี้"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+              />
             </div>
           </div>
         </div>
 
-        {/* File Upload */}
-        <div className="space-y-2">
-          <Label htmlFor="file">
-            {uploadType === 'images' ? 'ไฟล์รูปภาพ' : 'ไฟล์ ZIP'}
-            {uploadType === 'images' && ' (อัปโหลดได้ทีละหลายไฟล์)'}
-          </Label>
-          {uploadType === 'images' ? (
-            <Input
-              id="files"
-              type="file"
-              accept=".jpg,.jpeg"
-              multiple
-              onChange={handleFilesChange}
-              disabled={uploading}
-            />
-          ) : (
-            <Input
-              id="file"
-              type="file"
-              accept=".zip"
-              onChange={handleFileChange}
-              disabled={uploading}
-            />
+        {/* Dropzone */}
+        <div
+          {...getRootProps()}
+          className={cn(
+            "border-2 border-dashed rounded-lg p-10 text-center cursor-pointer transition-colors flex flex-col items-center justify-center gap-2",
+            isDragActive ? "border-primary bg-primary/5" : "border-muted-foreground/25 hover:border-primary/50"
           )}
-          {uploadType === 'images' && files.length > 0 && (
-            <div className="text-sm text-gray-600">
-              {files.length} file{files.length !== 1 ? 's' : ''} selected (
-              {(files.reduce((sum, f) => sum + f.size, 0) / 1024 / 1024).toFixed(2)} MB)
-            </div>
-          )}
-          {file && (
-            <div className="text-sm text-gray-600">
-              {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
-              {file.size > 100 * 1024 * 1024 && (
-                <span className="ml-2 font-medium text-blue-600">(จะใช้การอัปโหลดแบบชิ้นส่วน)</span>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Profile Selection */}
-        <div className="space-y-2">
-          <Label htmlFor="profile">Profile ตรวจข้อสอบ</Label>
-          <Select value={profileId} onValueChange={setProfileId}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select a profile" />
-            </SelectTrigger>
-            <SelectContent>
-              {profiles.map((profile) => (
-                <SelectItem key={profile.id} value={profile.id.toString()}>
-                  {profile.name} {profile.is_default && '(Default)'}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <p className="text-xs text-muted-foreground">
-            เลือก profile ตรวจข้อสอบ (แนะนำให้ใช้ Default)
+        >
+          <input {...getInputProps()} />
+          <CloudUpload className="h-10 w-10 text-muted-foreground" />
+          <div className="text-lg font-medium text-foreground">
+            {isDragActive ? "Drop the files here..." : "ลากไฟล์ ZIP มาวางที่นี่ หรือคลิกเพื่อเลือกไฟล์"}
+          </div>
+          <p className="text-sm text-muted-foreground">
+            รองรับการอัปโหลดหลายไฟล์พร้อมกัน (ระบบจะทยอยอัปโหลดทีละไฟล์)
           </p>
         </div>
 
-        {/* Task ID (conditional) */}
-        {taskIdRequired && (
-          <div className="space-y-2">
-            <Label htmlFor="task_id">
-              Task ID <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              id="task_id"
-              type="text"
-              placeholder="Task ID (เช่น 14900112 ตัวเลข 8 หลัก)"
-              value={taskId}
-              onChange={(e) => setTaskId(e.target.value)}
-              disabled={uploading}
-              maxLength={8}
-              pattern="\d{8}"
-            />
-            {taskId && !/^\d{8}$/.test(taskId) && (
-              <div className="text-sm text-red-600">Task ID จะต้องเป็นตัวเลข 8 หลัก</div>
-            )}
-          </div>
-        )}
-
-        {/* Notes (optional) */}
-        <div className="space-y-2">
-          <Label htmlFor="notes">หมายเหตุ (ใส่หรือไม่ใส่ก็ได้)</Label>
-          <Input
-            id="notes"
-            type="text"
-            placeholder="เพิ่มหมายเหตุเกี่ยวกับข้อมูลนี้"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            disabled={uploading}
-          />
-        </div>
-
-        {/* Upload Progress */}
-        {uploading && uploadProgress && (
-          <div className="space-y-2 rounded-lg border border-blue-200 bg-blue-50 p-4">
-            <div className="flex items-center justify-between text-sm">
-              <span className="font-medium">
-                {uploadProgress.chunksTotal > 1
-                  ? `กำลังอัปโหลดชิ้นส่วน ${uploadProgress.currentChunk} / ${uploadProgress.chunksTotal}`
-                  : 'กำลังอัปโหลด...'}
-              </span>
-              <span className="font-mono">{Math.round(uploadProgress.percentage)}%</span>
+        {/* Queue List */}
+        {queue.length > 0 && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="font-medium text-sm text-muted-foreground">รายการอัปโหลด ({queue.length})</h4>
+              {isProcessing && <span className="text-xs text-blue-600 animate-pulse">กำลังประมวลผล...</span>}
+              {!isProcessing && queue.some(i => i.status === 'completed' || i.status === 'error') && (
+                <Button variant="ghost" size="sm" onClick={resetQueue} className="text-xs h-7">
+                  ล้างรายการ
+                </Button>
+              )}
             </div>
-            <Progress value={uploadProgress.percentage} className="h-2" />
-            <div className="text-xs text-gray-600">
-              {(uploadProgress.bytesUploaded / 1024 / 1024).toFixed(2)} MB /{' '}
-              {(uploadProgress.bytesTotal / 1024 / 1024).toFixed(2)} MB
+
+            <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
+              {queue.map((item) => (
+                <BatchProgressItem key={item.id} item={item} onRemove={removeItem} />
+              ))}
             </div>
-            {uploadProgress.chunksTotal > 1 && (
-              <div className="text-xs text-blue-700">⚡ ใช้การอัปโหลดแบบชิ้นส่วนสำหรับไฟล์ขนาดใหญ่</div>
-            )}
           </div>
         )}
 
-        {/* Error Display */}
-        {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-4">
-            <div className="text-sm font-medium text-red-800">Upload Error</div>
-            <div className="mt-1 text-sm text-red-600">{error}</div>
-          </div>
-        )}
-
-        {/* Action Buttons */}
-        <div className="flex gap-3">
-          <Button onClick={handleUpload} disabled={!isValid() || uploading} className="flex-1">
-            {uploading ? 'กำลังอัปโหลด...' : 'อัปโหลด'}
-          </Button>
-
-          {uploading && uploadType === 'zip_with_qr' && (
-            <Button variant="destructive" onClick={handleCancelUpload}>
-              ยกเลิกอัปโหลด
-            </Button>
-          )}
-
-          {!uploading && (file || files.length > 0) && (
-            <Button variant="outline" onClick={handleReset}>
-              ล้าง
-            </Button>
-          )}
-        </div>
-
-        {/* Info Text */}
-        {!uploading && (
-          <div className="space-y-1 text-xs text-gray-500">
-            <div>• ไฟล์ขนาดใหญ่กว่า 100MB จะใช้การอัปโหลดแบบชิ้นส่วน</div>
-            <div>• ขนาดไฟล์สูงสุด: 10GB (ชิ้นส่วน)</div>
-            <div>• รูปแบบที่รองรับ: ไฟล์ ZIP และรูปภาพ JPG</div>
-          </div>
-        )}
       </div>
     </Card>
   );

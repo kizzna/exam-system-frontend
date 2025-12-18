@@ -177,6 +177,16 @@ export default function UsersPage() {
     }
   };
 
+  // Hydration fix: Ensure we only render content dependent on auth state after mount
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    return null; // Or a loading skeleton
+  }
+
   if (!isAdmin) {
     return (
       <div>

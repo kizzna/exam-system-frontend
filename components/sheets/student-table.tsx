@@ -30,6 +30,8 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
+import { ImageUploadForm } from '@/components/batches/ImageUploadForm';
+import { CloudUpload } from 'lucide-react';
 
 interface StudentTableProps {
     taskId: string;
@@ -177,6 +179,16 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
     const [reprocessDialogOpen, setReprocessDialogOpen] = useState(false);
     const [reprocessTaskId, setReprocessTaskId] = useState<string | null>(null);
     const [selectedProfileId, setSelectedProfileId] = useState<string>("");
+    const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+
+    const handleUploadSuccess = () => {
+        setUploadDialogOpen(false);
+        toast.success("อัปโหลดสำเร็จ");
+        // Invalidate queries to refresh the list if needed, or wait for server processing
+        // Since processing is async, we might not see changes immediately, but good to refresh stats
+        queryClient.invalidateQueries({ queryKey: ['task-stats', taskId] });
+        queryClient.invalidateQueries({ queryKey: ['roster'] });
+    };
 
     const { data: profiles } = useQuery({
         queryKey: ['profiles'],
@@ -691,6 +703,17 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                             </Button>
                         )}
 
+                        {/* Upload Images Button */}
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 text-slate-400 hover:text-blue-600 hover:bg-blue-50"
+                            onClick={() => setUploadDialogOpen(true)}
+                            title="อัปโหลดรูปภาพ"
+                        >
+                            <CloudUpload className="w-4 h-4" />
+                        </Button>
+
                         {/* Swap Button */}
                         <Button
                             variant="ghost"
@@ -1008,6 +1031,24 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                             Confirm Swap
                         </Button>
                     </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Upload Dialog */}
+            <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+                <DialogContent className="max-w-xl">
+                    <DialogHeader>
+                        <DialogTitle>อัปโหลดรูปภาพเพิ่มเติม</DialogTitle>
+                        <DialogDescription>
+                            อัปโหลดไฟล์รูปภาพ (.jpg) สำหรับ Task นี้
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <ImageUploadForm
+                            taskId={taskId}
+                            onSuccess={handleUploadSuccess}
+                        />
+                    </div>
                 </DialogContent>
             </Dialog>
         </div>

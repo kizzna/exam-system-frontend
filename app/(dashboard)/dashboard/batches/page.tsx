@@ -31,7 +31,7 @@ export default function BatchesPage() {
               <h2 className="mb-4 text-xl text-primary font-semibold">อัปโหลดใบคำตอบ</h2>
               <BatchUploadForm />
             </div>
-            <div>
+            {/* <div>
               <Card>
                 <CardHeader>
                   <CardTitle className="text-primary">คำแนะนำในการอัปโหลด</CardTitle>
@@ -53,7 +53,7 @@ export default function BatchesPage() {
                   </div>
                 </CardContent>
               </Card>
-            </div>
+            </div> */}
           </div>
         </TabsContent>
       </Tabs>

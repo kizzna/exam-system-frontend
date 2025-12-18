@@ -105,7 +105,6 @@ async function uploadDirect(
     });
 
     xhr.addEventListener('error', () => reject(new Error('Network error during upload')));
-    xhr.addEventListener('error', () => reject(new Error('Network error during upload')));
     xhr.addEventListener('abort', () => reject(new Error('Upload aborted')));
 
     if (signal) {
@@ -129,7 +128,7 @@ async function uploadDirect(
 
 const CONCURRENCY_LIMIT = process.env.NEXT_PUBLIC_CONCURRENCY_LIMIT
   ? parseInt(process.env.NEXT_PUBLIC_CONCURRENCY_LIMIT, 10)
-  : 8;
+  : 4;
 
 /**
  * Helper: Uploads a single chunk with internal retry logic
@@ -472,7 +471,6 @@ export async function uploadImages(
       }
     });
 
-    xhr.addEventListener('error', () => reject(new Error('Network error during upload')));
     xhr.addEventListener('error', () => reject(new Error('Network error during upload')));
     xhr.addEventListener('abort', () => reject(new Error('Upload aborted')));
 
