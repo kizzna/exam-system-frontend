@@ -5,9 +5,9 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useImagesUpload } from '@/lib/hooks/use-batches';
+import { useImagesUpload, useBatchProgress } from '@/lib/hooks/use-batches';
 import { useQuery } from '@tanstack/react-query';
 import { profilesAPI } from '@/lib/api/profiles';
 import { Button } from '@/components/ui/button';
@@ -77,6 +77,30 @@ export function ImageUploadForm({ taskId: propTaskId, onSuccess }: ImageUploadFo
 
 
 
+    // Batch Processing Polling
+    const [processingBatchId, setProcessingBatchId] = useState<string | null>(null);
+
+    const { data: batchProgress } = useBatchProgress(
+        processingBatchId,
+        !!processingBatchId
+    );
+
+    // Watch for batch completion
+    useEffect(() => {
+        if (!processingBatchId || !batchProgress) return;
+
+        const status = batchProgress.status;
+        if (status === 'completed' || status === 'failed') {
+            if (onSuccess) {
+                // Short delay to ensure user sees 100%
+                setTimeout(() => {
+                    onSuccess();
+                    setProcessingBatchId(null);
+                }, 500);
+            }
+        }
+    }, [processingBatchId, batchProgress, onSuccess]);
+
     // Handle upload
     const handleUpload = async () => {
         if (!isValid()) {
@@ -103,7 +127,8 @@ export function ImageUploadForm({ taskId: propTaskId, onSuccess }: ImageUploadFo
 
             if (result) {
                 if (onSuccess) {
-                    onSuccess();
+                    // Start polling instead of immediate close
+                    setProcessingBatchId(result.batch_id);
                 } else {
                     // Navigate to batch details to monitor processing
                     router.push(`/dashboard/batches/${result.batch_id}`);
@@ -279,16 +304,28 @@ export function ImageUploadForm({ taskId: propTaskId, onSuccess }: ImageUploadFo
                 />
             </div> */}
 
-            {/* Upload Progress */}
-            {uploading && uploadProgress && (
+            {/* Upload/Processing Progress */}
+            {uploading && (
                 <div className="space-y-2 rounded-lg border border-blue-200 bg-blue-50 p-4">
                     <div className="flex items-center justify-between text-sm">
                         <span className="font-medium">
-                            กำลังอัปโหลด...
+                            {processingBatchId ? 'กำลังประมวลผล (Server Processing)...' : 'กำลังอัปโหลด (Uploading)...'}
                         </span>
-                        <span className="font-mono">{Math.round(uploadProgress.percentage)}%</span>
+                        <span className="font-mono">
+                            {processingBatchId && batchProgress
+                                ? `${Math.round(batchProgress.progress_percentage || 0)}%`
+                                : uploadProgress ? `${Math.round(uploadProgress.percentage)}%` : '0%'}
+                        </span>
                     </div>
-                    <Progress value={uploadProgress.percentage} className="h-2" />
+                    <Progress
+                        value={processingBatchId && batchProgress ? batchProgress.progress_percentage : uploadProgress?.percentage || 0}
+                        className="h-2"
+                    />
+                    {processingBatchId && batchProgress && (
+                        <div className="text-xs text-slate-500 mt-1">
+                            Processed: {batchProgress.processed_count} / {batchProgress.sheet_count} sheets
+                        </div>
+                    )}
                 </div>
             )}
 

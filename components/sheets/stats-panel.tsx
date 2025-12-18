@@ -4,6 +4,8 @@ import { tasksApi } from '@/lib/api/tasks';
 import { sheetsApi } from '@/lib/api/sheets';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { AuditLogTable } from '@/components/audit/audit-log-table';
+import { History } from 'lucide-react';
 import {
     Dialog,
     DialogContent,
@@ -22,6 +24,7 @@ interface StatsPanelProps {
 
 export function StatsPanel({ taskId }: StatsPanelProps) {
     const queryClient = useQueryClient();
+    const [historyOpen, setHistoryOpen] = useState(false);
     const { data: stats, isLoading } = useQuery({
         queryKey: ['task-stats', taskId],
         queryFn: () => tasksApi.getTaskStats({ task_id: taskId }),
@@ -48,13 +51,13 @@ export function StatsPanel({ taskId }: StatsPanelProps) {
             {/* Header / Actions Row */}
             {/* <div className="flex justify-end">
                 <Button
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
-                    onClick={() => setSwapDialogOpen(true)}
-                    className="text-orange-600 border-orange-200 hover:bg-orange-50 hover:text-orange-700"
+                    onClick={() => setHistoryOpen(true)}
+                    className="text-muted-foreground hover:text-foreground"
                 >
-                    <ArrowLeftRight className="w-4 h-4 mr-2" />
-                    สลับใบตอบกับสนาม...
+                    <History className="w-4 h-4 mr-2" />
+                    History
                 </Button>
             </div> */}
 
@@ -120,6 +123,21 @@ export function StatsPanel({ taskId }: StatsPanelProps) {
                     </div>
                 </div>
             </div>
+
+            {/* History Dialog */}
+            <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+                <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>Task History</DialogTitle>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <AuditLogTable
+                            initialFilters={{ resource_type: 'task', resource_id: taskId }}
+                            showUsernameFilter={false}
+                        />
+                    </div>
+                </DialogContent>
+            </Dialog>
 
             {/* Swap Dialog Removed */}
         </div>

@@ -4,7 +4,7 @@ import { PaginatedResponse } from '../types/api';
 
 export const auditApi = {
   getAuditLogs: async (params?: AuditLogParams): Promise<PaginatedResponse<AuditLog>> => {
-    const response = await apiClient.get<PaginatedResponse<AuditLog>>('/audit', { params });
+    const response = await apiClient.get<PaginatedResponse<AuditLog>>('/audit-logs', { params });
     return response.data;
   },
 

@@ -22,7 +22,7 @@ import {
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Menu },
-  { name: 'ผู้ใช้', href: '/dashboard/users', icon: Users },
+  { name: 'ผู้ใช้', href: '/dashboard/users', icon: Users, adminOnly: true },
   { name: 'อัปโหลดข้อสอบ', href: '/dashboard/batches', icon: Upload },
   { name: 'ตั้งค่าการตรวจ', href: '/dashboard/profiles', icon: Cog, adminOnly: true },
   { name: 'งานตรวจข้อสอบ', href: '/dashboard/tasks', icon: BookOpenCheck },
