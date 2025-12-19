@@ -45,3 +45,29 @@ export interface UserListResponse {
   page_size: number;
   total_pages: number;
 }
+
+export interface UserStats {
+  user_id: number;
+  username: string;
+  full_name: string;
+  eval_center_ids: number[];
+  class_levels: number[];
+  snr_count: number;
+  registered_amount: number;
+  present_amount: number;
+  error_count: number;
+  err_duplicate_sheets_count: number;
+  err_low_answer_count: number;
+  err_student_id_count: number;
+  err_absent_count: number;
+  err_trash_count: number;
+}
+
+export interface UserStatsParams {
+  eval_center_id?: number;
+  class_level?: number;
+}
+
+export interface UserStatsResponse {
+  stats: UserStats[];
+}

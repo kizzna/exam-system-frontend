@@ -140,23 +140,30 @@ export function ScopeManager({ scopes, onChange }: ScopeManagerProps) {
                         </div>
 
                         <div className="space-y-2">
-                            <Label>Class Levels</Label>
+                            <Label>ธรรมศึกษาชั้น</Label>
                             <div className="flex flex-wrap gap-4">
-                                {[1, 2, 3].map((level) => (
-                                    <div key={level} className="flex items-center space-x-2">
-                                        <Checkbox
-                                            checked={scope.filters.class_levels?.includes(level)}
-                                            onCheckedChange={(checked) => {
-                                                const current = scope.filters.class_levels || [];
-                                                const updated = checked
-                                                    ? [...current, level]
-                                                    : current.filter((l) => l !== level);
-                                                updateFilter(index, { class_levels: updated });
-                                            }}
-                                        />
-                                        <Label className="font-normal">Class {level}</Label>
-                                    </div>
-                                ))}
+                                {[1, 2, 3].map((level) => {
+                                    const labels: Record<number, string> = {
+                                        1: 'ชั้นตรี',
+                                        2: 'ชั้นโท',
+                                        3: 'ชั้นเอก'
+                                    };
+                                    return (
+                                        <div key={level} className="flex items-center space-x-2">
+                                            <Checkbox
+                                                checked={scope.filters.class_levels?.includes(level)}
+                                                onCheckedChange={(checked) => {
+                                                    const current = scope.filters.class_levels || [];
+                                                    const updated = checked
+                                                        ? [...current, level]
+                                                        : current.filter((l) => l !== level);
+                                                    updateFilter(index, { class_levels: updated });
+                                                }}
+                                            />
+                                            <Label className="font-normal">{labels[level]}</Label>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
 

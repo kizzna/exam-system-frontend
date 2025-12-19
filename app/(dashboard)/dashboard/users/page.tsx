@@ -19,8 +19,9 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Plus, Pencil, Trash2, Key, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Pencil, Trash2, Key, ChevronLeft, ChevronRight, BarChart3 } from 'lucide-react';
 import { toast } from 'sonner';
+import Link from 'next/link';
 
 export default function UsersPage() {
   const { isAdmin } = useAuth();
@@ -204,10 +205,18 @@ export default function UsersPage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-3xl font-bold">Users</h1>
-        <Button onClick={() => setIsCreateDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add User
-        </Button>
+        <div className="flex gap-2">
+          <Link href="/dashboard/users/stats">
+            <Button variant="outline">
+              <BarChart3 className="mr-2 h-4 w-4" />
+              View Stats
+            </Button>
+          </Link>
+          <Button onClick={() => setIsCreateDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add User
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -321,7 +330,7 @@ export default function UsersPage() {
       {/* Create User Dialog */}
       {isCreateDialogOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <Card className="w-full max-w-md max-h-[80vh] overflow-y-auto">
+          <Card className="w-full max-w-4xl max-h-[80vh] overflow-y-auto">
             <CardHeader>
               <CardTitle>Create New User</CardTitle>
             </CardHeader>

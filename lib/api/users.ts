@@ -5,11 +5,18 @@ import {
   UpdateUserRequest,
   UserListParams,
   UserListResponse,
+  UserStatsParams,
+  UserStatsResponse,
 } from '../types/users';
 
 export const usersApi = {
   getUsers: async (params?: UserListParams): Promise<UserListResponse> => {
     const response = await apiClient.get<UserListResponse>('/users', { params });
+    return response.data;
+  },
+
+  getUserStats: async (params?: UserStatsParams): Promise<UserStatsResponse> => {
+    const response = await apiClient.get<UserStatsResponse>('/users/stats', { params });
     return response.data;
   },
 
