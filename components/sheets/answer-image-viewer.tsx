@@ -151,7 +151,7 @@ export function AnswerImageViewer({ sheetId, taskId, overlayData }: AnswerImageV
                                 id: `q_${qNum}_student`,
                                 x,
                                 y,
-                                type: isCorrect ? 'circle' : 'cross',
+                                type: isCorrect ? 'correct' : 'cross',
                                 color: isCorrect ? 'rgba(0, 255, 0, 0.8)' : 'rgba(255, 0, 0, 0.8)',
                                 r: isCorrect ? 14 : 16, // bubble radius : cross size
                                 lineWidth: isCorrect ? 2 : 6,

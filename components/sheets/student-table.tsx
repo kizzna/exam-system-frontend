@@ -5,7 +5,7 @@ import { tasksApi } from '@/lib/api/tasks';
 import { sheetsApi } from '@/lib/api/sheets';
 import { RosterEntry } from '@/lib/types/tasks';
 import { ROW_STATUS_TRANSLATIONS } from '@/lib/translations';
-import { Loader2, ListOrdered, CheckSquare, Square, UserX, ArrowRightToLine, ArrowLeftRight, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Loader2, ListOrdered, CheckSquare, Square, UserX, ArrowRightToLine, ArrowLeftRight, AlertTriangle, RefreshCw, ChevronUp, ChevronDown } from 'lucide-react';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ReprocessTaskStream } from './reprocess-task-stream';
 import { getProfiles } from '@/lib/api/profiles';
@@ -31,7 +31,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { ImageUploadForm } from '@/components/batches/ImageUploadForm';
-import { CloudUpload } from 'lucide-react';
+import { AlertCircle, CloudUpload } from 'lucide-react';
 
 interface StudentTableProps {
     taskId: string;
@@ -47,7 +47,7 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
     // Jumper status removed
     const [editingSheetId, setEditingSheetId] = useState<string | null>(null);
     const [selectedSheetIds, setSelectedSheetIds] = useState<Set<string>>(new Set());
-    const [isSelectionMode, setIsSelectionMode] = useState(false);
+    // isSelectionMode removed
     const [lastClickedId, setLastClickedId] = useState<string | null>(null);
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const [sheetToDelete, setSheetToDelete] = useState<RosterEntry | null>(null);
@@ -234,10 +234,14 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
         const handleShortcut = (e: KeyboardEvent) => {
             if ((e.ctrlKey || e.metaKey) && e.key === 'Delete') {
                 e.preventDefault();
-                setIsSelectionMode(prev => {
-                    if (prev) setSelectedSheetIds(new Set()); // Clear on disable
-                    return !prev;
-                });
+                // Previously toggled Selection Mode, now cleared because select mode is implicit.
+                // Or maybe we don't need this shortcut at all? 
+                // "Any navigation or click on other row will deactivate select mode."
+                // But this shortcut was specifically 'Ctrl+Delete' to toggle checks.
+                // Let's remove it or repurpose it? The prompt says "remove select mode checkbox". 
+                // Implicitly this specialized toggle is gone.
+                // However, maybe user still wants to quickly CLEAR selection?
+                setSelectedSheetIds(new Set());
             }
         };
         window.addEventListener('keydown', handleShortcut);
@@ -285,21 +289,7 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
     // Batch Actions
     const handleBatchDelete = async () => {
         if (selectedSheetIds.size === 0) return;
-        try {
-            await sheetsApi.batchDelete(Array.from(selectedSheetIds).map(id => parseInt(id)));
-            toast.success(`Deleted ${selectedSheetIds.size} sheets`);
-
-            // Clear current view if it was part of the deleted batch
-            if (selectedSheetId && selectedSheetIds.has(selectedSheetId)) {
-                onSelectSheet(undefined);
-            }
-
-            setSelectedSheetIds(new Set());
-            queryClient.invalidateQueries({ queryKey: ['roster'] });
-            queryClient.invalidateQueries({ queryKey: ['task-stats', taskId] });
-        } catch (error) {
-            toast.error("Failed to delete sheets");
-        }
+        setDeleteConfirmOpen(true);
     };
 
     const handleBatchRestore = async () => {
@@ -325,8 +315,6 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
 
         // Focus Update (Always do this)
         onSelectSheet(id);
-
-        if (!isSelectionMode) return;
 
         if (!e) return;
 
@@ -359,7 +347,7 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
             }
             setLastClickedId(id);
         } else {
-            // Single Select
+            // Single Select (Always available now) - Clear others
             newSelection.clear();
             newSelection.add(id);
             setLastClickedId(id);
@@ -534,11 +522,17 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                 const nextItem = displayRoster[nextIndex];
                 if (nextItem.sheet_id) {
                     onSelectSheet(nextItem.sheet_id);
-                    // Also update selection to just this item ONLY if selection mode is active
-                    if (isSelectionMode) {
-                        setSelectedSheetIds(new Set([nextItem.sheet_id]));
-                        setLastClickedId(nextItem.sheet_id);
-                    }
+                    // Update selection to just this item (Single Select on Nav) - mimicking Excel
+                    // Unless Shift held? (Standard excel does shift+arrow to extend).
+                    // User requirements didn't explicitly ask for Shift+Arrow, but said "Any navigation ... will deactivate select mode"
+                    // Wait, "Any navigation or click on other row will deactivate select mode."
+                    // This creates a misunderstanding. "Deactivate select mode" in previous context meant "Turn off the checkbox mode". 
+                    // In new context (Excel like), clicking another row (without modifiers) just selects THAT row (clearing previous multi-selection).
+                    // So we should just set selection to this single item.
+
+                    setSelectedSheetIds(new Set([nextItem.sheet_id]));
+                    setLastClickedId(nextItem.sheet_id);
+
                     // Adjusted scroll to keep visual context (2 rows above)
                     rowVirtualizer.scrollToIndex(Math.max(0, nextIndex - 2), { align: 'start' });
                 }
@@ -546,12 +540,24 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
         };
 
         const handleQuickActions = (e: KeyboardEvent) => {
-            // Quick Delete: Shift + Delete (When Deletion Mode is OFF)
-            if (!isSelectionMode && e.shiftKey && e.key === 'Delete' && selectedSheetId) {
+            // Quick Delete: Shift + Delete (Works on single focused item if no multi-selection, or multi-selection if exists)
+            // Actually existing logic was: (!isSelectionMode && shift+delete && slectedSheetId) -> delete single.
+            // Now logic should be: if selection exists, delete them.
+            // But wait, user might just have one item selected (focused).
+            // Let's keep Shift+Delete as "Delete Selected" (including current focused if it's in selection).
+            // Quick Delete: Shift + Delete
+            if (e.shiftKey && e.key === 'Delete') {
                 e.preventDefault();
-                const entry = displayRoster.find(r => r.sheet_id === selectedSheetId);
-                if (entry) {
-                    setSheetToDelete(entry);
+
+                // If we have a batch selection, we delete those.
+                if (selectedSheetIds.size > 0) {
+                    setDeleteConfirmOpen(true);
+                }
+                // If no selection but we have a focused item (selectedSheetId), we treat that as the target.
+                else if (selectedSheetId) {
+                    // To handle this cleanly with the unified dialog (which looks at selectedSheetIds usually, or sheetToDelete fallback?)
+                    // Let's set the selection to this item so the dialog logic is uniform.
+                    setSelectedSheetIds(new Set([selectedSheetId]));
                     setDeleteConfirmOpen(true);
                 }
             }
@@ -569,7 +575,7 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
             window.removeEventListener('keydown', handleKeyDown);
             window.removeEventListener('keydown', handleQuickActions);
         };
-    }, [displayRoster, selectedSheetId, onSelectSheet, rowVirtualizer, viewMode, queryClient, editingSheetId, isSelectionMode, deleteSheetsMutation, restoreSheetsMutation]);
+    }, [displayRoster, selectedSheetId, onSelectSheet, rowVirtualizer, viewMode, queryClient, editingSheetId, deleteSheetsMutation, restoreSheetsMutation]);
 
     // ... (Focus Retention and Auto-Scroll effects) ...
     const lastSelectedIdRef = useRef<string | undefined>();
@@ -604,6 +610,45 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
 
     const classLevel = parseInt(taskId.charAt(6), 10);
     const group = parseInt(taskId.charAt(7), 10);
+
+
+    const handleErrorNavigation = (direction: 'up' | 'down') => {
+        const currentIndex = displayRoster.findIndex(r => r.sheet_id === selectedSheetId);
+        let nextIndex = currentIndex;
+
+        if (direction === 'down') {
+            let nextErrorIndex = displayRoster.findIndex((r, idx) => {
+                if (idx <= currentIndex) return false;
+                return ['ERROR', 'GHOST', 'UNEXPECTED', 'ABSENT', 'DUPLICATE', 'ABSENT_MISMATCH'].includes(r.row_status);
+            });
+            if (nextErrorIndex === -1) {
+                nextErrorIndex = displayRoster.findIndex((r) =>
+                    ['ERROR', 'GHOST', 'UNEXPECTED', 'ABSENT', 'DUPLICATE', 'ABSENT_MISMATCH'].includes(r.row_status)
+                );
+            }
+            if (nextErrorIndex !== -1) nextIndex = nextErrorIndex;
+        } else {
+            const errorIndices = displayRoster
+                .map((r, idx) => ({ ...r, originalIndex: idx }))
+                .filter(r => ['ERROR', 'GHOST', 'UNEXPECTED', 'ABSENT', 'DUPLICATE', 'ABSENT_MISMATCH'].includes(r.row_status))
+                .map(r => r.originalIndex);
+            if (errorIndices.length > 0) {
+                const prevErrors = errorIndices.filter(idx => idx < currentIndex);
+                if (prevErrors.length > 0) nextIndex = prevErrors[prevErrors.length - 1];
+                else nextIndex = errorIndices[errorIndices.length - 1]; // Unwrap to last
+            }
+        }
+
+        if (nextIndex !== currentIndex && nextIndex !== -1) {
+            const nextItem = displayRoster[nextIndex];
+            if (nextItem.sheet_id) {
+                onSelectSheet(nextItem.sheet_id);
+                setSelectedSheetIds(new Set([nextItem.sheet_id]));
+                setLastClickedId(nextItem.sheet_id);
+                rowVirtualizer.scrollToIndex(Math.max(0, nextIndex - 2), { align: 'start' });
+            }
+        }
+    };
 
     return (
         <div className="flex flex-col h-full bg-white">
@@ -646,7 +691,7 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                             onClick={() => setRelocateDialogOpen(true)}
                         >
                             <ArrowRightToLine className="w-4 h-4 mr-1" />
-                            ย้ายใบตอบไปที่...
+                            ย้ายใบตอบ
                         </Button>
                     )}
                 </div>
@@ -686,6 +731,31 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
 
                 <div className="flex items-center gap-2 ml-auto">
                     <div className="flex items-center gap-1 border-r pr-2 mr-2 border-slate-200">
+
+                        {/* Error Navigation Group */}
+                        {viewMode === 'SEQUENTIAL' && (
+                            <>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0 text-orange-500 hover:text-orange-600 hover:bg-orange-50"
+                                    onClick={() => handleErrorNavigation('up')}
+                                    title="ข้อผิดพลาดย้อนหลัง (Ctrl+Up)"
+                                >
+                                    <ChevronUp className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0 text-orange-500 hover:text-orange-600 hover:bg-orange-50 mr-2"
+                                    onClick={() => handleErrorNavigation('down')}
+                                    title="ข้อผิดพลาดถัดไป (Ctrl+Down)"
+                                >
+                                    <ChevronDown className="w-4 h-4" />
+                                </Button>
+                            </>
+                        )}
+
                         {/* Reprocess Button */}
                         {selectedSheetIds.size > 0 && viewMode === 'SEQUENTIAL' && (
                             <Button
@@ -724,20 +794,6 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                         >
                             <ArrowLeftRight className="w-4 h-4" />
                         </Button>
-                        <span className="text-xs text-slate-400 mr-1 ml-1">เลือก</span>
-                        {/* Selection Toggle */}
-                        <Button
-                            variant={isSelectionMode ? "secondary" : "ghost"}
-                            size="sm"
-                            className={`h-7 w-7 p-0 ${isSelectionMode ? 'bg-red-100 text-red-600 hover:bg-red-200' : 'text-slate-400'}`}
-                            onClick={() => {
-                                setIsSelectionMode(!isSelectionMode);
-                                if (isSelectionMode) setSelectedSheetIds(new Set());
-                            }}
-                            title="เปิด/ปิดโหมดเลือก (Ctrl+Delete)"
-                        >
-                            {isSelectionMode ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
-                        </Button>
                     </div>
                 </div>
             </div>
@@ -745,7 +801,7 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
             {/* List */}
             <div
                 ref={parentRef}
-                className={`flex-1 overflow-auto p-2 outline-none ${isSelectionMode ? 'select-none' : ''}`}
+                className="flex-1 overflow-auto p-2 outline-none select-none"
                 tabIndex={-1}
             >
                 <div
@@ -828,25 +884,79 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
             )}
 
             <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>ยืนยันการลบ</DialogTitle>
-                        <DialogDescription>
-                            ต้องการลบใบคำตอบของ <span className="font-bold text-slate-900">{sheetToDelete?.student_name || 'Unknown'}</span> ({sheetToDelete?.sheet_roll})?
-                            <br />
-                            ท่านสามารถกู้คืนได้ในแท็บ ถูกลบ
-                        </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>ยกเลิก</Button>
-                        <Button variant="destructive" onClick={() => {
-                            if (sheetToDelete && sheetToDelete.sheet_id) {
-                                deleteSheetsMutation.mutate([sheetToDelete.sheet_id]);
-                            }
-                        }}>
-                            ลบ
-                        </Button>
-                    </DialogFooter>
+                <DialogContent className="sm:max-w-[425px] p-8"> {/* Increased padding */}
+                    <div className="flex flex-col items-center gap-4 text-center">
+
+                        {/* 1. The SweetAlert Style Icon */}
+                        <div className="flex size-20 shrink-0 items-center justify-center rounded-full bg-red-100">
+                            <AlertCircle className="size-10 text-red-600" />
+                        </div>
+
+                        <DialogHeader className="w-full">
+                            {/* 2. Larger, centered Title */}
+                            <DialogTitle className="text-center text-2xl font-bold text-slate-900">
+                                ยืนยันการลบ?
+                            </DialogTitle>
+
+                            {/* 3. Readable Description */}
+                            <DialogDescription className="text-center text-base pt-2">
+                                {selectedSheetIds.size > 1 ? (
+                                    <>
+                                        ท่านต้องการลบใบคำตอบ <br />
+                                        <span className="font-bold text-slate-900 text-lg">
+                                            จำนวน {selectedSheetIds.size} ฉบับ
+                                        </span>
+                                        <span className="ml-1 text-slate-500">
+                                            ที่เลือกไว้
+                                        </span>
+                                    </>
+                                ) : (
+                                    <>
+                                        ท่านต้องการลบใบคำตอบของ <br />
+                                        <span className="font-bold text-slate-900 text-lg">
+                                            {(() => {
+                                                const id = Array.from(selectedSheetIds)[0];
+                                                const entry = displayRoster.find(r => r.sheet_id === id);
+                                                return entry?.student_name || 'Unknown';
+                                            })()}
+                                        </span>
+                                        <span className="ml-1 text-slate-500">
+                                            ({(() => {
+                                                const id = Array.from(selectedSheetIds)[0];
+                                                const entry = displayRoster.find(r => r.sheet_id === id);
+                                                return entry?.sheet_roll || '-';
+                                            })()})
+                                        </span>
+                                    </>
+                                )}
+                                <span className="mt-2 text-sm text-slate-500 block">
+                                    ข้อมูลนี้จะย้ายไปอยู่ในถังขยะและสามารถกู้คืนได้
+                                </span>
+                            </DialogDescription>
+                        </DialogHeader>
+
+                        {/* 4. Modern Button Layout */}
+                        <DialogFooter className="w-full sm:justify-center gap-2 mt-4">
+                            <Button
+                                variant="outline"
+                                onClick={() => setDeleteConfirmOpen(false)}
+                                className="w-full sm:w-auto min-w-[100px] border-slate-300 hover:bg-slate-100"
+                            >
+                                ยกเลิก
+                            </Button>
+                            <Button
+                                variant="destructive"
+                                className="w-full sm:w-auto min-w-[100px] bg-red-600 hover:bg-red-700 font-semibold shadow-md"
+                                onClick={() => {
+                                    if (selectedSheetIds.size > 0) {
+                                        deleteSheetsMutation.mutate(Array.from(selectedSheetIds));
+                                    }
+                                }}
+                            >
+                                ใช่, ลบเลย
+                            </Button>
+                        </DialogFooter>
+                    </div>
                 </DialogContent>
             </Dialog>
 

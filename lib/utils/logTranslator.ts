@@ -64,7 +64,7 @@ const MATCHERS: LogMatcher[] = [
     },
     {
         regex: /Batch completed successfully/i,
-        replacer: () => `กระบวนการแบบกลุ่มเสร็จสมบูรณ์`,
+        replacer: () => `อัปโหลดและตรวจข้อสอบเสร็จสมบูรณ์`,
     },
 
     // --- Reprocess / Shared Patterns ---
