@@ -11,14 +11,14 @@ export default function BatchesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl text-primary items-center font-bold">อัปโหลดข้อสอบ</h1>
+      <div className="flex items-center justify-center gap-2">
+        <h1 className="text-3xl text-primary items-center font-bold">อัปโหลดใบตอบ</h1>
       </div>
 
       <Tabs defaultValue="list" className="space-y-4">
         <TabsList>
           <TabsTrigger value="list">รายการที่อัปโหลดแล้ว</TabsTrigger>
-          <TabsTrigger value="upload">อัปโหลดข้อสอบ</TabsTrigger>
+          <TabsTrigger value="upload">อัปโหลดใบตอบ</TabsTrigger>
         </TabsList>
 
         <TabsContent value="list">
@@ -28,32 +28,25 @@ export default function BatchesPage() {
         <TabsContent value="upload">
           <div className="grid gap-6 md:grid-cols-2">
             <div>
-              <h2 className="mb-4 text-xl text-primary font-semibold">อัปโหลดใบคำตอบ</h2>
               <BatchUploadForm />
             </div>
-            {/* <div>
-              <Card>
+            <div>
+              <Card className="w-full">
                 <CardHeader>
-                  <CardTitle className="text-primary">คำแนะนำในการอัปโหลด</CardTitle>
+                  <CardTitle className="text-primary text-center">คำแนะนำในการอัปโหลด</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4 text-sm text-muted-foreground">
-                  <p>
-                    <strong>ไฟล์ ZIP ที่มีใบนำสแกน QR Code:</strong> ส่วนมากสำนักเรียนละ 1 ไฟล์
-                  </p>
-                  <p>
-                    <strong>ไฟล์รูปภาพ:</strong> อัปโหลดรูปภาพที่ต้องการอัปโหลด
-                  </p>
+                <CardContent className="space-y-4 text-lg text-muted-foreground">
                   <div className="rounded-md bg-muted p-4">
-                    <p className="font-medium text-foreground">ข้อกำหนดไฟล์:</p>
                     <ul className="ml-4 list-disc space-y-1 mt-2">
-                      <li>ไฟล์ ZIP ขนาดไม่เกิน 10GB</li>
-                      <li>รูปภาพในรูปแบบ JPG</li>
-                      <li>สแกนที่ความละเอียด 200 DPI A4 แนวตั้ง Grayscale</li>
+                      <li>ควรทำไฟล์ ZIP ขนาดไม่เกิน 2-3 GB ต่อ 1 ไฟล์</li>
+                      <li>แต่ละไฟล์จะต้องเริ่มต้นด้วย<span className="font-bold">ใบนำสแกน </span>และไฟล์สุดท้าย จะต้องเสร็จสนามสอบนั้น ๆ</li>
+                      <li>อัปโหลดได้ทีละหลายไฟล์</li>
+                      <li>เมื่อระบบประมวลผลไฟล์แรกเสร็จแล้ว สามารถเริ่มตรวจใบตอบได้</li>
                     </ul>
                   </div>
                 </CardContent>
               </Card>
-            </div> */}
+            </div>
           </div>
         </TabsContent>
       </Tabs>

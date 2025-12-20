@@ -53,12 +53,12 @@ export default function ProfilesPage() {
     const deleteMutation = useMutation({
         mutationFn: profilesAPI.delete,
         onSuccess: () => {
-            toast.success('Profile deleted successfully');
+            toast.success('ลบโปรไฟล์เรียบร้อย');
             queryClient.invalidateQueries({ queryKey: ['profiles'] });
             setDeleteProfile(null);
         },
         onError: (error: any) => {
-            toast.error(error.response?.data?.detail || 'Failed to delete profile');
+            toast.error(error.response?.data?.detail || 'ไม่สามารถลบโปรไฟล์ได้');
         },
     });
 
@@ -66,13 +66,13 @@ export default function ProfilesPage() {
         mutationFn: ({ id, name }: { id: number; name: string }) =>
             profilesAPI.clone(id, name),
         onSuccess: () => {
-            toast.success('Profile cloned successfully');
+            toast.success('สร้างโปรไฟล์ใหม่เรียบร้อย');
             queryClient.invalidateQueries({ queryKey: ['profiles'] });
             setCloneProfile(null);
             setNewProfileName('');
         },
         onError: (error: any) => {
-            toast.error(error.response?.data?.detail || 'Failed to clone profile');
+            toast.error(error.response?.data?.detail || 'ไม่สามารถสร้างโปรไฟล์ใหม่ได้');
         },
     });
 
@@ -100,17 +100,17 @@ export default function ProfilesPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-center gap-2">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Profiles</h1>
+                    <h1 className="text-3xl font-bold tracking-tight">โปรไฟล์ตรวจข้อสอบ</h1>
                     <p className="text-muted-foreground">
-                        Manage OMR processing profiles and configurations.
+                        จัดการโปรไฟล์และตั้งค่าการตรวจข้อสอบ
                     </p>
                 </div>
                 <Button asChild>
                     <Link href="/dashboard/profiles/new">
                         <Plus className="mr-2 h-4 w-4" />
-                        New Profile
+                        เพิ่มโปรไฟล์
                     </Link>
                 </Button>
             </div>
@@ -131,19 +131,19 @@ export default function ProfilesPage() {
             <Dialog open={!!cloneProfile} onOpenChange={(open) => !open && setCloneProfile(null)}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Clone Profile</DialogTitle>
+                        <DialogTitle>สร้างโปรไฟล์ใหม่จาก {cloneProfile?.name}</DialogTitle>
                         <DialogDescription>
-                            Create a copy of <strong>{cloneProfile?.name}</strong>.
+                            สร้างโปรไฟล์ใหม่จาก {cloneProfile?.name}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                         <div className="grid gap-2">
-                            <Label htmlFor="name">New Profile Name</Label>
+                            <Label htmlFor="name">ชื่อโปรไฟล์ใหม่</Label>
                             <Input
                                 id="name"
                                 value={newProfileName}
                                 onChange={(e) => setNewProfileName(e.target.value)}
-                                placeholder="Enter new profile name"
+                                placeholder="ชื่อโปรไฟล์ใหม่"
                             />
                         </div>
                     </div>
@@ -152,7 +152,7 @@ export default function ProfilesPage() {
                             Cancel
                         </Button>
                         <Button onClick={handleConfirmClone} disabled={cloneMutation.isPending || !newProfileName}>
-                            {cloneMutation.isPending ? 'Cloning...' : 'Clone Profile'}
+                            {cloneMutation.isPending ? 'กำลังสร้าง...' : 'สร้างโปรไฟล์'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
@@ -162,9 +162,9 @@ export default function ProfilesPage() {
             <Dialog open={!!deleteProfile} onOpenChange={(open) => !open && setDeleteProfile(null)}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Delete Profile</DialogTitle>
+                        <DialogTitle>ลบโปรไฟล์</DialogTitle>
                         <DialogDescription>
-                            Are you sure you want to delete <strong>{deleteProfile?.name}</strong>? This action cannot be undone.
+                            คุณต้องการลบโปรไฟล์ <strong>{deleteProfile?.name}</strong>? ไม่สามารถกู้คืนได้
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
@@ -176,7 +176,7 @@ export default function ProfilesPage() {
                             onClick={handleConfirmDelete}
                             disabled={deleteMutation.isPending}
                         >
-                            {deleteMutation.isPending ? 'Deleting...' : 'Delete Profile'}
+                            {deleteMutation.isPending ? 'กำลังลบ...' : 'ลบโปรไฟล์'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

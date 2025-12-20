@@ -291,19 +291,6 @@ export function ImageUploadForm({ taskId: propTaskId, onSuccess }: ImageUploadFo
                 </div>
             )}
 
-            {/* Notes (optional) */}
-            {/* <div className="space-y-2">
-                <Label htmlFor="notes">หมายเหตุ (ใส่หรือไม่ใส่ก็ได้)</Label>
-                <Input
-                    id="notes"
-                    type="text"
-                    placeholder="เพิ่มหมายเหตุเกี่ยวกับข้อมูลนี้"
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    disabled={uploading}
-                />
-            </div> */}
-
             {/* Upload/Processing Progress */}
             {uploading && (
                 <div className="space-y-2 rounded-lg border border-blue-200 bg-blue-50 p-4">

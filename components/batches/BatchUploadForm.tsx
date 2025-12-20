@@ -74,7 +74,6 @@ export function BatchUploadForm() {
     <Card className="p-6">
       <div className="space-y-6">
         <div>
-          <h3 className="mb-4 text-lg font-semibold">อัปโหลดใบคำตอบ (ZIP)</h3>
 
           {/* Settings Section */}
           <div className="grid gap-4 md:grid-cols-2 mb-4">
@@ -95,17 +94,6 @@ export function BatchUploadForm() {
               </Select>
             </div>
 
-            {/* Notes */}
-            <div className="space-y-2">
-              <Label htmlFor="notes">หมายเหตุ (ทุกไฟล์)</Label>
-              <Input
-                id="notes"
-                type="text"
-                placeholder="เพิ่มหมายเหตุสำหรับชุดไฟล์นี้"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-              />
-            </div>
           </div>
         </div>
 

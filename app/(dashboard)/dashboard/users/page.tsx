@@ -191,10 +191,10 @@ export default function UsersPage() {
   if (!isAdmin) {
     return (
       <div>
-        <h1 className="mb-6 text-3xl font-bold">Users</h1>
+        <h1 className="mb-6 text-3xl font-bold">ผู้ตรวจ</h1>
         <Card>
           <CardContent className="p-6">
-            <p className="text-destructive">You do not have permission to access this page.</p>
+            <p className="text-destructive">ท่านไม่มีสิทธิ์เข้าถึงหน้านี้</p>
           </CardContent>
         </Card>
       </div>
@@ -203,25 +203,25 @@ export default function UsersPage() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Users</h1>
+      <div className="mb-6 flex items-center justify-center gap-2">
+        <h1 className="text-3xl font-bold">ผู้ตรวจ</h1>
         <div className="flex gap-2">
           <Link href="/dashboard/users/stats">
             <Button variant="outline">
               <BarChart3 className="mr-2 h-4 w-4" />
-              View Stats
+              สถิติการตรวจข้อสอบแต่ละกองงาน
             </Button>
           </Link>
           <Button onClick={() => setIsCreateDialogOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
-            Add User
+            เพิ่มผู้ตรวจ
           </Button>
         </div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>User Management</CardTitle>
+          <CardTitle className="flex items-center justify-center">บริหารจัดการผู้ตรวจ</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading && <p>Loading users...</p>}

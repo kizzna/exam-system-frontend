@@ -80,24 +80,24 @@ export default function UserStatsPage() {
 
     return (
         <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <h1 className="text-3xl font-bold">User Level Progress</h1>
+            <div className="flex items-center justify-center">
+                <h1 className="text-3xl font-bold">สถิติตรวจข้อสอบของผู้ใช้</h1>
             </div>
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Filters</CardTitle>
+                    <CardTitle>กรองข้อมูล</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <div className="flex flex-wrap gap-4">
                         <div className="w-[250px]">
-                            <Label htmlFor="eval-center-filter" className="mb-2 block">Evaluation Center</Label>
+                            <Label htmlFor="eval-center-filter" className="mb-2 block">กองงาน</Label>
                             <Select value={evalCenterId} onValueChange={setEvalCenterId}>
                                 <SelectTrigger id="eval-center-filter">
-                                    <SelectValue placeholder="All Evaluation Centers" />
+                                    <SelectValue placeholder="ทุกกองงาน" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="all">All Evaluation Centers</SelectItem>
+                                    <SelectItem value="all">ทุกกองงาน</SelectItem>
                                     {evalCenters?.map((center) => (
                                         <SelectItem key={center.id} value={center.id.toString()}>
                                             {center.name} ({center.code})
@@ -108,13 +108,13 @@ export default function UserStatsPage() {
                         </div>
 
                         <div className="w-[200px]">
-                            <Label htmlFor="class-level-filter" className="mb-2 block">Class Level</Label>
+                            <Label htmlFor="class-level-filter" className="mb-2 block">ระดับชั้น</Label>
                             <Select value={classLevel} onValueChange={setClassLevel}>
                                 <SelectTrigger id="class-level-filter">
-                                    <SelectValue placeholder="All Levels" />
+                                    <SelectValue placeholder="ทุกระดับชั้น" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="all">All Levels</SelectItem>
+                                    <SelectItem value="all">ทุกระดับชั้น</SelectItem>
                                     <SelectItem value="1">ชั้นตรี</SelectItem>
                                     <SelectItem value="2">ชั้นโท</SelectItem>
                                     <SelectItem value="3">ชั้นเอก</SelectItem>
@@ -123,10 +123,10 @@ export default function UserStatsPage() {
                         </div>
 
                         <div className="w-[250px]">
-                            <Label htmlFor="search-filter" className="mb-2 block">Search User</Label>
+                            <Label htmlFor="search-filter" className="mb-2 block">ค้นหาผู้ใช้</Label>
                             <Input
                                 id="search-filter"
-                                placeholder="Search username or name..."
+                                placeholder="ค้นหาผู้ใช้ด้วย username หรือชื่อ"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                             />
