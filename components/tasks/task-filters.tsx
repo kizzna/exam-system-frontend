@@ -288,6 +288,18 @@ export function TaskFilters({ filters, onFilterChange, onRefresh }: TaskFiltersP
                     />
                 </div>
 
+                <div className="space-y-2 w-28">
+                    <Label htmlFor="act-sheet" className="text-xs">จำนวนสแกน</Label>
+                    <Input
+                        id="act-sheet"
+                        type="number"
+                        placeholder=">= ..."
+                        value={filters.actual_sheet_count || ''}
+                        onChange={(e) => onFilterChange({ ...filters, actual_sheet_count: e.target.value ? parseInt(e.target.value) : undefined })}
+                        onKeyDown={handleKeyDown}
+                    />
+                </div>
+
 
                 <div className="flex items-end">
                     <Popover>
@@ -366,18 +378,7 @@ export function TaskFilters({ filters, onFilterChange, onRefresh }: TaskFiltersP
                                             onKeyDown={handleKeyDown}
                                         />
                                     </div>
-                                    <div className="space-y-1">
-                                        <Label htmlFor="act-sheet" className="text-xs">จำนวนสแกน</Label>
-                                        <Input
-                                            id="act-sheet"
-                                            type="number"
-                                            className="h-8"
-                                            placeholder=">= ..."
-                                            value={filters.actual_sheet_count || ''}
-                                            onChange={(e) => onFilterChange({ ...filters, actual_sheet_count: e.target.value ? parseInt(e.target.value) : undefined })}
-                                            onKeyDown={handleKeyDown}
-                                        />
-                                    </div>
+
                                     <div className="space-y-1">
                                         <Label htmlFor="trash-cnt" className="text-xs">ใบตอบที่ถูกลบ</Label>
                                         <Input

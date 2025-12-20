@@ -52,7 +52,7 @@ export function BatchProgressItem({ item, onRemove }: BatchProgressItemProps) {
                         <div className="text-xs text-muted-foreground flex items-center gap-2">
                             <span>{(item.file.size / 1024 / 1024).toFixed(2)} MB</span>
                             {item.batchId && (
-                                <Link href={`/dashboard/batches/${item.batchId}`} className="text-primary hover:underline">
+                                <Link href={`/dashboard/batches/${item.batchId}`} className="text-primary hover:underline" target="_blank">
                                     View Batch
                                 </Link>
                             )}

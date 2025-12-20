@@ -232,7 +232,7 @@ export function AnswerImageViewer({ sheetId, taskId, overlayData }: AnswerImageV
                 </div>
 
                 {/* 2. Stats Column */}
-                <div className="flex flex-col gap-3 flex-shrink-0 -ml-1">
+                <div className="flex flex-col gap-1 flex-shrink-0 -ml-1">
                     {/* View Controls */}
                     <div className="flex flex-col gap-2 mb-1">
                         {/* ... Existing Toggle Buttons ... */}
@@ -274,29 +274,66 @@ export function AnswerImageViewer({ sheetId, taskId, overlayData }: AnswerImageV
                     </div>
 
                     {/* Stats Cards */}
-                    {subjectStats.map((subject) => (
-                        <div
-                            key={subject.name}
-                            className={`w-20 bg-white border-2 ${subject.borderColor} rounded shadow-md overflow-hidden`}
-                        >
-                            {/* ... stats content ... */}
-                            <div className={`${subject.color} text-white text-xs font-bold text-center py-1`}>
-                                {subject.label}
-                            </div>
-                            <div className="px-2 py-1 border-b border-slate-200">
-                                <div className="text-[10px] text-slate-600 leading-tight">ตอบ</div>
-                                <div className="text-sm font-bold text-slate-800 leading-tight">
-                                    {subject.answered} ข้อ
+                    {subjectStats.map((subject) => {
+                        let scoreColor = 'text-slate-800';
+                        if (subject.score < 25) scoreColor = 'text-red-500';
+                        else if (subject.score < 50) scoreColor = 'text-orange-500';
+                        else if (subject.score >= 50) scoreColor = 'text-green-500';
+
+                        return (
+                            <div
+                                key={subject.name}
+                                className={`w-20 bg-white border-2 ${subject.borderColor} rounded shadow-md overflow-hidden`}
+                            >
+                                <div className={`${subject.color} text-white text-xs font-bold text-center py-1`}>
+                                    {subject.label}
+                                </div>
+                                <div className="px-2 py-1 border-b border-slate-200">
+                                    <div className="text-[10px] text-slate-600 leading-tight">ตอบ</div>
+                                    <div className="text-sm font-bold text-slate-800 leading-tight">
+                                        {subject.answered} ข้อ
+                                    </div>
+                                </div>
+                                <div className="px-2 py-1">
+                                    <div className="text-[10px] text-slate-600 leading-tight">คะแนน</div>
+                                    <div className={`text-sm font-bold leading-tight ${scoreColor}`}>
+                                        {subject.score}
+                                    </div>
                                 </div>
                             </div>
-                            <div className="px-2 py-1">
-                                <div className="text-[10px] text-slate-600 leading-tight">คะแนน</div>
-                                <div className="text-sm font-bold text-slate-800 leading-tight">
-                                    {subject.score}
+                        );
+                    })}
+
+                    {/* Total Score Box */}
+                    {(() => {
+                        const totalAnswered = subjectStats.reduce((acc, curr) => acc + curr.answered, 0);
+                        const totalScore = subjectStats.reduce((acc, curr) => acc + curr.score, 0);
+
+                        let totalColor = 'text-slate-800';
+                        if (totalScore >= 150) totalColor = 'text-green-500';
+                        else if (totalScore >= 120) totalColor = 'text-orange-500';
+                        else if (totalScore < 110) totalColor = 'text-red-500';
+
+                        return (
+                            <div className="w-20 bg-white border-2 border-slate-600 rounded shadow-md overflow-hidden mt-1">
+                                <div className="bg-slate-500 text-white text-xs font-bold text-center py-1">
+                                    รวม
+                                </div>
+                                <div className="px-2 py-1 border-b border-slate-200">
+                                    <div className="text-[10px] text-slate-600 leading-tight">ตอบ</div>
+                                    <div className="text-sm font-bold text-slate-800 leading-tight">
+                                        {totalAnswered} ข้อ
+                                    </div>
+                                </div>
+                                <div className="px-2 py-1">
+                                    <div className="text-[10px] text-slate-600 leading-tight">คะแนน</div>
+                                    <div className={`text-sm font-bold leading-tight ${totalColor}`}>
+                                        {totalScore}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })()}
                 </div>
 
                 {/* 3. Editor Panel - Rendered Conditionally as a sibling */}
