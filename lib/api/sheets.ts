@@ -34,7 +34,7 @@ export const sheetsApi = {
     return response.data;
   },
 
-  getSheetImageUrl: (id: string, part: 'top' | 'bottom', width?: number): string => {
+  getSheetImageUrl: (id: string, part: 'top' | 'bottom' | 'original' | 'aligned', width?: number): string => {
     // API_BASE_URL now handles client/server context (client='/api', server='http://...')
     // Next.js rewrites /api/sheets -> internal/sheets
     const baseUrl = `${API_BASE_URL}/sheets/${id}/image?part=${part}`;

@@ -4,7 +4,13 @@ import React, { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { sheetsApi } from '@/lib/api/sheets';
 import { SmartImage, SmartImageItem } from './smart-image';
-import { Loader2 } from 'lucide-react';
+import { Loader2, FileImage, ScanLine } from 'lucide-react';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface HeaderImageViewerProps {
     sheetId?: string;
@@ -179,7 +185,49 @@ export function HeaderImageViewer({ sheetId, optimisticValues }: HeaderImageView
             width={overlay.top.dimensions.w}
             height={overlay.top.dimensions.h}
             items={items}
-        />
+        >
+            <TooltipProvider>
+                <div
+                    className="absolute flex gap-1"
+                    style={{
+                        left: `${(770 / overlay.top.dimensions.w) * 100}%`,
+                        top: `${(380 / overlay.top.dimensions.h) * 100}%`,
+                    }}
+                >
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <a
+                                href={sheetsApi.getSheetImageUrl(sheetId, 'original')}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center justify-center w-8 h-8 bg-white/90 hover:bg-white rounded shadow-sm border border-slate-200 transition-colors"
+                            >
+                                <FileImage className="w-8 h-8 text-slate-700" />
+                            </a>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>ต้นฉบับ</p>
+                        </TooltipContent>
+                    </Tooltip>
+
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <a
+                                href={sheetsApi.getSheetImageUrl(sheetId, 'aligned')}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center justify-center w-8 h-8 bg-white/90 hover:bg-white rounded shadow-sm border border-slate-200 transition-colors"
+                            >
+                                <FileImage className="w-8 h-8 text-blue-700" />
+                            </a>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>ประมวลผลแล้ว</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </div>
+            </TooltipProvider>
+        </SmartImage>
     );
 }
 
