@@ -55,6 +55,7 @@ export interface UserStats {
   snr_count: number;
   registered_amount: number;
   present_amount: number;
+  actual_sheet_count: number;
   error_count: number;
   err_duplicate_sheets_count: number;
   err_low_answer_count: number;

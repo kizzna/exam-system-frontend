@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation';
 import { useImagesUpload, useBatchProgress } from '@/lib/hooks/use-batches';
 import { useQuery } from '@tanstack/react-query';
 import { profilesAPI } from '@/lib/api/profiles';
+import { useAuthStore } from '@/lib/stores/auth-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,9 +23,14 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import type { ChunkUploadProgress } from '@/lib/types/batches';
+import type { ChunkUploadProgress, AlignmentMode } from '@/lib/types/batches';
 import { useDropzone } from 'react-dropzone';
 import { UploadCloud, X } from 'lucide-react';
+
+import { toast } from 'sonner';
+
+const MIN_FILE_SIZE = 500 * 1024; // 500KB
+const MAX_FILE_SIZE = 1.5 * 1024 * 1024; // 1.5MB
 
 interface ImageUploadFormProps {
     taskId?: string;
@@ -40,6 +46,10 @@ export function ImageUploadForm({ taskId: propTaskId, onSuccess }: ImageUploadFo
     const [taskId, setTaskId] = useState(propTaskId || '');
     const [notes, setNotes] = useState('');
     const [profileId, setProfileId] = useState<string>('');
+    const [alignmentMode, setAlignmentMode] = useState<AlignmentMode>('hybrid');
+
+    const user = useAuthStore((state) => state.user);
+    const isAdmin = user?.is_admin || false;
 
     // Update taskId if prop changes
     useState(() => {
@@ -122,6 +132,7 @@ export function ImageUploadForm({ taskId: propTaskId, onSuccess }: ImageUploadFo
                 notes: notes || null,
                 profileId: profileId ? parseInt(profileId) : null,
                 onProgress: (progress) => setUploadProgress(progress),
+                alignmentMode: alignmentMode !== 'hybrid' ? alignmentMode : undefined,
                 signal: controller.signal,
             });
 
@@ -176,8 +187,25 @@ export function ImageUploadForm({ taskId: propTaskId, onSuccess }: ImageUploadFo
     // React Dropzone
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop: (acceptedFiles) => {
-            setFiles(prev => [...prev, ...acceptedFiles]);
-            setError(null);
+            const validFiles: File[] = [];
+            let skippedCount = 0;
+
+            acceptedFiles.forEach(file => {
+                if (file.size >= MIN_FILE_SIZE && file.size <= MAX_FILE_SIZE) {
+                    validFiles.push(file);
+                } else {
+                    skippedCount++;
+                }
+            });
+
+            if (skippedCount > 0) {
+                toast.warning(`Skipped ${skippedCount} file(s) outside size limit (500KB - 1.5MB)`);
+            }
+
+            if (validFiles.length > 0) {
+                setFiles(prev => [...prev, ...validFiles]);
+                setError(null);
+            }
         },
         accept: {
             'image/jpeg': ['.jpg', '.jpeg']
@@ -214,7 +242,7 @@ export function ImageUploadForm({ taskId: propTaskId, onSuccess }: ImageUploadFo
                             {isDragActive ? 'วางไฟล์ที่นี่' : 'ลากไฟล์มาวาง หรือคลิกเพื่อเลือกไฟล์'}
                         </div>
                         <div className="text-xs text-slate-500">
-                            รองรับไฟล์ .jpg, .jpeg (อัปโหลดได้หลายไฟล์)
+                            รองรับไฟล์ .jpg, .jpeg (ขนาด 500KB - 1.5MB)
                         </div>
                     </div>
                 </div>
@@ -271,6 +299,32 @@ export function ImageUploadForm({ taskId: propTaskId, onSuccess }: ImageUploadFo
                     </SelectContent>
                 </Select>
             </div>
+
+            {/* Alignment Strategy - Admin Only */}
+            {isAdmin && (
+                <div className="space-y-2">
+                    <Label htmlFor="alignment">วิธีปรับภาพให้ตรง (Advanced)</Label>
+                    <Select value={alignmentMode} onValueChange={(v) => setAlignmentMode(v as AlignmentMode)}>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Select strategy" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="hybrid">
+                                Auto / Hybrid (Default)
+                            </SelectItem>
+                            <SelectItem value="standard">
+                                Standard Only (Fast, Strict)
+                            </SelectItem>
+                            <SelectItem value="imreg_dft">
+                                Force Robust (Slow, DFT)
+                            </SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                        Hybrid tries Standard first, falls back to Robust if needed.
+                    </p>
+                </div>
+            )}
 
             {/* Task ID - Hide if provided via props */}
             {!propTaskId && (

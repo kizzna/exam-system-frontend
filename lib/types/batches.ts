@@ -24,6 +24,8 @@ export type UploadType =
   | 'zip_no_qr' // ZIP file without QR codes (requires task_id)
   | 'images'; // Direct image files upload
 
+export type AlignmentMode = 'hybrid' | 'standard' | 'imreg_dft';
+
 /**
  * Backend response may use different naming
  */

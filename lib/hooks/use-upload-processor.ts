@@ -62,6 +62,7 @@ export function useUploadQueueProcessor() {
                             updateItemProgress(nextItem.id, progress.percentage, progress.bytesUploaded);
                         }
                     },
+                    nextItem.alignmentMode,
                     abortController.signal
                 );
 

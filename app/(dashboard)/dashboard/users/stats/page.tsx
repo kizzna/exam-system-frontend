@@ -151,6 +151,7 @@ export default function UserStatsPage() {
                                         <TableHead className="text-right">สนร.</TableHead>
                                         <TableHead className="text-right">สมัครสอบ</TableHead>
                                         <TableHead className="text-right">คงสอบ</TableHead>
+                                        <TableHead className="text-right">สแกน</TableHead>
                                         <TableHead className="text-right text-red-600">ปัญหา</TableHead>
                                         <TableHead className="text-right text-red-600">ซ้ำ</TableHead>
                                         <TableHead className="text-right text-red-600">&lt; 140 ข้อ</TableHead>
@@ -174,6 +175,7 @@ export default function UserStatsPage() {
                                                 <TableCell className="text-right">{stat.snr_count.toLocaleString()}</TableCell>
                                                 <TableCell className="text-right">{stat.registered_amount.toLocaleString()}</TableCell>
                                                 <TableCell className="text-right">{stat.present_amount.toLocaleString()}</TableCell>
+                                                <TableCell className="text-right">{stat.actual_sheet_count.toLocaleString()}</TableCell>
                                                 <TableCell className="text-right font-bold text-red-600">{stat.error_count > 0 ? stat.error_count.toLocaleString() : '-'}</TableCell>
                                                 <TableCell className="text-right text-red-600">{stat.err_duplicate_sheets_count > 0 ? stat.err_duplicate_sheets_count.toLocaleString() : '-'}</TableCell>
                                                 <TableCell className="text-right text-red-600">{stat.err_low_answer_count > 0 ? stat.err_low_answer_count.toLocaleString() : '-'}</TableCell>

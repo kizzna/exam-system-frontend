@@ -15,6 +15,7 @@ export interface QueueItem {
     taskId: string | null;
     notes: string | null;
     profileId: number | null;
+    alignmentMode?: 'hybrid' | 'standard' | 'imreg_dft';
 
     // Result from server
     batchId?: string;

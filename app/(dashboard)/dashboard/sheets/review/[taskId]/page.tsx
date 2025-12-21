@@ -9,6 +9,7 @@ import { TaskReviewNavigator } from '@/components/sheets/task-navigator';
 import { tasksApi } from '@/lib/api/tasks';
 import { sheetsApi } from '@/lib/api/sheets';
 import { useQueryClient, useQuery, keepPreviousData } from '@tanstack/react-query';
+import { getTaskLabel } from '@/lib/utils/task-label';
 
 export default function OMRReviewPage({ params }: { params: Promise<{ taskId: string }> }) {
     const queryClient = useQueryClient();
@@ -88,7 +89,7 @@ export default function OMRReviewPage({ params }: { params: Promise<{ taskId: st
                 <header className="h-10 shrink-0 flex items-center justify-center px-2 mb-2 gap-4">
                     {/* Exam Center Details */}
                     <h1 className="font-bold text-sm text-slate-700">
-                        สนามสอบ: {taskId} {examCenterInfo ? `(${examCenterInfo})` : ''}
+                        {getTaskLabel(taskId)} {examCenterInfo ? `(${examCenterInfo})` : ''}
                     </h1>
                     {/* Task Navigator */}
                     <div className="flex justify-center items-center">

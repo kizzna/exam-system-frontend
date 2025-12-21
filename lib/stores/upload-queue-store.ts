@@ -7,7 +7,13 @@ interface UploadQueueState {
     isProcessing: boolean;
 
     // Actions
-    addFiles: (files: File[], metadata: { uploadType: UploadType, taskId: string | null, notes?: string, profileId?: number | null }) => void;
+    addFiles: (files: File[], metadata: {
+        uploadType: UploadType,
+        taskId: string | null,
+        notes?: string,
+        profileId?: number | null,
+        alignmentMode?: 'hybrid' | 'standard' | 'imreg_dft'
+    }) => void;
     removeItem: (id: string) => void;
     updateItemStatus: (id: string, status: QueueItemStatus, error?: string, batchId?: string) => void;
     updateItemProgress: (id: string, progress: number, bytesUploaded: number) => void;
@@ -32,6 +38,7 @@ export const useUploadQueueStore = create<UploadQueueState>((set) => ({
             taskId: metadata.taskId,
             notes: metadata.notes || null,
             profileId: metadata.profileId || null,
+            alignmentMode: metadata.alignmentMode,
         }));
         return { queue: [...state.queue, ...newItems] };
     }),

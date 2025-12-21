@@ -48,6 +48,7 @@ async function uploadDirect(
   notes: string | null,
   profileId: number | null,
   onProgress: (progress: ChunkUploadProgress) => void,
+  alignmentMode?: 'hybrid' | 'standard' | 'imreg_dft',
   signal?: AbortSignal
 ): Promise<{ batch_id: string }> {
   return new Promise((resolve, reject) => {
@@ -70,6 +71,9 @@ async function uploadDirect(
     }
     if (profileId) {
       formData.append('profile_id', profileId.toString());
+    }
+    if (alignmentMode && alignmentMode !== 'hybrid') {
+      formData.append('alignment_mode', alignmentMode);
     }
 
     // Track upload progress
@@ -143,6 +147,7 @@ async function uploadSingleChunkWithRetry(
   taskId: string | null,
   notes: string | null,
   profileId: number | null,
+  alignmentMode?: 'hybrid' | 'standard' | 'imreg_dft',
   signal?: AbortSignal
 ): Promise<{ upload_id: string; batch_id?: string }> {
   const isLastChunk = chunkIndex === totalChunks - 1;
@@ -167,6 +172,7 @@ async function uploadSingleChunkWithRetry(
       if (isLastChunk) {
         if (notes) formData.append('notes', notes);
         if (profileId) formData.append('profile_id', profileId.toString());
+        if (alignmentMode && alignmentMode !== 'hybrid') formData.append('alignment_mode', alignmentMode);
       }
 
       const token = getAuthToken();
@@ -218,6 +224,7 @@ async function uploadInChunks(
   notes: string | null,
   profileId: number | null,
   onProgress: (progress: ChunkUploadProgress) => void,
+  alignmentMode?: 'hybrid' | 'standard' | 'imreg_dft',
   signal?: AbortSignal
 ): Promise<{ batch_id: string }> {
   const chunkSize = getChunkSize(file.size);
@@ -257,6 +264,7 @@ async function uploadInChunks(
     taskId,
     notes,
     profileId,
+    alignmentMode,
     signal
   );
 
@@ -295,6 +303,7 @@ async function uploadInChunks(
         taskId,
         notes,
         profileId,
+        alignmentMode,
         signal
       );
 
@@ -354,6 +363,7 @@ export async function uploadFile(
   notes: string | null,
   profileId: number | null,
   onProgress: (progress: ChunkUploadProgress) => void,
+  alignmentMode?: 'hybrid' | 'standard' | 'imreg_dft',
   signal?: AbortSignal
 ): Promise<{ batch_id: string }> {
   // Validate inputs
@@ -378,9 +388,9 @@ export async function uploadFile(
   );
 
   if (needsChunking) {
-    return uploadInChunks(file, uploadType, taskId, notes, profileId, onProgress, signal);
+    return uploadInChunks(file, uploadType, taskId, notes, profileId, onProgress, alignmentMode, signal);
   } else {
-    return uploadDirect(file, uploadType, taskId, notes, profileId, onProgress, signal);
+    return uploadDirect(file, uploadType, taskId, notes, profileId, onProgress, alignmentMode, signal);
   }
 }
 
@@ -399,6 +409,7 @@ export async function uploadImages(
   notes: string | null,
   profileId: number | null,
   onProgress: (progress: ChunkUploadProgress) => void,
+  alignmentMode?: 'hybrid' | 'standard' | 'imreg_dft',
   signal?: AbortSignal
 ): Promise<{ batch_id: string }> {
   if (!files || files.length === 0) {
@@ -437,6 +448,9 @@ export async function uploadImages(
     }
     if (profileId) {
       formData.append('profile_id', profileId.toString());
+    }
+    if (alignmentMode && alignmentMode !== 'hybrid') {
+      formData.append('alignment_mode', alignmentMode);
     }
 
     // Track upload progress

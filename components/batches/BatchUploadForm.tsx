@@ -9,6 +9,7 @@ import { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useQuery } from '@tanstack/react-query';
 import { profilesAPI } from '@/lib/api/profiles';
+import { useAuthStore } from '@/lib/stores/auth-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,6 +27,7 @@ import { useUploadQueueProcessor } from '@/lib/hooks/use-upload-processor';
 import { CloudUpload } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { BatchProgressItem } from './BatchProgressItem';
+import { AlignmentMode } from '@/lib/types/batches';
 
 export function BatchUploadForm() {
   // Initialize queue processor
@@ -35,6 +37,10 @@ export function BatchUploadForm() {
 
   const [notes, setNotes] = useState('');
   const [profileId, setProfileId] = useState<string>('');
+  const [alignmentMode, setAlignmentMode] = useState<AlignmentMode>('hybrid');
+
+  const user = useAuthStore((state) => state.user);
+  const isAdmin = user?.is_admin || false;
 
   // Fetch profiles
   const { data: profiles = [] } = useQuery({
@@ -58,9 +64,10 @@ export function BatchUploadForm() {
       uploadType: 'zip_with_qr',
       taskId: null, // Not required for zip_with_qr
       notes: notes || undefined,
-      profileId: profileId ? parseInt(profileId) : undefined
+      profileId: profileId ? parseInt(profileId) : undefined,
+      alignmentMode: alignmentMode !== 'hybrid' ? alignmentMode : undefined
     });
-  }, [addFiles, notes, profileId]);
+  }, [addFiles, notes, profileId, alignmentMode]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -93,6 +100,32 @@ export function BatchUploadForm() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Alignment Strategy - Admin Only */}
+            {isAdmin && (
+              <div className="space-y-2">
+                <Label htmlFor="alignment">วิธีปรับภาพให้ตรง (Advanced)</Label>
+                <Select value={alignmentMode} onValueChange={(v) => setAlignmentMode(v as AlignmentMode)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select strategy" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="hybrid">
+                      Auto / Hybrid (Default)
+                    </SelectItem>
+                    <SelectItem value="standard">
+                      Standard Only (Fast, Strict)
+                    </SelectItem>
+                    <SelectItem value="imreg_dft">
+                      Force Robust (Slow, DFT)
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Hybrid tries Standard first, falls back to Robust if needed.
+                </p>
+              </div>
+            )}
 
           </div>
         </div>
