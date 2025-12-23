@@ -47,7 +47,7 @@ export interface Batch {
   created_at: string; // ISO 8601 timestamp
   completed_at: string | null; // ISO 8601 or null
   uploaded_by: number; // User ID who uploaded
-  uploaded_by_username?: string; // Username (populated in some queries)
+  username?: string; // Username (populated in some queries)
   notes: string | null; // User-provided notes
 }
 
@@ -130,6 +130,8 @@ export interface ListBatchesParams {
   page?: number; // Page number (1-based)
   page_size?: number; // Results per page (default: 50)
   offset?: number; // Pagination offset (default: 0)
+  username?: string; // Filter by username
+  batch_name?: string; // Filter by batch name
 }
 
 /**

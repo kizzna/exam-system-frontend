@@ -52,13 +52,15 @@ export async function getBatchStatus(
  * List batches with pagination and filtering
  */
 export async function listBatches(params: ListBatchesParams = {}): Promise<ListBatchesResponse> {
-  const { status, page = 1, page_size = 50, offset = (page - 1) * page_size } = params;
+  const { status, username, batch_name, page = 1, page_size = 50, offset = (page - 1) * page_size } = params;
 
   const response = await apiClient.get<ListBatchesResponse>('/batches', {
     params: {
       page_size,
       offset,
       ...(status && { status }),
+      ...(username && { username }),
+      ...(batch_name && { batch_name }),
     },
   });
 
