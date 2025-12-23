@@ -27,6 +27,7 @@ interface SheetOverlayData {
 interface AnswerImageViewerProps {
     sheetId?: string;
     overlayData?: SheetOverlayData;
+    refreshKey?: number;
 }
 
 // Subject configuration: question ranges and colors
@@ -36,10 +37,11 @@ const SUBJECTS = [
     { name: 'subject3', label: 'วินัย', range: [101, 150], color: 'bg-orange-500', borderColor: 'border-orange-600' },
 ];
 
-export function AnswerImageViewer({ sheetId, taskId, overlayData }: AnswerImageViewerProps & { taskId: string }) {
+export function AnswerImageViewer({ sheetId, taskId, overlayData, refreshKey }: AnswerImageViewerProps & { taskId: string }) {
     const [showCorrectAnswers, setShowCorrectAnswers] = React.useState(true);
     const [showStudentMarks, setShowStudentMarks] = React.useState(true);
     const [showAllOverlays, setShowAllOverlays] = React.useState(true);
+    const [showUnanswered, setShowUnanswered] = React.useState(false);
     const [isEditorOpen, setIsEditorOpen] = React.useState(false);
     const queryClient = useQueryClient();
 
@@ -127,6 +129,36 @@ export function AnswerImageViewer({ sheetId, taskId, overlayData }: AnswerImageV
             };
         };
 
+        if (showUnanswered) {
+            answers.forEach((ans) => {
+                const qNum = ans.q.toString();
+                const questionCoords = questions[qNum];
+
+                if (!questionCoords) return;
+
+                // Check if unanswered (0 or null)
+                if (ans.val === 0 || ans.val === null || ans.val === undefined) {
+                    const options = ['A', 'B', 'C', 'D', 'E']; // Assuming up to E
+                    options.forEach((option) => {
+                        const coord = questionCoords[option];
+                        if (coord) {
+                            const { x, y } = transform(coord.x, coord.y);
+                            studentItems.push({
+                                id: `q_${qNum}_unanswered_${option}`,
+                                x,
+                                y,
+                                type: 'cross', // reusing cross shape
+                                color: 'rgba(255, 50, 50, 0.8)', // Red transparent
+                                r: 16,
+                                lineWidth: 5,
+                            });
+                        }
+                    });
+                }
+            });
+            return studentItems;
+        }
+
         answers.forEach((ans) => {
             const qNum = ans.q.toString();
             const questionCoords = questions[qNum];
@@ -188,7 +220,7 @@ export function AnswerImageViewer({ sheetId, taskId, overlayData }: AnswerImageV
         });
 
         return [...studentItems, ...correctItems];
-    }, [overlay, layout, answerKey, showAllOverlays, showStudentMarks, showCorrectAnswers]);
+    }, [overlay, layout, answerKey, showAllOverlays, showStudentMarks, showCorrectAnswers, showUnanswered]);
 
     if (!sheetId) {
         return (
@@ -223,7 +255,7 @@ export function AnswerImageViewer({ sheetId, taskId, overlayData }: AnswerImageV
                 {/* 1. Image Area */}
                 <div className="h-full flex-shrink-0">
                     <SmartImage
-                        src={sheetsApi.getSheetImageUrl(sheetId, 'bottom', 350)}
+                        src={sheetsApi.getSheetImageUrl(sheetId, 'bottom', 350, refreshKey)}
                         width={overlay.bottom.dimensions.w}
                         height={overlay.bottom.dimensions.h}
                         items={items}
@@ -259,6 +291,14 @@ export function AnswerImageViewer({ sheetId, taskId, overlayData }: AnswerImageV
                             className="w-full text-xs justify-start"
                         >
                             ทั้งหมด
+                        </Button>
+                        <Button
+                            variant={showUnanswered ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setShowUnanswered(!showUnanswered)}
+                            className="w-full text-xs justify-start"
+                        >
+                            ไม่ตอบ
                         </Button>
 
                         {/* Button acts as Trigger only now */}

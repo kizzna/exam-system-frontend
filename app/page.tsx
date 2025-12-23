@@ -13,7 +13,7 @@ export default function Home() {
             height={108}
             className="mb-4"
           />
-          <h1 className="mb-2 text-3xl font-bold">ระบบตรวจข้อสอบปรนัย</h1>
+          <h1 className="mb-2 text-3xl font-bold">ระบบตรวจใบตอบปรนัย</h1>
           <h2 className="mb-2 text-xl font-bold">สำนักงานแม่กองธรรมสนามหลวง</h2>
         </div>
         <div className="flex gap-4 justify-center">
@@ -22,12 +22,6 @@ export default function Home() {
             className="px-6 py-3 bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
           >
             เข้าสู่ระบบ
-          </Link>
-          <Link
-            href="/dashboard"
-            className="px-6 py-3 border border-input rounded-md hover:bg-accent"
-          >
-            Dashboard
           </Link>
         </div>
       </div>

@@ -28,6 +28,7 @@ import { CloudUpload } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { BatchProgressItem } from './BatchProgressItem';
 import { AlignmentMode } from '@/lib/types/batches';
+import { toast } from 'sonner';
 
 export function BatchUploadForm() {
   // Initialize queue processor
@@ -37,7 +38,7 @@ export function BatchUploadForm() {
 
   const [notes, setNotes] = useState('');
   const [profileId, setProfileId] = useState<string>('');
-  const [alignmentMode, setAlignmentMode] = useState<AlignmentMode>('hybrid');
+  const [alignmentMode, setAlignmentMode] = useState<AlignmentMode>('standard');
 
   const user = useAuthStore((state) => state.user);
   const isAdmin = user?.is_admin || false;
@@ -60,13 +61,32 @@ export function BatchUploadForm() {
 
   // Handle drop
   const onDrop = useCallback((acceptedFiles: File[]) => {
-    addFiles(acceptedFiles, {
-      uploadType: 'zip_with_qr',
-      taskId: null, // Not required for zip_with_qr
-      notes: notes || undefined,
-      profileId: profileId ? parseInt(profileId) : undefined,
-      alignmentMode: alignmentMode !== 'hybrid' ? alignmentMode : undefined
+    // Filter out files larger than 3GB
+    const MAX_SIZE = 3 * 1024 * 1024 * 1024; // 3GB
+    const validFiles: File[] = [];
+    const invalidFiles: File[] = [];
+
+    acceptedFiles.forEach(file => {
+      if (file.size > MAX_SIZE) {
+        invalidFiles.push(file);
+      } else {
+        validFiles.push(file);
+      }
     });
+
+    if (invalidFiles.length > 0) {
+      toast.error(`ไฟล์ที่ขนาดเกิน 3GB: ${invalidFiles.map(f => f.name).join(', ')}`);
+    }
+
+    if (validFiles.length > 0) {
+      addFiles(validFiles, {
+        uploadType: 'zip_with_qr',
+        taskId: null, // Not required for zip_with_qr
+        notes: notes || undefined,
+        profileId: profileId ? parseInt(profileId) : undefined,
+        alignmentMode: alignmentMode !== 'hybrid' ? alignmentMode : undefined
+      });
+    }
   }, [addFiles, notes, profileId, alignmentMode]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -86,7 +106,7 @@ export function BatchUploadForm() {
           <div className="grid gap-4 md:grid-cols-2 mb-4">
             {/* Profile Selection */}
             <div className="space-y-2">
-              <Label htmlFor="profile">Profile ตรวจข้อสอบ</Label>
+              <Label htmlFor="profile">Profile ตรวจใบตอบ</Label>
               <Select value={profileId} onValueChange={setProfileId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select a profile" />
@@ -111,10 +131,10 @@ export function BatchUploadForm() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="hybrid">
-                      Auto / Hybrid (Default)
+                      Auto / Hybrid
                     </SelectItem>
                     <SelectItem value="standard">
-                      Standard Only (Fast, Strict)
+                      Standard Only (Fast, Strict) (Default)
                     </SelectItem>
                     <SelectItem value="imreg_dft">
                       Force Robust (Slow, DFT)

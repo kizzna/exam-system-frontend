@@ -46,7 +46,7 @@ export function ImageUploadForm({ taskId: propTaskId, onSuccess }: ImageUploadFo
     const [taskId, setTaskId] = useState(propTaskId || '');
     const [notes, setNotes] = useState('');
     const [profileId, setProfileId] = useState<string>('');
-    const [alignmentMode, setAlignmentMode] = useState<AlignmentMode>('hybrid');
+    const [alignmentMode, setAlignmentMode] = useState<AlignmentMode>('standard');
 
     const user = useAuthStore((state) => state.user);
     const isAdmin = user?.is_admin || false;
@@ -285,7 +285,7 @@ export function ImageUploadForm({ taskId: propTaskId, onSuccess }: ImageUploadFo
 
             {/* Profile Selection */}
             <div className="space-y-2">
-                <Label htmlFor="profile">Profile ตรวจข้อสอบ</Label>
+                <Label htmlFor="profile">Profile ตรวจใบตอบ</Label>
                 <Select value={profileId} onValueChange={setProfileId}>
                     <SelectTrigger>
                         <SelectValue placeholder="Select a profile" />
@@ -310,10 +310,10 @@ export function ImageUploadForm({ taskId: propTaskId, onSuccess }: ImageUploadFo
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="hybrid">
-                                Auto / Hybrid (Default)
+                                Auto / Hybrid
                             </SelectItem>
                             <SelectItem value="standard">
-                                Standard Only (Fast, Strict)
+                                Standard Only (Fast, Strict) (Default)
                             </SelectItem>
                             <SelectItem value="imreg_dft">
                                 Force Robust (Slow, DFT)

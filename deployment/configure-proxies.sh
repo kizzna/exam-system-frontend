@@ -202,6 +202,27 @@ server {
         proxy_cache_bypass \$http_upgrade;
     }
 
+    # --- INTERNAL VIDEO STREAMING ---
+    # This location is NOT accessible directly by the browser.
+    # It can only be reached via internal redirect from Next.js
+    location /protected_videos/ {
+        internal;
+        alias /cephfs/omr/tutorials/; # <--- UPDATE THIS to your actual CephFS mount path
+
+        # Optimization for video delivery
+        aio threads;           # Use asynchronous I/O if available
+        directio 512;          # Optimization for large files
+        output_buffers 1 2M;   # Optimize buffer for streaming
+        sendfile on;           # Zero-copy file transfer
+        sendfile_max_chunk 512k;
+
+        # Allow video seeking
+        add_header Accept-Ranges bytes; 
+        
+        # Don't cache video files in Nginx proxy cache (too large)
+        proxy_max_temp_file_size 0;
+    }
+
     # --- NEXT.JS ROUTES ---
     location /_next/static {
         proxy_cache STATIC;

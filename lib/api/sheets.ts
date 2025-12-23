@@ -34,11 +34,12 @@ export const sheetsApi = {
     return response.data;
   },
 
-  getSheetImageUrl: (id: string, part: 'top' | 'bottom' | 'original' | 'aligned', width?: number): string => {
+  getSheetImageUrl: (id: string, part: 'top' | 'bottom' | 'original' | 'aligned', width?: number, version?: number): string => {
     // API_BASE_URL now handles client/server context (client='/api', server='http://...')
     // Next.js rewrites /api/sheets -> internal/sheets
     const baseUrl = `${API_BASE_URL}/sheets/${id}/image?part=${part}`;
-    return width ? `${baseUrl}&width=${width}` : baseUrl;
+    const urlWithWidth = width ? `${baseUrl}&width=${width}` : baseUrl;
+    return version ? `${urlWithWidth}&v=${version}` : urlWithWidth;
   },
 
   getLayout: async (): Promise<OMRLayout> => {
@@ -84,6 +85,11 @@ export const sheetsApi = {
 
   reprocessSheet: async (data: { sheet_ids: number[]; profile_id: number }): Promise<{ status: string; message: string; task_id: string }> => {
     const response = await apiClient.post<{ status: string; message: string; task_id: string }>('/sheets/reprocess', data);
+    return response.data;
+  },
+
+  reprocessImage: async (sheetId: string, data: { task_id?: string; profile_id?: number; alignment_mode?: string; config_overrides?: Record<string, any> }): Promise<any> => {
+    const response = await apiClient.post(`/sheets/${sheetId}/reprocess-image`, data);
     return response.data;
   },
 };

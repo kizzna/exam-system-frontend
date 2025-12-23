@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { tasksApi } from '@/lib/api/tasks';
 import { TaskFilters, TaskFiltersState } from '@/components/tasks/task-filters';
@@ -17,7 +17,12 @@ import { PaginationState, RowSelectionState, SortingState } from '@tanstack/reac
 export default function TasksPage() {
   const { isAdmin } = useAuth();
   const queryClient = useQueryClient();
+  const [isMounted, setIsMounted] = useState(false);
   const [filters, setFilters] = useState<TaskFiltersState>({});
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 50,
@@ -91,8 +96,8 @@ export default function TasksPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-center gap-2">
-        <h1 className="text-3xl font-bold">งานตรวจข้อสอบ</h1>
-        {isAdmin && (
+        <h1 className="text-3xl font-bold">งานตรวจใบตอบ</h1>
+        {isMounted && isAdmin && (
           <div className="flex gap-2">
             {selectedTaskIds.length > 0 && (
               <Button

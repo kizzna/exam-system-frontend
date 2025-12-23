@@ -209,7 +209,7 @@ export default function UsersPage() {
           <Link href="/dashboard/users/stats">
             <Button variant="outline">
               <BarChart3 className="mr-2 h-4 w-4" />
-              สถิติการตรวจข้อสอบแต่ละกองงาน
+              สถิติการตรวจใบตอบแต่ละกองงาน
             </Button>
           </Link>
           <Button onClick={() => setIsCreateDialogOpen(true)}>

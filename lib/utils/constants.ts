@@ -1,5 +1,5 @@
 // App constants
-export const APP_NAME = 'ระบบตรวจข้อสอบปรนัย';
+export const APP_NAME = 'ระบบตรวจใบตอบวิชาปรนัย';
 // Use relative path on client to leverage Next.js proxy (avoids CORS & Mixed Content)
 // Use internal docker URL on server side
 export const API_BASE_URL = typeof window !== 'undefined'

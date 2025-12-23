@@ -5,7 +5,7 @@ import { HeaderImageViewer } from '@/components/sheets/header-image-viewer';
 import { StatsPanel } from '@/components/sheets/stats-panel';
 import { StudentTable } from '@/components/sheets/student-table';
 import { AnswerImageViewer } from '@/components/sheets/answer-image-viewer';
-import { TaskReviewNavigator } from '@/components/sheets/task-navigator';
+import { TaskReviewNavigator, useTaskNavigation } from '@/components/sheets/task-navigator';
 import { tasksApi } from '@/lib/api/tasks';
 import { sheetsApi } from '@/lib/api/sheets';
 import { useQueryClient, useQuery, keepPreviousData } from '@tanstack/react-query';
@@ -16,6 +16,7 @@ export default function OMRReviewPage({ params }: { params: Promise<{ taskId: st
     const { taskId } = use(params);
     const [selectedSheetId, setSelectedSheetId] = useState<string>();
     const [examCenterInfo, setExamCenterInfo] = useState<string | null>(null);
+    const [refreshKey, setRefreshKey] = useState(0);
 
     useEffect(() => {
         const fetchInfo = async () => {
@@ -68,12 +69,14 @@ export default function OMRReviewPage({ params }: { params: Promise<{ taskId: st
 
             // 2. Prefetch Images (Browser Cache)
             const imgTop = new Image();
-            imgTop.src = sheetsApi.getSheetImageUrl(sheet.sheet_id, 'top', 920);
+            imgTop.src = sheetsApi.getSheetImageUrl(sheet.sheet_id, 'top', 920, refreshKey);
 
             const imgBottom = new Image();
-            imgBottom.src = sheetsApi.getSheetImageUrl(sheet.sheet_id, 'bottom', 350);
+            imgBottom.src = sheetsApi.getSheetImageUrl(sheet.sheet_id, 'bottom', 350, refreshKey);
         });
-    }, [selectedSheetId, taskId, queryClient]);
+    }, [selectedSheetId, taskId, queryClient, refreshKey]);
+
+    const { handlePrev, handleNext } = useTaskNavigation(Number(taskId));
 
     return (
         <>
@@ -106,7 +109,7 @@ export default function OMRReviewPage({ params }: { params: Promise<{ taskId: st
                         {/* <div className="absolute top-2 left-2 z-10 bg-black/50 text-white text-xs px-2 py-1 rounded">
                             แผง A: ภาพส่วนบน (ข้อมูลผู้ขอเข้าสอบ)
                         </div> */}
-                        <HeaderImageViewer sheetId={selectedSheetId} />
+                        <HeaderImageViewer sheetId={selectedSheetId} refreshKey={refreshKey} />
                     </section>
 
                     {/* --- RIGHT COLUMN WRAPPER (Panel B + Panel D) --- */}
@@ -127,6 +130,7 @@ export default function OMRReviewPage({ params }: { params: Promise<{ taskId: st
                                 taskId={taskId}
                                 // 2. PASS THE DATA DOWN
                                 overlayData={overlay}
+                                refreshKey={refreshKey}
                             />
                         </section>
                     </div>
@@ -145,6 +149,9 @@ export default function OMRReviewPage({ params }: { params: Promise<{ taskId: st
                                 taskId={taskId}
                                 selectedSheetId={selectedSheetId}
                                 onSelectSheet={setSelectedSheetId}
+                                onSheetsUpdated={() => setRefreshKey(prev => prev + 1)}
+                                onPrevTask={handlePrev}
+                                onNextTask={handleNext}
                             />
                         </div>
                     </section>

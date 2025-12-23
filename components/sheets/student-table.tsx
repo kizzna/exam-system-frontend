@@ -16,6 +16,9 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Label } from "@/components/ui/label"
+import { Progress } from "@/components/ui/progress"
 import { TaskSearchPopover } from '@/components/tasks/task-search-popover';
 import { Task } from '@/lib/types/tasks';
 
@@ -37,11 +40,14 @@ interface StudentTableProps {
     taskId: string;
     selectedSheetId?: string;
     onSelectSheet: (id: string | undefined) => void;
+    onSheetsUpdated?: () => void;
+    onPrevTask?: () => void;
+    onNextTask?: () => void;
 }
 
 type ViewMode = 'SEQUENTIAL' | 'DELETED' | 'MISSING';
 
-export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: StudentTableProps) {
+export function StudentTable({ taskId, selectedSheetId, onSelectSheet, onSheetsUpdated, onPrevTask, onNextTask }: StudentTableProps) {
     const parentRef = useRef<HTMLDivElement>(null);
     const [viewMode, setViewMode] = useState<ViewMode>('SEQUENTIAL');
     // Jumper status removed
@@ -179,6 +185,12 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
     const [reprocessDialogOpen, setReprocessDialogOpen] = useState(false);
     const [reprocessTaskId, setReprocessTaskId] = useState<string | null>(null);
     const [selectedProfileId, setSelectedProfileId] = useState<string>("");
+
+    // New Reprocess States
+    const [reprocessMode, setReprocessMode] = useState<"answers" | "original">("answers");
+    const [selectedAlignmentMode, setSelectedAlignmentMode] = useState<string>("standard");
+    const [reprocessProgress, setReprocessProgress] = useState<{ processed: number; total: number; isProcessing: boolean }>({ processed: 0, total: 0, isProcessing: false });
+
     const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
 
     const handleUploadSuccess = () => {
@@ -209,6 +221,14 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
         }
     });
 
+    // Set default profile when profiles are loaded
+    useEffect(() => {
+        if (reprocessDialogOpen && profiles && profiles.length > 0 && !selectedProfileId) {
+            const defaultProfile = profiles.find(p => p.is_default);
+            setSelectedProfileId(defaultProfile ? defaultProfile.id.toString() : profiles[0].id.toString());
+        }
+    }, [reprocessDialogOpen, profiles, selectedProfileId]);
+
     const handleReprocessComplete = () => {
         // Refresh everything
         queryClient.invalidateQueries({ queryKey: ['roster'] });
@@ -221,7 +241,16 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
 
         // Wait a bit before closing or letting user close
         // Actually, let user close it to see the "Completed" state
+
+        // Notify parent to refresh images (only for original image reprocessing)
+        if (reprocessMode === 'original') {
+            // Add a delay to ensure backend filesystem has finished writing the new image
+            setTimeout(() => {
+                onSheetsUpdated?.();
+            }, 1500);
+        }
     };
+
 
     // Reset selection when view mode changes
     useEffect(() => {
@@ -464,6 +493,9 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                 case 'ArrowLeft':
                     if (e.ctrlKey) {
                         e.preventDefault();
+                        onPrevTask?.();
+                        // Old Duplicate Finder Logic (Commented out)
+                        /*
                         const currentRoll = displayRoster[currentIndex]?.master_roll || displayRoster[currentIndex]?.sheet_roll;
                         const searchRoll = currentRoll ? String(currentRoll) : null;
                         const counterpartIndices = displayRoster.map((r, idx) => {
@@ -487,11 +519,15 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                             }
                             if (foundIndex !== -1) nextIndex = foundIndex;
                         }
+                        */
                     }
                     break;
                 case 'ArrowRight':
                     if (e.ctrlKey) {
                         e.preventDefault();
+                        onNextTask?.();
+                        // Old Duplicate Finder Logic (Commented out)
+                        /*
                         const currentRoll = displayRoster[currentIndex]?.master_roll || displayRoster[currentIndex]?.sheet_roll;
                         const searchRoll = currentRoll ? String(currentRoll) : null;
                         const counterpartIndices = displayRoster.map((r, idx) => {
@@ -514,6 +550,7 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                             }
                             if (foundIndex !== -1) nextIndex = foundIndex;
                         }
+                        */
                     }
                     break;
             }
@@ -765,7 +802,13 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                                 onClick={() => {
                                     setReprocessDialogOpen(true);
                                     setReprocessTaskId(null);
+                                    // Reset profile to ensure useEffect picks the fresh default or existing one re-mounts?
+                                    // Actually if we want to force default every time we open:
                                     setSelectedProfileId("");
+
+                                    setReprocessMode("answers");
+                                    setSelectedAlignmentMode("standard");
+                                    setReprocessProgress({ processed: 0, total: selectedSheetIds.size, isProcessing: false });
                                 }}
                                 title="ประมวลผลใหม่ (Reprocess)"
                             >
@@ -1005,53 +1048,153 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
             </Dialog>
 
             <Dialog open={reprocessDialogOpen} onOpenChange={(open) => {
-                if (!open && reprocessTaskId) {
-                    // specific cleanup if needed when closing mid-process?
-                    // usually okay to just close
+                if (!open && (reprocessTaskId || reprocessProgress.isProcessing)) {
+                    // Prevent closing if processing
+                    if (reprocessProgress.isProcessing) return;
                 }
                 setReprocessDialogOpen(open);
             }}>
-                <DialogContent className="sm:max-w-[500px]">
+                <DialogContent className="sm:max-w-[600px]">
                     <DialogHeader>
                         <DialogTitle>ประมวลผลใหม่ (Reprocess)</DialogTitle>
                         <DialogDescription>
-                            เลือกโปรไฟล์ที่ต้องการใช้ในการตรวจใบตอบที่เลือก ({selectedSheetIds.size} ฉบับ) ใหม่
+                            จัดการการประมวลผลใบตอบที่เลือกจำนวน {selectedSheetIds.size} ฉบับ
                         </DialogDescription>
                     </DialogHeader>
 
-                    {!reprocessTaskId ? (
-                        <div className="py-4 space-y-4">
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium">เลือกโปรไฟล์ (Scan Profile)</label>
-                                <Select value={selectedProfileId} onValueChange={setSelectedProfileId}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="เลือกโปรไฟล์..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {profiles?.map(p => (
-                                            <SelectItem key={p.id} value={p.id.toString()}>
-                                                {p.name}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                    {!reprocessTaskId && !reprocessProgress.isProcessing ? (
+                        <div className="py-4 space-y-6">
+                            {/* Mode Selection */}
+                            <div className="space-y-3">
+                                <Label className="text-base font-medium">เลือกรูปแบบการประมวลผล</Label>
+                                <RadioGroup
+                                    value={reprocessMode}
+                                    onValueChange={(v) => setReprocessMode(v as "answers" | "original")}
+                                    className="grid grid-cols-1 gap-3"
+                                >
+                                    <div className={`flex items-center space-x-3 space-y-0 rounded p-3 border cursor-pointer ${reprocessMode === 'answers' ? 'border-primary bg-primary/5' : 'border-slate-200'}`}>
+                                        <RadioGroupItem value="answers" id="mode-answers" />
+                                        <div className="flex-1">
+                                            <Label htmlFor="mode-answers" className="cursor-pointer font-medium">
+                                                อ่านคำตอบใหม่
+                                            </Label>
+                                            <p className="text-sm text-muted-foreground mt-1">
+                                                ใช้ภาพเดิมที่ผ่านการปรับให้ตรงแล้ว มาอ่านคำตอบใหม่ด้วย Profile ใหม่
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className={`flex items-center space-x-3 space-y-0 rounded p-3 border cursor-pointer ${reprocessMode === 'original' ? 'border-primary bg-primary/5' : 'border-slate-200'}`}>
+                                        <RadioGroupItem value="original" id="mode-original" />
+                                        <div className="flex-1">
+                                            <Label htmlFor="mode-original" className="cursor-pointer font-medium">
+                                                อ่านจากต้นฉบับใหม่
+                                            </Label>
+                                            <p className="text-sm text-muted-foreground mt-1">
+                                                ประมวลผลใหม่จากภาพต้นฉบับ ใช้ในกรณีที่ใบตอบไม่แสดงภาพ
+                                            </p>
+                                        </div>
+                                    </div>
+                                </RadioGroup>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                {/* Profile Selection - Always needed for both */}
+                                <div className="space-y-2">
+                                    <Label className="text-sm font-medium">เลือกวิธีอ่าน (Default: ปกติ)</Label>
+                                    <Select value={selectedProfileId} onValueChange={setSelectedProfileId}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="เลือกวิธีอ่าน..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {profiles?.map(p => (
+                                                <SelectItem key={p.id} value={p.id.toString()}>
+                                                    {p.name} {p.is_default && '(Default)'}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                {/* Alignment Mode - Only for Original Image Mode */}
+                                {reprocessMode === 'original' && (
+                                    <div className="space-y-2">
+                                        <Label className="text-sm font-medium">วิธีปรับภาพให้ตรง (Alignment)</Label>
+                                        <Select value={selectedAlignmentMode} onValueChange={setSelectedAlignmentMode}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="เลือกวิธี..." />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="standard">อ่านใบตอบปกติ</SelectItem>
+                                                <SelectItem value="imreg_dft">อ่านใบตอบผิดปกติ</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     ) : (
                         <div className="py-4">
-                            <ReprocessTaskStream
-                                taskId={reprocessTaskId}
-                                onComplete={handleReprocessComplete}
-                            />
+                            {reprocessMode === 'answers' ? (
+                                <ReprocessTaskStream
+                                    taskId={reprocessTaskId || ''}
+                                    onComplete={handleReprocessComplete}
+                                />
+                            ) : (
+                                <div className="space-y-4">
+                                    <div className="text-center space-y-2">
+                                        <div className="text-lg font-medium">กำลังประมวลผล...</div>
+                                        <div className="text-sm text-muted-foreground">
+                                            ประมวลผลแล้ว {reprocessProgress.processed} จาก {reprocessProgress.total} ฉบับ
+                                        </div>
+                                    </div>
+                                    <Progress value={(reprocessProgress.processed / reprocessProgress.total) * 100} className="h-3" />
+                                    {reprocessProgress.processed === reprocessProgress.total && (
+                                        <div className="flex justify-center text-green-600 font-medium items-center gap-2">
+                                            <CheckSquare className="w-5 h-5" />
+                                            เสร็จสิ้น
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     )}
 
                     <DialogFooter>
-                        {!reprocessTaskId ? (
+                        {!reprocessTaskId && !reprocessProgress.isProcessing ? (
                             <>
                                 <Button variant="outline" onClick={() => setReprocessDialogOpen(false)}>ยกเลิก</Button>
                                 <Button
-                                    onClick={() => reprocessMutation.mutate()}
+                                    onClick={async () => {
+                                        if (reprocessMode === 'answers') {
+                                            reprocessMutation.mutate();
+                                        } else {
+                                            // Handle Original Image Reprocess Loop
+                                            setReprocessProgress({ processed: 0, total: selectedSheetIds.size, isProcessing: true });
+                                            const sheets = Array.from(selectedSheetIds);
+
+                                            // Process sequentially to avoid overwhelming server? Or parallel?
+                                            // Requirement says "We will re-use same reprocess button...".
+                                            // Let's do batch of 5 or sequential for safety first.
+                                            // The usage is likely for correcting a few bad sheets, not 1000s (users use batch reprocess for that).
+
+                                            for (let i = 0; i < sheets.length; i++) {
+                                                try {
+                                                    await sheetsApi.reprocessImage(sheets[i], {
+                                                        profile_id: parseInt(selectedProfileId),
+                                                        alignment_mode: selectedAlignmentMode
+                                                    });
+                                                } catch (e) {
+                                                    console.error(`Failed to reprocess sheet ${sheets[i]}`, e);
+                                                    toast.error(`เกิดข้อผิดพลาดกับบางรายการ`);
+                                                }
+                                                setReprocessProgress(prev => ({ ...prev, processed: prev.processed + 1 }));
+                                            }
+
+                                            handleReprocessComplete();
+                                            // Keep dialog open for a moment to show 100%?
+                                            setReprocessProgress(prev => ({ ...prev, isProcessing: false }));
+                                        }
+                                    }}
                                     disabled={!selectedProfileId || reprocessMutation.isPending}
                                 >
                                     {reprocessMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
@@ -1059,7 +1202,12 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet }: Student
                                 </Button>
                             </>
                         ) : (
-                            <Button onClick={() => setReprocessDialogOpen(false)}>ปิด</Button>
+                            <Button
+                                onClick={() => setReprocessDialogOpen(false)}
+                                disabled={reprocessProgress.isProcessing} // Disable close while processing loop runs
+                            >
+                                ปิด
+                            </Button>
                         )}
                     </DialogFooter>
                 </DialogContent>

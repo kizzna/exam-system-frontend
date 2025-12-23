@@ -5,15 +5,16 @@ import { tasksApi } from '@/lib/api/tasks';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 interface TaskReviewNavigatorProps {
     currentTaskId: number;
 }
 
-export function TaskReviewNavigator({ currentTaskId }: TaskReviewNavigatorProps) {
+export function useTaskNavigation(currentTaskId: number) {
     const searchParams = useSearchParams();
+    const router = useRouter();
 
     // Parse list params from URL
     const listParams = {
@@ -41,170 +42,111 @@ export function TaskReviewNavigator({ currentTaskId }: TaskReviewNavigatorProps)
         sort_order: (searchParams.get('sort_order') as 'asc' | 'desc') || 'desc',
     };
 
-    // We need to know where the current task is in the list to determine Prev/Next.
-    // Since we only have the current page number in params, we fetch the current page.
-    // If the task is at the boundary (first or last of page), we might need adjacent pages.
-
-    // Strategy:
-    // 1. Fetch current page. Find index of current task.
-    // 2. If index > 0, Prev is index-1.
-    // 3. If index < length-1, Next is index+1.
-    // 4. If index === 0, Prev is last item of Page-1. (Need to fetch Page-1)
-    // 5. If index === length-1, Next is first item of Page+1. (Need to fetch Page+1)
-
-    const [targetPage, setTargetPage] = useState(listParams.page);
-
-    // Update target page if we detect we've navigated to a task not in the current URL page param
-    // (This handles the case where user clicked "Next" effectively moving to a new page, but URL param might lag or we want to be proactive)
-    // Actually, simpler: Always fetch the page defined in URL. If current task is NOT in it, we might be in trouble or URL is stale.
-    // When we navigate, we update the URL, so the component re-renders with new page param.
-
-    const { data, isLoading } = useQuery({
+    const { data } = useQuery({
         queryKey: ['tasks', listParams],
         queryFn: () => tasksApi.getTasks(listParams),
         staleTime: 5000,
     });
 
-    // Helper to build Link href conserving params
-    const buildLink = (taskId: number, newPage?: number) => {
-        const query = { ...Object.fromEntries(searchParams.entries()) };
-        if (newPage) query.page = newPage.toString();
-        return {
-            pathname: `/dashboard/sheets/review/${taskId}`,
-            query,
-        };
+    // Helper to calculate target
+    const getTargetTask = (direction: 'prev' | 'next', tasks: any[], currentIndex: number) => {
+        if (currentIndex === -1) return null;
+        if (direction === 'prev' && currentIndex > 0) return tasks[currentIndex - 1];
+        if (direction === 'next' && currentIndex < tasks.length - 1) return tasks[currentIndex + 1];
+        return null;
     };
 
-    if (isLoading || !data) return null;
+    // Calculate Prev/Next state
+    const tasks = data?.items || [];
+    const currentIndex = tasks.findIndex((t: any) => t.task_id === currentTaskId);
+    const total = data?.total || 0;
 
-    const tasks = data.items;
-    const currentIndex = tasks.findIndex(t => t.task_id === currentTaskId);
+    // Adjacent Page Handling
+    const prevPage = listParams.page - 1;
+    const nextPage = listParams.page + 1;
 
-    // Logic for Previous
-    let prevLink = null;
-    let prevDisabled = false;
+    // We only fetch adjacent if necessary (boundary)
+    const needPrevPage = currentIndex === 0 && listParams.page > 1;
+    const needNextPage = currentIndex === tasks.length - 1 && (listParams.page * listParams.size < total);
 
-    if (currentIndex > 0) {
-        prevLink = buildLink(tasks[currentIndex - 1].task_id);
-    } else if (listParams.page > 1) {
-        // We are at start of page, need last item of previous page.
-        // We can't know the ID without fetching.
-        // Two options:
-        // A) Just render a button that says "Prev Page" and takes to task list? No, requirement is task navigation.
-        // B) Fetch previous page.
-        // For simplicity v1: We can use a separate query or just enable the button but trigger a load?
-        // Better: Fetch adjacent page if we are at boundary.
-    }
+    const { data: prevPageData } = useQuery({
+        queryKey: ['tasks', { ...listParams, page: prevPage }],
+        queryFn: () => tasksApi.getTasks({ ...listParams, page: prevPage }),
+        enabled: needPrevPage,
+        staleTime: 10000,
+    });
 
-    // Logic for Next
-    let nextLink = null;
-    let nextDisabled = false;
+    const { data: nextPageData } = useQuery({
+        queryKey: ['tasks', { ...listParams, page: nextPage }],
+        queryFn: () => tasksApi.getTasks({ ...listParams, page: nextPage }),
+        enabled: needNextPage,
+        staleTime: 10000,
+    });
 
-    if (currentIndex !== -1 && currentIndex < tasks.length - 1) {
-        nextLink = buildLink(tasks[currentIndex + 1].task_id);
-    } else if (currentIndex === -1) {
-        // Task not found on this page.
-        // This could happen if we just navigated from page X to X+1 but the task is actually on page X (race condition?)
-        // OR we bookmarked a page.
-    }
+    const navigateToTask = (taskId: number, page?: number) => {
+        const query = { ...Object.fromEntries(searchParams.entries()) };
+        if (page) query.page = page.toString();
 
-    // Advanced approach:
-    // If currentIndex is 0, we need data from Page - 1.
-    // If currentIndex is last, we need data from Page + 1.
-    // We can use `keepPreviousData` or just separate queries.
+        // Construct URL manually to avoid complex object passing
+        const queryString = new URLSearchParams(query as any).toString();
+        router.push(`/dashboard/sheets/review/${taskId}?${queryString}`);
+    };
+
+    const handlePrev = () => {
+        if (currentIndex > 0) {
+            navigateToTask(tasks[currentIndex - 1].task_id);
+        } else if (needPrevPage && prevPageData?.items?.length) {
+            const items = prevPageData.items;
+            navigateToTask(items[items.length - 1].task_id, prevPage);
+        }
+    };
+
+    const handleNext = () => {
+        if (currentIndex !== -1 && currentIndex < tasks.length - 1) {
+            navigateToTask(tasks[currentIndex + 1].task_id);
+        } else if (needNextPage && nextPageData?.items?.length) {
+            navigateToTask(nextPageData.items[0].task_id, nextPage);
+        }
+    };
+
+    // Compute availability for UI disabled states
+    const hasPrev = (currentIndex > 0) || (needPrevPage && (prevPageData?.items?.length || 0) > 0);
+    const hasNext = (currentIndex !== -1 && currentIndex < tasks.length - 1) || (needNextPage && (nextPageData?.items?.length || 0) > 0);
+
+    return {
+        handlePrev,
+        handleNext,
+        hasPrev,
+        hasNext,
+        isLoading: !data,
+    };
+}
+
+export function TaskReviewNavigator({ currentTaskId }: TaskReviewNavigatorProps) {
+    const { handlePrev, handleNext, hasPrev, hasNext } = useTaskNavigation(currentTaskId);
 
     return (
         <div className="flex items-center gap-1">
-            <NavigatorButton
-                direction="prev"
-                currentTaskId={currentTaskId}
-                listParams={listParams}
-                currentIndex={currentIndex}
-                tasks={tasks}
-                total={data.total}
-            />
+            <Button
+                variant="ghost"
+                size="sm"
+                onClick={handlePrev}
+                disabled={!hasPrev}
+                className="h-8 w-8 p-0 text-slate-600 hover:text-blue-600 hover:bg-blue-50"
+            >
+                <ChevronLeft className="h-4 w-4" />
+            </Button>
             <div className="h-4 w-px bg-slate-200 mx-1" />
-            <NavigatorButton
-                direction="next"
-                currentTaskId={currentTaskId}
-                listParams={listParams}
-                currentIndex={currentIndex}
-                tasks={tasks}
-                total={data.total}
-            />
+            <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleNext}
+                disabled={!hasNext}
+                className="h-8 w-8 p-0 text-slate-600 hover:text-blue-600 hover:bg-blue-50"
+            >
+                <ChevronRight className="h-4 w-4" />
+            </Button>
         </div>
     );
 }
 
-// Sub-component to handle logic for fetching adjacent pages if needed
-function NavigatorButton({ direction, currentTaskId, listParams, currentIndex, tasks, total }: {
-    direction: 'prev' | 'next';
-    currentTaskId: number;
-    listParams: any;
-    currentIndex: number;
-    tasks: any[];
-    total: number;
-}) {
-    // Determine if we need to fetch adjacent page
-    const isBoundary = direction === 'prev' ? currentIndex === 0 : currentIndex === tasks.length - 1;
-    const canNavigate = direction === 'prev' ? (listParams.page > 1 || currentIndex > 0) : (listParams.page * listParams.size < total || currentIndex < tasks.length - 1);
-
-    // Prepare Adjacent Query
-    const adjacentPage = direction === 'prev' ? listParams.page - 1 : listParams.page + 1;
-    const shouldFetch = isBoundary && canNavigate && currentIndex !== -1;
-
-    const { data: adjacentData, isLoading } = useQuery({
-        queryKey: ['tasks', { ...listParams, page: adjacentPage }],
-        queryFn: () => tasksApi.getTasks({ ...listParams, page: adjacentPage }),
-        enabled: shouldFetch,
-        staleTime: 10000,
-    });
-
-    if (!canNavigate) {
-        return (
-            <Button variant="ghost" size="sm" disabled className="h-8 w-8 p-0 text-slate-400">
-                {direction === 'prev' ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-            </Button>
-        );
-    }
-
-    let targetTaskId: number | undefined;
-    let targetPage = listParams.page;
-
-    if (!isBoundary && currentIndex !== -1) {
-        targetTaskId = direction === 'prev' ? tasks[currentIndex - 1].task_id : tasks[currentIndex + 1].task_id;
-    } else if (shouldFetch && adjacentData) {
-        // If Prev, we want last item of prev page
-        // If Next, we want first item of next page
-        const items = adjacentData.items;
-        if (items.length > 0) {
-            targetTaskId = direction === 'prev' ? items[items.length - 1].task_id : items[0].task_id;
-            targetPage = adjacentPage;
-        }
-    }
-
-    if (!targetTaskId) {
-        return (
-            <Button variant="ghost" size="sm" disabled={isLoading} className="h-8 w-8 p-0">
-                {direction === 'prev' ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-            </Button>
-        );
-    }
-
-    const query = { ...listParams, page: targetPage };
-    // Remove undefined keys
-    Object.keys(query).forEach(key => query[key] === undefined && delete query[key]);
-
-    return (
-        <Button size="sm" className="h-8 w-8 p-0 bg-blue-600 text-white hover:bg-red-600 border-transparent" asChild>
-            <Link
-                href={{
-                    pathname: `/dashboard/sheets/review/${targetTaskId}`,
-                    query: query,
-                }}
-            >
-                {direction === 'prev' ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-            </Link>
-        </Button>
-    );
-}

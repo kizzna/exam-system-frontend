@@ -139,11 +139,13 @@ export function BatchList({ isAdmin = false }: BatchListProps) {
                     )}
                     {isAdmin && (
                       <TableCell onClick={(e) => e.stopPropagation()}>
-                        <DeleteBatchButton
-                          batch={batch}
-                          isAdmin={isAdmin}
-                          onDeleted={() => refetch()}
-                        />
+                        {batch.status === 'failed' && (
+                          <DeleteBatchButton
+                            batch={batch}
+                            isAdmin={isAdmin}
+                            onDeleted={() => refetch()}
+                          />
+                        )}
                       </TableCell>
                     )}
                   </TableRow>

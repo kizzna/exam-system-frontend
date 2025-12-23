@@ -18,19 +18,21 @@ import {
   FileSearch,
   Menu,
   LogOut,
+  CircleHelp,
 } from 'lucide-react';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Menu },
   { name: 'ผู้ใช้', href: '/dashboard/users', icon: Users, adminOnly: true },
-  { name: 'อัปโหลดข้อสอบ', href: '/dashboard/batches', icon: Upload },
+  { name: 'อัปโหลดใบตอบ', href: '/dashboard/batches', icon: Upload },
   { name: 'ตั้งค่าการตรวจ', href: '/dashboard/profiles', icon: Cog, adminOnly: true },
-  { name: 'งานตรวจข้อสอบ', href: '/dashboard/tasks', icon: BookOpenCheck },
+  { name: 'งานตรวจใบตอบ', href: '/dashboard/tasks', icon: BookOpenCheck },
   { name: 'ตรวจสอบ', href: '/dashboard/review', icon: FileText, adminOnly: true },
   { name: 'ผลคะแนน', href: '/dashboard/grading/answer-keys', icon: GraduationCap, adminOnly: true },
   { name: 'บัญชีกรอกคะแนน', href: '/dashboard/grading/exports', icon: Download },
   { name: 'รายชื่อนักเรียน', href: '/dashboard/students', icon: Search },
   { name: 'ประวัติการตรวจ', href: '/dashboard/audit', icon: FileSearch },
+  { name: 'วิธีตรวจใบตอบปรนัย', href: '/dashboard/help/video-tutorials', icon: CircleHelp },
 ];
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {

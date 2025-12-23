@@ -1,6 +1,6 @@
 import type { UploadType } from './batches';
 
-export type QueueItemStatus = 'pending' | 'uploading' | 'completed' | 'error' | 'aborted';
+export type QueueItemStatus = 'pending' | 'uploading' | 'processing' | 'completed' | 'error' | 'aborted';
 
 export interface QueueItem {
     id: string; // Unique ID for the queue item

@@ -59,7 +59,7 @@ function LoginForm() {
           height={108}
           className="mb-4"
         />
-        <h1 className="mb-2 text-3xl font-bold">ระบบตรวจข้อสอบปรนัย</h1>
+        <h1 className="mb-2 text-3xl font-bold">ระบบตรวจใบตอบวิชาปรนัย</h1>
         <h2 className="mb-2 text-xl font-bold">สำนักงานแม่กองธรรมสนามหลวง</h2>
         <p className="text-muted-foreground">กรุณาลงชื่อเพื่อใช้งาน</p>
       </div>

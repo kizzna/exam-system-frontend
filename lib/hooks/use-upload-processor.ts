@@ -66,14 +66,46 @@ export function useUploadQueueProcessor() {
                     abortController.signal
                 );
 
-                console.log(`[Queue] Completed file: ${nextItem.file.name} - Batch: ${result.batch_id}`);
+                console.log(`[Queue] Completed upload: ${nextItem.file.name} - Batch: ${result.batch_id}`);
 
+                // Update status to 'processing' and start polling
                 if (mountedRef.current) {
-                    updateItemStatus(nextItem.id, 'completed', undefined, result.batch_id);
+                    updateItemStatus(nextItem.id, 'processing', undefined, result.batch_id);
                 }
 
-                // Cool down
-                await new Promise(resolve => setTimeout(resolve, 5000));
+                // Poll for completion
+                // We keep the lock held effectively by awaiting this loop
+                // This ensures the next item doesn't start until this one is done
+                let isComplete = false;
+                const POLLING_INTERVAL = 2000; // 2 seconds
+
+                while (!isComplete && mountedRef.current) {
+                    try {
+                        // Dynamically import to avoid circular dependencies if any, 
+                        // though here we can likely import at top level. 
+                        // For safety in this hook context:
+                        const { batchesAPI } = await import('../api/batches');
+                        const status = await batchesAPI.getStatus(result.batch_id, false);
+
+                        // Check for terminal states
+                        if (status.status === 'completed' || status.status === 'failed') {
+                            isComplete = true;
+                            if (mountedRef.current) {
+                                // We mark it as completed in queue even if it failed processing
+                                // so the queue can move on. The UI will show red/green based on batch status.
+                                updateItemStatus(nextItem.id, 'completed', undefined, result.batch_id);
+                            }
+                        } else {
+                            // Still processing/validating
+                            await new Promise(resolve => setTimeout(resolve, POLLING_INTERVAL));
+                        }
+                    } catch (pollError) {
+                        console.error(`[Queue] Polling error for ${result.batch_id}:`, pollError);
+                        // If polling fails repeatedly, we might want to break, but one error shouldn't stop it if possible.
+                        // For now, let's just wait and retry.
+                        await new Promise(resolve => setTimeout(resolve, POLLING_INTERVAL));
+                    }
+                }
 
             } catch (error: any) {
                 console.error(`[Queue] Error uploading ${nextItem.file.name}:`, error);
@@ -86,10 +118,11 @@ export function useUploadQueueProcessor() {
                 // 5. Release lock
                 processingRef.current = false;
 
-                // 6. Trigger next cycle by updating isProcessing state (dependency)
-                // We typically want to set it false so the effect re-runs, sees !processingRef.current, and finds next item.
+                // 6. Trigger next cycle
                 if (mountedRef.current) {
+                    // We toggle isProcessing to force re-evaluation of effect
                     setProcessing(false);
+                    // Small delay to let state settle before next tick might pick up
                 }
             }
         };

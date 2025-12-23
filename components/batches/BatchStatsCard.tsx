@@ -67,7 +67,7 @@ export function BatchStatsCard({ batchId }: BatchStatsCardProps) {
                         <Badge className="bg-orange-500 hover:bg-orange-600">{stats.err_duplicate_sheets_total}</Badge>
                     </div>
                     <div className="flex items-center justify-between rounded-lg border p-3">
-                        <span className="text-sm font-medium">ตอบไม่ถึง 140 ข้อ</span>
+                        <span className="text-sm font-medium">ไม่ถึง 140 ข้อ</span>
                         <Badge className="bg-yellow-500 hover:bg-yellow-600">{stats.err_low_answer_total}</Badge>
                     </div>
                     <div className="flex items-center justify-between rounded-lg border p-3">

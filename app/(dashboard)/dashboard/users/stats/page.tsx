@@ -81,7 +81,7 @@ export default function UserStatsPage() {
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-center">
-                <h1 className="text-3xl font-bold">สถิติตรวจข้อสอบของผู้ใช้</h1>
+                <h1 className="text-3xl font-bold">สถิติตรวจใบตอบของผู้ใช้</h1>
             </div>
 
             <Card>

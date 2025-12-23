@@ -102,9 +102,9 @@ export default function ProfilesPage() {
         <div className="space-y-6">
             <div className="flex items-center justify-center gap-2">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">โปรไฟล์ตรวจข้อสอบ</h1>
+                    <h1 className="text-3xl font-bold tracking-tight">โปรไฟล์ตรวจใบตอบ</h1>
                     <p className="text-muted-foreground">
-                        จัดการโปรไฟล์และตั้งค่าการตรวจข้อสอบ
+                        จัดการโปรไฟล์และตั้งค่าการตรวจใบตอบ
                     </p>
                 </div>
                 <Button asChild>

@@ -102,7 +102,7 @@ export function TaskFilters({ filters, onFilterChange, onRefresh }: TaskFiltersP
             {/* Row 1: Evaluation Center, Task ID, Class Level, Class Group, Status */}
             <div className="grid gap-4 md:grid-cols-12">
                 <div className="space-y-2 col-span-12 md:col-span-4">
-                    <Label htmlFor="eval-center">กองงานตรวจข้อสอบ</Label>
+                    <Label htmlFor="eval-center">กองงานตรวจใบตอบ</Label>
                     <Select
                         value={filters.eval_center_id?.toString() || 'all'}
                         onValueChange={handleEvalCenterChange}

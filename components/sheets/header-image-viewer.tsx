@@ -14,9 +14,10 @@ import {
 
 interface HeaderImageViewerProps {
     sheetId?: string;
+    refreshKey?: number;
 }
 
-export function HeaderImageViewer({ sheetId, optimisticValues }: HeaderImageViewerProps & { optimisticValues?: Record<string, any> }) {
+export function HeaderImageViewer({ sheetId, refreshKey, optimisticValues }: HeaderImageViewerProps & { optimisticValues?: Record<string, any> }) {
     const { data: overlay, isLoading } = useQuery({
         queryKey: ['sheet-overlay', sheetId],
         queryFn: () => sheetsApi.getOverlay(sheetId!),
@@ -181,7 +182,7 @@ export function HeaderImageViewer({ sheetId, optimisticValues }: HeaderImageView
 
     return (
         <SmartImage
-            src={sheetsApi.getSheetImageUrl(sheetId, 'top', 920)}
+            src={sheetsApi.getSheetImageUrl(sheetId, 'top', 920, refreshKey)}
             width={overlay.top.dimensions.w}
             height={overlay.top.dimensions.h}
             items={items}
@@ -197,7 +198,7 @@ export function HeaderImageViewer({ sheetId, optimisticValues }: HeaderImageView
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <a
-                                href={sheetsApi.getSheetImageUrl(sheetId, 'original')}
+                                href={sheetsApi.getSheetImageUrl(sheetId, 'original', undefined, refreshKey)}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="flex items-center justify-center w-8 h-8 bg-white/90 hover:bg-white rounded shadow-sm border border-slate-200 transition-colors"
@@ -213,7 +214,7 @@ export function HeaderImageViewer({ sheetId, optimisticValues }: HeaderImageView
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <a
-                                href={sheetsApi.getSheetImageUrl(sheetId, 'aligned')}
+                                href={sheetsApi.getSheetImageUrl(sheetId, 'aligned', undefined, refreshKey)}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="flex items-center justify-center w-8 h-8 bg-white/90 hover:bg-white rounded shadow-sm border border-slate-200 transition-colors"

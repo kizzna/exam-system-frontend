@@ -6,6 +6,7 @@
 'use client';
 
 import React from 'react';
+import { useAuth } from '@/lib/providers/auth-provider';
 import { useBatchStatus, useRecoverable, useCancelBatch } from '@/lib/hooks/use-batches';
 import { useQueryClient } from '@tanstack/react-query';
 import { BatchStatusBadge } from './BatchStatusBadge';
@@ -20,7 +21,9 @@ interface BatchDetailsCardProps {
   isAdmin?: boolean;
 }
 
-export function BatchDetailsCard({ batchId, isAdmin = false }: BatchDetailsCardProps) {
+export function BatchDetailsCard({ batchId, isAdmin: propIsAdmin = false }: BatchDetailsCardProps) {
+  const { isAdmin: authIsAdmin } = useAuth();
+  const isAdmin = propIsAdmin || authIsAdmin;
   const { data: batch, isLoading, error, refetch } = useBatchStatus(batchId, false);
   const { data: recoveryData } = useRecoverable(batchId, batch?.status === 'failed');
   const cancelBatch = useCancelBatch();
@@ -92,7 +95,7 @@ export function BatchDetailsCard({ batchId, isAdmin = false }: BatchDetailsCardP
   if (isLoading) {
     return (
       <Card className="p-8 text-center">
-        <div className="text-gray-600">Loading batch details...</div>
+        <div className="text-gray-600">รายละเอียดการอัปโหลดใบตอบเป็นกลุ่ม...</div>
       </Card>
     );
   }
@@ -100,7 +103,7 @@ export function BatchDetailsCard({ batchId, isAdmin = false }: BatchDetailsCardP
   if (error) {
     return (
       <Card className="p-8">
-        <div className="mb-4 text-red-600">Error loading batch: {error.message}</div>
+        <div className="mb-4 text-red-600">เกิดข้อผิดพลาดในการโหลดรายละเอียดการอัปโหลดใบตอบเป็นกลุ่ม: {error.message}</div>
         <Button onClick={() => refetch()}>Retry</Button>
       </Card>
     );
@@ -109,7 +112,7 @@ export function BatchDetailsCard({ batchId, isAdmin = false }: BatchDetailsCardP
   if (!batch) {
     return (
       <Card className="p-8 text-center">
-        <div className="text-gray-600">Batch not found</div>
+        <div className="text-gray-600">ไม่พบรายละเอียดการอัปโหลดใบตอบเป็นกลุ่ม</div>
         <Link href="/dashboard/batches">
           <Button className="mt-4">Back to Batches</Button>
         </Link>
@@ -183,7 +186,7 @@ export function BatchDetailsCard({ batchId, isAdmin = false }: BatchDetailsCardP
           </div>
 
           <div>
-            <dt className="text-sm text-gray-600">จำนวนใบตอบตรวจผ่าน</dt>
+            <dt className="text-sm text-gray-600">จำนวนใบตอบที่ตรวจผ่าน</dt>
             <dd className="text-lg font-medium text-green-600">
               {batch.processed_sheets.toLocaleString()}
             </dd>
@@ -191,7 +194,7 @@ export function BatchDetailsCard({ batchId, isAdmin = false }: BatchDetailsCardP
 
           {batch.failed_sheets > 0 && (
             <div>
-              <dt className="text-sm text-gray-600">จำนวนใบตอบตรวจไม่ผ่าน</dt>
+              <dt className="text-sm text-gray-600">จำนวนใบตอบที่ตรวจไม่ผ่าน</dt>
               <dd className="text-lg font-medium text-red-600">
                 {batch.failed_sheets.toLocaleString()}
               </dd>
@@ -291,7 +294,7 @@ export function BatchDetailsCard({ batchId, isAdmin = false }: BatchDetailsCardP
                   {new Date(batch.processing_completed_at).toLocaleString()}
                 </div>
                 <div className="text-sm font-medium text-green-600">
-                  {batch.total_sheets.toLocaleString()} ใบตอบตรวจผ่าน
+                  {batch.total_sheets.toLocaleString()} สำเร็จ
                 </div>
                 {batch.processing_started_at && (
                   <div className="mt-2 space-y-1 text-xs">
@@ -373,7 +376,7 @@ export function BatchDetailsCard({ batchId, isAdmin = false }: BatchDetailsCardP
           </Link>
 
           {/* Recovery Button - Only shown if recoverable */}
-          {batch.status === 'failed' && recoveryData?.is_recoverable && (
+          {isAdmin && batch.status === 'failed' && recoveryData?.is_recoverable && (
             <Button
               onClick={handleRecover}
               disabled={isRecovering}
