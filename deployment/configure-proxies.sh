@@ -13,7 +13,7 @@ RED='\033[0;31m'
 NC='\033[0m'
 
 # Default values
-LAYER=""
+LAYER="2"
 DOMAIN="omr.gongtham.net"
 NGINX_SITES_AVAILABLE="/etc/nginx/sites-available"
 NGINX_SITES_ENABLED="/etc/nginx/sites-enabled"
@@ -54,18 +54,29 @@ configure_layer_1() {
     CONFIG_NAME="omr-ingress-layer1"
     echo -e "${BLUE}Configuring Layer 1: Ingress (Cloudflare Tunnel Target)${NC}"
     echo "Domain: $DOMAIN"
-    echo "Listening Port: 8091"
+    echo "Listening Port: 8091 & 80"
+    
+    # Backup existing config if exists
+    if [ -f "$NGINX_SITES_AVAILABLE/$CONFIG_NAME" ]; then
+        BACKUP_FILE="$NGINX_SITES_AVAILABLE/$CONFIG_NAME.backup.$(date +%Y%m%d_%H%M%S)"
+        echo -e "${YELLOW}Backing up existing config to: $BACKUP_FILE${NC}"
+        cp "$NGINX_SITES_AVAILABLE/$CONFIG_NAME" "$BACKUP_FILE"
+    fi
     
     cat > "$NGINX_SITES_AVAILABLE/$CONFIG_NAME" << EOF
 # LAYER 1: Ingress / Tunnel Endpoint
 # Receives traffic from Cloudflare Tunnel (Port 8091)
+# Receives traffic from local network (Port 80)
 # Forwards to Layer 2 (Unified Gateway)
 
 upstream layer2_gateway {
-    server gt-omr-web-1.gt:80;  # API Server, port 80
+    server gt-omr-web-1.gt:80;
+    server gt-omr-web-2.gt:80;
+    server gt-omr-web-3.gt:80;
     keepalive 64;
 }
 
+# Public traffic (Cloudflare)
 server {
     listen 8091;
     server_name $DOMAIN;
@@ -83,7 +94,7 @@ server {
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection "upgrade"; # Needed for Websockets
-        
+
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
@@ -91,10 +102,58 @@ server {
 
         # Timeouts - Must be > Layer 2 timeouts
         proxy_connect_timeout 75s;
-        proxy_send_timeout 3600s;
         proxy_read_timeout 3600s;
 
         # Disable buffering to allow streaming through ingress
+        proxy_request_buffering off;
+        proxy_buffering off;
+
+        # Increase buffer size for headers only (not body)
+        proxy_buffer_size 128k;
+        proxy_buffers 4 256k;
+        proxy_busy_buffers_size 256k;
+    }
+}
+
+# Local traffic
+server {
+    listen 80;
+    server_name omr.gt;
+
+    # Logging for internal traffic
+    access_log /var/log/nginx/layer1-internal.access.log;
+    error_log /var/log/nginx/layer1-internal.error.log warn;
+
+    # Match the max body size of the public ingress so internal users can upload too
+    client_max_body_size 500M;
+
+    location / {
+        # Re-use the existing upstream defined in Layer 1
+        proxy_pass http://layer2_gateway;
+
+        # Standard Proxy Headers
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade"; # Essential for WebSockets
+
+        # Pass the Host header 'omr.gt' to Layer 2
+        proxy_set_header Host \$host;
+
+        # Real IP Handling
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+
+        # IMPORTANT CHANGE:
+        # Unlike the Cloudflare block which forces 'https',
+        # internal traffic usually comes over 'http'.
+        # Using \$scheme passes the actual protocol used by the client.
+        proxy_set_header X-Forwarded-Proto \$scheme;
+
+        # Timeouts - keeping consistent with public ingress
+        proxy_connect_timeout 75s;
+        proxy_read_timeout 3600s;
+
+        # Disable buffering for streaming/realtime consistency
         proxy_request_buffering off;
         proxy_buffering off;
     }
@@ -107,6 +166,13 @@ configure_layer_2() {
     CONFIG_NAME="omr-gateway-layer2"
     echo -e "${BLUE}Configuring Layer 2: Unified Gateway (Application Logic)${NC}"
     echo "Listening Port: 80"
+    
+    # Backup existing config if exists
+    if [ -f "$NGINX_SITES_AVAILABLE/$CONFIG_NAME" ]; then
+        BACKUP_FILE="$NGINX_SITES_AVAILABLE/$CONFIG_NAME.backup.$(date +%Y%m%d_%H%M%S)"
+        echo -e "${YELLOW}Backing up existing config to: $BACKUP_FILE${NC}"
+        cp "$NGINX_SITES_AVAILABLE/$CONFIG_NAME" "$BACKUP_FILE"
+    fi
     
     cat > "$NGINX_SITES_AVAILABLE/$CONFIG_NAME" << EOF
 # LAYER 2: Unified Application Gateway
@@ -144,6 +210,22 @@ server {
     listen [::]:80;
     server_name _;
 
+    # --- REAL IP CONFIGURATION ---
+    # Trust the internal networks where Layer 1 lives.
+    # Allow Nginx to look inside X-Forwarded-For to find the real client IP.
+
+    # Trust local private ranges
+    set_real_ip_from 10.10.24.0/22; # All servers lives on this subnet
+    #set_real_ip_from 172.16.0.0/12;
+    #set_real_ip_from 192.168.0.0/16;
+
+    # Use the header built by Layer 1 / Cloudflare
+    real_ip_header X-Forwarded-For;
+
+    # Recursive on: Ignore trusted IPs (Layer 1) at the end of the chain
+    # and pick the last UNTRUSTED IP (The User or Cloudflare Edge).
+    real_ip_recursive on;
+
     # Global Proxy Headers
     proxy_http_version 1.1;
     proxy_set_header Upgrade \$http_upgrade;
@@ -169,10 +251,10 @@ server {
     location ~ ^/api/realtime/(.*)\$ {
         # Limit Burst
         limit_req zone=api_limit burst=50 nodelay;
-        
+
         # Rewrite URL: /api/realtime/batches -> /api/batches
         rewrite ^/api/realtime/(.*)\$ /api/\$1 break;
-        
+
         proxy_pass http://fastapi_upstream;
 
         # OPTIMIZATION: Disable Buffering for Streams
@@ -192,13 +274,13 @@ server {
     location /api/ {
         limit_req zone=api_limit burst=20 nodelay;
         proxy_pass http://fastapi_upstream;
-        
+
         # Standard Buffering (Valid for small JSON responses)
         # Nginx default buffering is ON, which is good for storage/network efficiency
-        
+
         # Standard Timeouts
         proxy_read_timeout 60s;
-        
+
         proxy_cache_bypass \$http_upgrade;
     }
 
@@ -217,8 +299,8 @@ server {
         sendfile_max_chunk 512k;
 
         # Allow video seeking
-        add_header Accept-Ranges bytes; 
-        
+        add_header Accept-Ranges bytes;
+
         # Don't cache video files in Nginx proxy cache (too large)
         proxy_max_temp_file_size 0;
     }
@@ -263,6 +345,9 @@ EOF
     
     # Disable default if exists
     [ -L "$NGINX_SITES_ENABLED/default" ] && rm "$NGINX_SITES_ENABLED/default"
+    
+    # Enable the site automatically for Layer 2 as it's the default
+    enable_site "$CONFIG_NAME"
 }
 
 setup_cache() {

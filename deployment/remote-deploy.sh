@@ -84,9 +84,10 @@ ssh "$SERVER" "mkdir -p /tmp/exam-system-deployment"
 echo "Copying deployment scripts..."
 scp "$SCRIPT_DIR/install-dependencies.sh" \
     "$SCRIPT_DIR/setup-frontend-local.sh" \
-    "$SCRIPT_DIR/configure-nginx.sh" \
+    "$SCRIPT_DIR/configure-proxies.sh" \
     "$SCRIPT_DIR/deploy-frontend.sh" \
-    "$SERVER:/tmp/exam-system-deployment/" &>/dev/null
+    "$SERVER:/tmp/exam-system-deployment/" 
+    # &>/dev/null
 
 ssh "$SERVER" "chmod +x /tmp/exam-system-deployment/*.sh"
 
@@ -96,17 +97,33 @@ echo ""
 # Step 3: Sync code to CephFS
 echo -e "${BLUE}═══ Step 3: Syncing Code to CephFS ═══${NC}"
 
-SYNC_SCRIPT="$WORKSPACE_DIR/scripts/dev-sync-frontend.sh"
+MAIN_SERVER="gt-omr-web-1"
 
-if [ ! -f "$SYNC_SCRIPT" ]; then
-    echo -e "${RED}Error: Sync script not found: $SYNC_SCRIPT${NC}"
-    exit 1
+if [ "$SERVER" = "$MAIN_SERVER" ]; then
+    SYNC_SCRIPT="$WORKSPACE_DIR/scripts/dev-sync-frontend.sh"
+
+    if [ ! -f "$SYNC_SCRIPT" ]; then
+        echo -e "${RED}Error: Sync script not found: $SYNC_SCRIPT${NC}"
+        exit 1
+    fi
+
+    echo "Running sync script..."
+    # Capture output to find the created release directory
+    SYNC_OUTPUT=$(bash "$SYNC_SCRIPT" --no-switch | tee /dev/tty)
+    
+    # Extract the release directory path
+    RELEASE_DIR=$(echo "$SYNC_OUTPUT" | grep "CREATED_RELEASE_DIR=" | cut -d'=' -f2)
+    
+    if [ -n "$RELEASE_DIR" ]; then
+        echo "Detected new release directory: $RELEASE_DIR"
+    else
+        echo -e "${YELLOW}Warning: Could not detect release directory from sync output${NC}"
+    fi
+
+    echo -e "${GREEN}✓ Code synced to CephFS (Switch deferred)${NC}"
+else
+    echo "Skipping sync because Target ($SERVER) is not Main Server ($MAIN_SERVER)"
 fi
-
-echo "Running sync script..."
-bash "$SYNC_SCRIPT"
-
-echo -e "${GREEN}✓ Code synced to CephFS${NC}"
 echo ""
 
 # Step 4: Run deployment on server
@@ -118,6 +135,9 @@ if [ "$SKIP_DEPS" = true ]; then
 fi
 if [ "$BUILD" = true ]; then
     DEPLOY_ARGS="$DEPLOY_ARGS --build"
+fi
+if [ -n "$RELEASE_DIR" ]; then
+    DEPLOY_ARGS="$DEPLOY_ARGS --release-path $RELEASE_DIR"
 fi
 
 echo "Executing deployment script on $SERVER..."
@@ -134,8 +154,10 @@ echo ""
 echo -e "${BLUE}═══ Step 5: Verifying Deployment ═══${NC}"
 
 # Check PM2 status
+# Check PM2 status
 echo "Checking PM2 status..."
-PM2_STATUS=$(ssh "$SERVER" "pm2 jlist 2>/dev/null | jq -r '.[] | select(.name==\"exam-system-frontend\") | .pm2_env.status'")
+# Explicitly use the www-data user and PM2_HOME to ensure we see the correct process list
+PM2_STATUS=$(ssh "$SERVER" "sudo -u www-data PM2_HOME=/opt/exam-system-frontend/pm2 pm2 jlist 2>/dev/null | jq -r '.[] | select(.name==\"exam-system-frontend\") | .pm2_env.status'")
 
 if [ "$PM2_STATUS" = "online" ]; then
     echo -e "${GREEN}✓ Application is online${NC}"

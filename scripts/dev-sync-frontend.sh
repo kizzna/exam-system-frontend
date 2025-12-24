@@ -13,6 +13,7 @@ RELEASE_DIR="$CEPHFS_BASE/releases/dev-$TIMESTAMP"
 
 # Parse arguments
 DRY_RUN=false
+NO_SWITCH=false
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -20,9 +21,13 @@ while [[ $# -gt 0 ]]; do
       DRY_RUN=true
       shift
       ;;
+    --no-switch)
+      NO_SWITCH=true
+      shift
+      ;;
     *)
       echo "Unknown option: $1"
-      echo "Usage: $0 [--dry-run]"
+      echo "Usage: $0 [--dry-run] [--no-switch]"
       exit 1
       ;;
   esac
@@ -33,8 +38,7 @@ echo "Local Dir: $LOCAL_DIR"
 echo "CephFS Base: $CEPHFS_BASE"
 echo "Release Dir: $RELEASE_DIR"
 echo "Dry Run: $DRY_RUN"
-echo ""
-echo "NOTE: Build will be done on the server, not in dev container"
+echo "No Switch: $NO_SWITCH"
 echo ""
 
 # Prepare rsync command
@@ -61,14 +65,13 @@ fi
 # Sync files
 echo "Syncing files..."
 $RSYNC_CMD "$LOCAL_DIR/" "$RELEASE_DIR/"
-#echo "Syncing files in parallel..."
-#cd "$LOCAL_DIR"
-#ls -A | parallel -j8 rsync -av --progress --relative {} "$RELEASE_DIR/"
 
 # Update symlink to current
-if [ "$DRY_RUN" = false ]; then
+if [ "$DRY_RUN" = false ] && [ "$NO_SWITCH" = false ]; then
   ln -sfn "$RELEASE_DIR" "$CEPHFS_BASE/current"
   echo "✓ Updated current symlink"
+elif [ "$NO_SWITCH" = true ]; then
+  echo "Skipping symlink switch (--no-switch used)"
 fi
 
 echo ""
@@ -76,6 +79,9 @@ echo "=== Sync Complete ==="
 
 echo ""
 echo "Code synced to: $RELEASE_DIR"
+# Output specific format for capture
+echo "CREATED_RELEASE_DIR=$RELEASE_DIR"
+
 echo "Current symlink updated: $CEPHFS_BASE/current"
 echo ""
 echo "Next steps:"

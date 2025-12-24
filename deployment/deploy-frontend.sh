@@ -22,6 +22,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKIP_DEPS=false
 SKIP_BUILD=false
 BUILD=false
+RELEASE_PATH=""
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -37,9 +38,13 @@ while [[ $# -gt 0 ]]; do
       BUILD=true
       shift
       ;;
+    --release-path)
+      RELEASE_PATH="$2"
+      shift 2
+      ;;
     *)
       echo "Unknown option: $1"
-      echo "Usage: $0 [--skip-deps] [--skip-build] [--build]"
+      echo "Usage: $0 [--skip-deps] [--skip-build] [--build] [--release-path PATH]"
       exit 1
       ;;
   esac
@@ -226,7 +231,21 @@ echo ""
 if [ "$SKIP_BUILD" = false ]; then
     echo -e "${BLUE}═══ Step 5: Installing Dependencies and Building ═══${NC}"
     
-    cd "$CEPHFS_BASE/current"
+    # Determine build directory
+    if [ -n "$RELEASE_PATH" ]; then
+        BUILD_DIR="$RELEASE_PATH"
+        echo "Using provided release path: $BUILD_DIR"
+    else
+        BUILD_DIR="$CEPHFS_BASE/current"
+        echo "Using current symlink: $BUILD_DIR"
+    fi
+
+    if [ ! -d "$BUILD_DIR" ]; then
+         echo -e "${RED}Error: Build directory not found: $BUILD_DIR${NC}"
+         exit 1
+    fi
+    
+    cd "$BUILD_DIR"
     
     # Install all dependencies (including devDependencies for build)
     echo "Installing dependencies..."
@@ -235,7 +254,8 @@ if [ "$SKIP_BUILD" = false ]; then
         pnpm install --frozen-lockfile
     else
         echo "Running: pnpm install --prod --frozen-lockfile (production only)"
-        pnpm install --prod --frozen-lockfile
+        # Use || true to ignore 'husky install' failure in prepare script (since husky is devDep)
+        pnpm install --prod --frozen-lockfile || true
     fi
     
     echo -e "${GREEN}✓ Dependencies installed${NC}"
@@ -269,11 +289,28 @@ if [ "$SKIP_BUILD" = false ]; then
         echo "Removing devDependencies..."
         pnpm install --prod --frozen-lockfile || true  # Ignore husky prepare script error
         echo -e "${GREEN}✓ DevDependencies removed${NC}"
+
+        # SWITCH SYMLINK if RELEASE_PATH was provided
+        if [ -n "$RELEASE_PATH" ]; then
+             echo ""
+             echo "Switching live symlink to new release..."
+             ln -sfn "$RELEASE_PATH" "$CEPHFS_BASE/current"
+             echo -e "${GREEN}✓ Live symlink updated to: $RELEASE_PATH${NC}"
+             
+             # Also update local current link just in case
+             if [ -L "$LOCAL_ROOT/current" ]; then
+                  ln -sfn "$CEPHFS_BASE/current" "$LOCAL_ROOT/current"
+             fi
+        fi
     fi
 else
     echo -e "${YELLOW}⊘ Skipping dependency installation and build${NC}"
+    # If we skipped build but have a new release path, we should probably switch anyway?
+    # For now, let's assume if you skip build you manage symlinks manually or trust 'current'
+    if [ -n "$RELEASE_PATH" ]; then
+         echo -e "${YELLOW}Warning: New release path provided but build skipped. Symlink NOT updated.${NC}"
+    fi
 fi
-
 echo ""
 
 # Step 6: Configure Nginx
@@ -285,7 +322,14 @@ echo -e "${BLUE}═══ Step 6: Configuring Nginx ═══${NC}"
 #     echo -e "${YELLOW}Warning: configure-nginx.sh not found${NC}"
 #     echo "Please configure Nginx manually"
 # fi
-echo -e "${YELLOW}Skipping Nginx configuration (Handled by configure-proxies.sh)${NC}"
+# echo -e "${YELLOW}Skipping Nginx configuration (Handled by configure-proxies.sh)${NC}"
+
+if [ -f "$SCRIPT_DIR/configure-proxies.sh" ]; then
+    echo "Running Nginx proxy configuration (Layer 2)..."
+    bash "$SCRIPT_DIR/configure-proxies.sh" --layer 2
+else
+    echo -e "${RED}Error: configure-proxies.sh not found${NC}"
+fi
 
 echo ""
 
