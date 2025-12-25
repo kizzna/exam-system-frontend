@@ -101,3 +101,14 @@ export interface RosterEntry {
 export interface ExamCenterInfo {
   center_name: string | null;
 }
+
+export interface RecalculateBatchResponse {
+  tasks_found: number;
+  tasks_recalculated: number;
+  status: string;
+}
+
+export interface RecalculateTaskStatsResponse {
+  tasks_recalculated: number;
+  status: string;
+}

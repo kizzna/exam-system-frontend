@@ -126,6 +126,7 @@ export default function TasksPage() {
           queryClient.invalidateQueries({ queryKey: ['tasks'] });
           queryClient.invalidateQueries({ queryKey: ['tasks-stats'] });
         }}
+        selectedTaskIds={selectedTaskIds}
       />
 
       <TaskList

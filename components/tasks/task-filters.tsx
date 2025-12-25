@@ -1,16 +1,17 @@
 'use client';
-
 import { useEffect } from 'react';
 import { useAuth } from '@/lib/providers/auth-provider';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { masterDataApi } from '@/lib/api/master-data';
+import { tasksApi } from '@/lib/api/tasks';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
-import { Filter } from 'lucide-react';
+import { Filter, Calculator, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export interface TaskFiltersState {
     eval_center_id?: number;
@@ -41,9 +42,10 @@ interface TaskFiltersProps {
     filters: TaskFiltersState;
     onFilterChange: (filters: TaskFiltersState) => void;
     onRefresh?: () => void;
+    selectedTaskIds?: number[];
 }
 
-export function TaskFilters({ filters, onFilterChange, onRefresh }: TaskFiltersProps) {
+export function TaskFilters({ filters, onFilterChange, onRefresh, selectedTaskIds = [] }: TaskFiltersProps) {
     const { user, isAdmin } = useAuth();
 
     // Fetch evaluation centers
@@ -51,6 +53,43 @@ export function TaskFilters({ filters, onFilterChange, onRefresh }: TaskFiltersP
         queryKey: ['evaluation-centers'],
         queryFn: masterDataApi.getEvaluationCenters,
     });
+
+    // Mutations
+    const recalculateBatchMutation = useMutation({
+        mutationFn: tasksApi.recalculateBatch,
+        onSuccess: (data) => {
+            toast.success(`Recalculation successful: ${data.tasks_recalculated} tasks processed.`);
+            onRefresh?.();
+        },
+        onError: (error) => {
+            toast.error('Failed to recalculate batch statistics');
+            console.error(error);
+        },
+    });
+
+    const recalculateTasksMutation = useMutation({
+        mutationFn: tasksApi.recalculateTaskStatistics,
+        onSuccess: (data) => {
+            toast.success(`Recalculation successful: ${data.tasks_recalculated} tasks processed.`);
+            onRefresh?.();
+        },
+        onError: (error) => {
+            toast.error('Failed to recalculate task statistics');
+            console.error(error);
+        },
+    });
+
+    const handleRecalculateBatch = () => {
+        if (!filters.eval_center_id) return;
+        if (!confirm('Are you sure you want to recalculate statistics for this evaluation center? This may take a while.')) return;
+        recalculateBatchMutation.mutate(filters.eval_center_id);
+    };
+
+    const handleRecalculateTasks = () => {
+        if (selectedTaskIds.length === 0) return;
+        if (!confirm(`Are you sure you want to recalculate statistics for ${selectedTaskIds.length} selected tasks?`)) return;
+        recalculateTasksMutation.mutate(selectedTaskIds);
+    };
 
     // Determine user scopes
     const evalCenterScope = user?.scopes?.find((s) => s.scope_type === 'eval_center');
@@ -103,23 +142,40 @@ export function TaskFilters({ filters, onFilterChange, onRefresh }: TaskFiltersP
             <div className="grid gap-4 md:grid-cols-12">
                 <div className="space-y-2 col-span-12 md:col-span-4">
                     <Label htmlFor="eval-center">กองงานตรวจใบตอบ</Label>
-                    <Select
-                        value={filters.eval_center_id?.toString() || 'all'}
-                        onValueChange={handleEvalCenterChange}
-                        disabled={!!lockedEvalCenterId}
-                    >
-                        <SelectTrigger id="eval-center">
-                            <SelectValue placeholder="Select Evaluation Center" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">ทั้งหมด</SelectItem>
-                            {evalCenters?.map((center) => (
-                                <SelectItem key={center.id} value={center.id.toString()}>
-                                    {center.name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    <div className="flex gap-2">
+                        <Select
+                            value={filters.eval_center_id?.toString() || 'all'}
+                            onValueChange={handleEvalCenterChange}
+                            disabled={!!lockedEvalCenterId}
+                        >
+                            <SelectTrigger id="eval-center">
+                                <SelectValue placeholder="Select Evaluation Center" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">ทั้งหมด</SelectItem>
+                                {evalCenters?.map((center) => (
+                                    <SelectItem key={center.id} value={center.id.toString()}>
+                                        {center.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        {isAdmin && filters.eval_center_id && (
+                            <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={handleRecalculateBatch}
+                                disabled={recalculateBatchMutation.isPending}
+                                title="คำนวณสถิติใหม่ (Evaluation Center)"
+                            >
+                                {recalculateBatchMutation.isPending ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    <Calculator className="h-4 w-4" />
+                                )}
+                            </Button>
+                        )}
+                    </div>
                 </div>
 
 
@@ -301,7 +357,7 @@ export function TaskFilters({ filters, onFilterChange, onRefresh }: TaskFiltersP
                 </div>
 
 
-                <div className="flex items-end">
+                <div className="flex items-end gap-2">
                     <Popover>
                         <PopoverTrigger asChild>
                             <Button variant="outline">
@@ -396,6 +452,20 @@ export function TaskFilters({ filters, onFilterChange, onRefresh }: TaskFiltersP
                             </div>
                         </PopoverContent>
                     </Popover>
+                    {selectedTaskIds.length > 0 && (
+                        <Button
+                            variant="outline"
+                            onClick={handleRecalculateTasks}
+                            disabled={recalculateTasksMutation.isPending}
+                        >
+                            {recalculateTasksMutation.isPending ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                                <Calculator className="mr-2 h-4 w-4" />
+                            )}
+                            คำนวณสถิติใหม่
+                        </Button>
+                    )}
                 </div>
 
                 {/* Search by Batch ID, not used yet */}

@@ -99,4 +99,13 @@ export const tasksApi = {
     await apiClient.patch(`/tasks/${task_id}/review-results`, { review_results });
   },
 
+  recalculateBatch: async (eval_center_id: number): Promise<import('../types/tasks').RecalculateBatchResponse> => {
+    const response = await apiClient.post<import('../types/tasks').RecalculateBatchResponse>('/tasks/recalculate-batch', { eval_center_id });
+    return response.data;
+  },
+
+  recalculateTaskStatistics: async (task_ids: number[]): Promise<import('../types/tasks').RecalculateTaskStatsResponse> => {
+    const response = await apiClient.post<import('../types/tasks').RecalculateTaskStatsResponse>('/tasks/recalculate-task-statistics', { task_ids });
+    return response.data;
+  },
 };
