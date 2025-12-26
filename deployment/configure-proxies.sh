@@ -45,8 +45,8 @@ fi
 SERVER_IP=$(hostname -I | awk '{print $1}')
 
 # Check Nginx
-if ! command -v nginx &> /dev/null; then
-    echo -e "${RED}Error: Nginx is not installed.${NC}"
+if ! command -v nginx &> /dev/null && ! command -v openresty &> /dev/null; then
+    echo -e "${RED}Error: Nginx or OpenResty is not installed.${NC}"
     exit 1
 fi
 
@@ -162,23 +162,73 @@ EOF
     enable_site "$CONFIG_NAME"
 }
 
-configure_layer_2() {
-    CONFIG_NAME="omr-gateway-layer2"
-    echo -e "${BLUE}Configuring Layer 2: Unified Gateway (Application Logic)${NC}"
-    echo "Listening Port: 80"
-    
-    # Backup existing config if exists
-    if [ -f "$NGINX_SITES_AVAILABLE/$CONFIG_NAME" ]; then
-        BACKUP_FILE="$NGINX_SITES_AVAILABLE/$CONFIG_NAME.backup.$(date +%Y%m%d_%H%M%S)"
-        echo -e "${YELLOW}Backing up existing config to: $BACKUP_FILE${NC}"
-        cp "$NGINX_SITES_AVAILABLE/$CONFIG_NAME" "$BACKUP_FILE"
+
+# OpenResty Paths
+OPENRESTY_CONF_DIR="/etc/openresty"
+OPENRESTY_CONF_D="/etc/openresty/conf.d"
+OPENRESTY_MAIN_CONF="/etc/openresty/nginx.conf"
+
+setup_openresty_main_conf() {
+    echo "Configuring OpenResty main config..."
+    if [ ! -f "$OPENRESTY_MAIN_CONF" ]; then
+        echo -e "${RED}Error: OpenResty config not found at $OPENRESTY_MAIN_CONF${NC}"
+        return 1
     fi
+
+    # Backup
+    if [ ! -f "$OPENRESTY_MAIN_CONF.bak" ]; then
+        cp "$OPENRESTY_MAIN_CONF" "$OPENRESTY_MAIN_CONF.bak"
+    fi
+
+    # Ensure conf.d include exists
+    if ! grep -q "include $OPENRESTY_CONF_D/\*\.conf;" "$OPENRESTY_MAIN_CONF"; then
+        sed -i "/http {/a \    include $OPENRESTY_CONF_D/*.conf;" "$OPENRESTY_MAIN_CONF"
+    else
+        echo "Main config already includes conf.d"
+    fi
+
+    # Ensure cache path exists (for static content)
+    mkdir -p /var/cache/nginx/static
+    chown -R nobody:adm /var/cache/nginx
+    if ! grep -q "proxy_cache_path.*/var/cache/nginx/static" "$OPENRESTY_MAIN_CONF"; then
+        sed -i "/http {/a \    proxy_cache_path /var/cache/nginx/static levels=1:2 keys_zone=STATIC:10m inactive=7d use_temp_path=off;" "$OPENRESTY_MAIN_CONF"
+    fi
+}
+
+resolve_ipv4() {
+    local HOST=$1
+    # Try getent ahosts first (glibc)
+    local IP=$(getent ahosts "$HOST" | awk '{ print $1 }' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1)
     
-    cat > "$NGINX_SITES_AVAILABLE/$CONFIG_NAME" << EOF
-# LAYER 2: Unified Application Gateway
+    # Fallback to getent hosts
+    if [ -z "$IP" ]; then
+        IP=$(getent hosts "$HOST" | awk '{ print $1 }' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1)
+    fi
+
+    echo "$IP"
+}
+
+configure_layer_2() {
+    CONFIG_NAME="omr-gateway"
+    echo -e "${BLUE}Configuring Layer 2: Unified Gateway (OpenResty)${NC}"
+    
+    # Setup Main Config first
+    setup_openresty_main_conf
+    mkdir -p "$OPENRESTY_CONF_D"
+
+    # resolve upstreams to IPv4
+    API_NODE_1=$(resolve_ipv4 "gt-omr-api-1")
+    API_NODE_2=$(resolve_ipv4 "gt-omr-api-2")
+    
+    if [ -z "$API_NODE_1" ]; then API_NODE_1="127.0.0.1"; fi 
+    if [ -z "$API_NODE_2" ]; then API_NODE_2="127.0.0.1"; fi
+
+    echo "Resolved API Nodes: $API_NODE_1, $API_NODE_2"
+
+    cat > "$OPENRESTY_CONF_D/omr-gateway.conf" << EOF
+# LAYER 2: Unified Application Gateway (OpenResty)
 # Receives traffic from Layer 1
 # Splits traffic to Next.js (Frontend) and FastAPI (Backend)
-# Implements Real-time vs REST lanes
 
 # WebSocket Helper
 map \$http_upgrade \$connection_upgrade {
@@ -196,34 +246,49 @@ upstream nextjs_upstream {
     keepalive 64;
 }
 
+# Lua Configuration for Active Health Checks
+lua_package_path "/usr/local/openresty/lualib/?.lua;;";
+lua_shared_dict healthcheck 1m;
+
+init_worker_by_lua_block {
+    local hc = require "resty.upstream.healthcheck"
+    local ok, err = hc.spawn_checker{
+        shm = "healthcheck",
+        upstream = "fastapi_upstream",
+        type = "http",
+        http_req = "GET / HTTP/1.0\r\nHost: gt-omr-api.gt\r\nUser-Agent: lua-resty-upstream-healthcheck\r\n\r\n",
+        interval = 2000,
+        timeout = 1000,
+        fall = 3,
+        rise = 2,
+        valid_statuses = {200, 302},
+        concurrency = 1,
+    }
+    if not ok then
+        ngx.log(ngx.ERR, "failed to spawn health checker: ", err)
+        return
+    end
+}
+
 upstream fastapi_upstream {
-    server gt-omr-api.gt:8000;
+    # Resolved IPv4 addresses to avoid 'Connection refused' on IPv6
+    server $API_NODE_1:8000;
+    server $API_NODE_2:8000;
     keepalive 64;
 }
 
 # Rate Limiting
 limit_req_zone \$binary_remote_addr zone=frontend_limit:10m rate=10r/s;
-limit_req_zone \$binary_remote_addr zone=api_limit:10m rate=50r/s; # Increased for API
+limit_req_zone \$binary_remote_addr zone=api_limit:10m rate=50r/s;
 
 server {
     listen 80;
     listen [::]:80;
     server_name _;
 
-    # --- REAL IP CONFIGURATION ---
-    # Trust the internal networks where Layer 1 lives.
-    # Allow Nginx to look inside X-Forwarded-For to find the real client IP.
-
-    # Trust local private ranges
-    set_real_ip_from 10.10.24.0/22; # All servers lives on this subnet
-    #set_real_ip_from 172.16.0.0/12;
-    #set_real_ip_from 192.168.0.0/16;
-
-    # Use the header built by Layer 1 / Cloudflare
+    # Real IP Config
+    set_real_ip_from 10.10.24.0/22;
     real_ip_header X-Forwarded-For;
-
-    # Recursive on: Ignore trusted IPs (Layer 1) at the end of the chain
-    # and pick the last UNTRUSTED IP (The User or Cloudflare Edge).
     real_ip_recursive on;
 
     # Global Proxy Headers
@@ -246,66 +311,41 @@ server {
 
     client_max_body_size 500M;
 
-    # --- LANE 1: Real-time API (Streaming/Uploads) ---
-    # Matches /api/realtime/ and rewrites to /api/
+    # Lane 1: Real-time API
     location ~ ^/api/realtime/(.*)\$ {
-        # Limit Burst
         limit_req zone=api_limit burst=50 nodelay;
-
-        # Rewrite URL: /api/realtime/batches -> /api/batches
         rewrite ^/api/realtime/(.*)\$ /api/\$1 break;
-
         proxy_pass http://fastapi_upstream;
-
-        # OPTIMIZATION: Disable Buffering for Streams
         proxy_request_buffering off;
         proxy_buffering off;
-
-        # EXTENDED TIMEOUTS
         proxy_read_timeout 3600s;
         proxy_send_timeout 3600s;
         proxy_connect_timeout 75s;
-
         proxy_cache_bypass \$http_upgrade;
     }
 
-    # --- LANE 2: Standard REST API (Default) ---
-    # Matches /api/
+    # Lane 2: Standard REST API
     location /api/ {
         limit_req zone=api_limit burst=20 nodelay;
         proxy_pass http://fastapi_upstream;
-
-        # Standard Buffering (Valid for small JSON responses)
-        # Nginx default buffering is ON, which is good for storage/network efficiency
-
-        # Standard Timeouts
         proxy_read_timeout 60s;
-
         proxy_cache_bypass \$http_upgrade;
     }
 
-    # --- INTERNAL VIDEO STREAMING ---
-    # This location is NOT accessible directly by the browser.
-    # It can only be reached via internal redirect from Next.js
+    # Internal Video Streaming
     location /protected_videos/ {
         internal;
-        alias /cephfs/omr/tutorials/; # <--- UPDATE THIS to your actual CephFS mount path
-
-        # Optimization for video delivery
-        aio threads;           # Use asynchronous I/O if available
-        directio 512;          # Optimization for large files
-        output_buffers 1 2M;   # Optimize buffer for streaming
-        sendfile on;           # Zero-copy file transfer
+        alias /cephfs/omr/tutorials/;
+        aio threads;
+        directio 512;
+        output_buffers 1 2M;
+        sendfile on;
         sendfile_max_chunk 512k;
-
-        # Allow video seeking
         add_header Accept-Ranges bytes;
-
-        # Don't cache video files in Nginx proxy cache (too large)
         proxy_max_temp_file_size 0;
     }
 
-    # --- NEXT.JS ROUTES ---
+    # Next.js Routes
     location /_next/static {
         proxy_cache STATIC;
         proxy_pass http://nextjs_upstream;
@@ -334,53 +374,35 @@ server {
         access_log off;
         proxy_pass http://nextjs_upstream;
     }
+
+    # Health Check Status Page
+    location /status {
+        access_log off;
+        default_type text/plain;
+        content_by_lua_block {
+            local hc = require "resty.upstream.healthcheck"
+            ngx.say("Nginx Worker PID: ", ngx.worker.pid())
+            ngx.print(hc.status_page())
+        }
+    }
 }
 EOF
-    
-    # Ensure cache config exists
-    setup_cache
 
-    # Site is enabled manually by the user
-    # enable_site "$CONFIG_NAME"
+    echo -e "${GREEN}✓ OpenResty configured at $OPENRESTY_CONF_D/omr-gateway.conf${NC}"
     
-    # Disable default if exists
-    [ -L "$NGINX_SITES_ENABLED/default" ] && rm "$NGINX_SITES_ENABLED/default"
-    
-    # Enable the site automatically for Layer 2 as it's the default
-    enable_site "$CONFIG_NAME"
-}
-
-setup_cache() {
-    if ! grep -q "proxy_cache_path" /etc/nginx/nginx.conf; then
-         # This simple sed might be fragile but works for standard installs
-         sed -i '/http {/a \    proxy_cache_path /var/cache/nginx/static levels=1:2 keys_zone=STATIC:10m inactive=7d use_temp_path=off;' /etc/nginx/nginx.conf
-    fi
-    mkdir -p /var/cache/nginx/static
-    chown -R www-data:www-data /var/cache/nginx
-}
-
-enable_site() {
-    local SITE=$1
-    echo "Enabling $SITE..."
-    if [ -f "$NGINX_SITES_AVAILABLE/$SITE" ]; then
-        ln -sf "$NGINX_SITES_AVAILABLE/$SITE" "$NGINX_SITES_ENABLED/$SITE"
-        echo -e "${GREEN}✓ Enabled $SITE${NC}"
-    else
-        echo -e "${RED}Error: Config $SITE not found${NC}"
-        exit 1
-    fi
+    echo "Reloading OpenResty..."
+    openresty -t && systemctl reload openresty
+    echo -e "${GREEN}✓ OpenResty reloaded${NC}"
 }
 
 # Main Execution
 if [ "$LAYER" == "1" ]; then
     configure_layer_1
+    # Reload Nginx for Layer 1
+    echo "Testing Nginx configuration..."
+    nginx -t && systemctl reload nginx
+    echo -e "${GREEN}✓ Nginx reloaded successfully${NC}"
 elif [ "$LAYER" == "2" ]; then
     configure_layer_2
 fi
 
-# Reload Nginx
-echo "Testing Nginx configuration..."
-nginx -t && systemctl reload nginx
-echo -e "${GREEN}✓ Nginx reloaded successfully${NC}"
-
-exit 0

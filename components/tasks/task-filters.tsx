@@ -58,11 +58,11 @@ export function TaskFilters({ filters, onFilterChange, onRefresh, selectedTaskId
     const recalculateBatchMutation = useMutation({
         mutationFn: tasksApi.recalculateBatch,
         onSuccess: (data) => {
-            toast.success(`Recalculation successful: ${data.tasks_recalculated} tasks processed.`);
+            toast.success(`คำนวณสถิติใหม่สำเร็จ: ${data.tasks_recalculated} งาน.`);
             onRefresh?.();
         },
         onError: (error) => {
-            toast.error('Failed to recalculate batch statistics');
+            toast.error('คำนวณสถิติใหม่ไม่สำเร็จ');
             console.error(error);
         },
     });
@@ -70,24 +70,24 @@ export function TaskFilters({ filters, onFilterChange, onRefresh, selectedTaskId
     const recalculateTasksMutation = useMutation({
         mutationFn: tasksApi.recalculateTaskStatistics,
         onSuccess: (data) => {
-            toast.success(`Recalculation successful: ${data.tasks_recalculated} tasks processed.`);
+            toast.success(`คำนวณสถิติใหม่สำเร็จ: ${data.tasks_recalculated} งาน.`);
             onRefresh?.();
         },
         onError: (error) => {
-            toast.error('Failed to recalculate task statistics');
+            toast.error('คำนวณสถิติใหม่ไม่สำเร็จ');
             console.error(error);
         },
     });
 
     const handleRecalculateBatch = () => {
         if (!filters.eval_center_id) return;
-        if (!confirm('Are you sure you want to recalculate statistics for this evaluation center? This may take a while.')) return;
+        if (!confirm('ต้องการคำนวณสถิติใหม่สำหรับงานกองที่เลือกไว้?')) return;
         recalculateBatchMutation.mutate(filters.eval_center_id);
     };
 
     const handleRecalculateTasks = () => {
         if (selectedTaskIds.length === 0) return;
-        if (!confirm(`Are you sure you want to recalculate statistics for ${selectedTaskIds.length} selected tasks?`)) return;
+        if (!confirm(`ต้องการคำนวณสถิติใหม่สำหรับ ${selectedTaskIds.length} งานที่เลือกไว้?`)) return;
         recalculateTasksMutation.mutate(selectedTaskIds);
     };
 
@@ -149,7 +149,7 @@ export function TaskFilters({ filters, onFilterChange, onRefresh, selectedTaskId
                             disabled={!!lockedEvalCenterId}
                         >
                             <SelectTrigger id="eval-center">
-                                <SelectValue placeholder="Select Evaluation Center" />
+                                <SelectValue placeholder="เลือกกองงาน" />
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">ทั้งหมด</SelectItem>
@@ -166,7 +166,7 @@ export function TaskFilters({ filters, onFilterChange, onRefresh, selectedTaskId
                                 size="icon"
                                 onClick={handleRecalculateBatch}
                                 disabled={recalculateBatchMutation.isPending}
-                                title="คำนวณสถิติใหม่ (Evaluation Center)"
+                                title="คำนวณสถิติใหม่ (กองงาน)"
                             >
                                 {recalculateBatchMutation.isPending ? (
                                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -226,12 +226,12 @@ export function TaskFilters({ filters, onFilterChange, onRefresh, selectedTaskId
                             <SelectValue placeholder="Status" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="all">All</SelectItem>
-                            <SelectItem value="pending">Pending</SelectItem>
-                            <SelectItem value="assigned">Assigned</SelectItem>
-                            <SelectItem value="complete">Complete</SelectItem>
-                            <SelectItem value="graded">Graded</SelectItem>
-                            <SelectItem value="exported">Exported</SelectItem>
+                            <SelectItem value="all">ทั้งหมด</SelectItem>
+                            <SelectItem value="pending">กำลังตรวจ</SelectItem>
+                            {/* <SelectItem value="assigned">กำลังตรวจ</SelectItem> */}
+                            <SelectItem value="complete">ตรวจเสร็จแล้ว</SelectItem>
+                            {/* <SelectItem value="graded">Graded</SelectItem>
+                            <SelectItem value="exported">Exported</SelectItem> */}
                         </SelectContent>
                     </Select>
                 </div>
