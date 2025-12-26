@@ -256,7 +256,7 @@ init_worker_by_lua_block {
         shm = "healthcheck",
         upstream = "fastapi_upstream",
         type = "http",
-        http_req = "GET / HTTP/1.0\r\nHost: gt-omr-api.gt\r\nUser-Agent: lua-resty-upstream-healthcheck\r\n\r\n",
+        http_req = "GET /api/healthz HTTP/1.0\r\nHost: gt-omr-api.gt\r\nUser-Agent: lua-resty-upstream-healthcheck\r\n\r\n",
         interval = 2000,
         timeout = 1000,
         fall = 3,
