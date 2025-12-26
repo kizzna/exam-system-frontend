@@ -385,7 +385,51 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet, onSheetsU
         setSelectedSheetIds(newSelection);
     };
 
-    // Keyboard Navigation
+    // Removed misplaced import
+
+    // Quick Reprocess Mutation
+    const quickReprocessMutation = useMutation({
+        mutationFn: (variables: { sheetIds: number[]; profileId: number }) =>
+            sheetsApi.reprocessSheet({
+                sheet_ids: variables.sheetIds,
+                profile_id: variables.profileId
+            }),
+        onSuccess: (data, variables) => {
+            const label = variables.profileId === 1 ? " (จางระดับกลาง)"
+                : variables.profileId === 40 ? " (จางระดับต่ำสุด)"
+                    : "";
+
+            toast.info(`กำลังเริ่มการประมวลผลใหม่${label}...`);
+
+            // Reuse existing dialog states
+            setReprocessMode('answers');
+            setReprocessTaskId(data.task_id); // This will trigger the stream view in the dialog
+            setReprocessDialogOpen(true);
+        },
+        onError: () => toast.error("ไม่สามารถเริ่มการประมวลผลใหม่ได้")
+    });
+
+    const handleQuickReprocess = (profileId: number, profileLabel: string) => {
+        // Determine items to process: Selection or Current Focus
+        let targetIds: number[] = [];
+
+        if (selectedSheetIds.size > 0) {
+            targetIds = Array.from(selectedSheetIds).map(id => parseInt(id));
+        } else if (selectedSheetId) {
+            targetIds = [parseInt(selectedSheetId)];
+        }
+
+        if (targetIds.length === 0) return;
+
+        // Check if dialog is already open or processing
+        if (reprocessDialogOpen || reprocessTaskId) {
+            toast.warning("กำลังประมวลผลรายการก่อนหน้า กรุณารอสักครู่");
+            return;
+        }
+
+        quickReprocessMutation.mutate({ sheetIds: targetIds, profileId });
+    };
+
     useEffect(() => {
         if (displayRoster.length === 0) return;
 
@@ -404,7 +448,22 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet, onSheetsU
             const currentIndex = displayRoster.findIndex(r => r.sheet_id === selectedSheetId);
             let nextIndex = currentIndex;
 
+            // Handling Reprocess Shortcuts
+            // Ctrl + / (Profile 1)
+            if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === '/') {
+                e.preventDefault();
+                handleQuickReprocess(1, " (จางระดับกลาง)");
+                return;
+            }
+            // Ctrl + Shift + / (Question Mark usually) (Profile 40)
+            if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === '?' || e.key === '/')) {
+                e.preventDefault();
+                handleQuickReprocess(40, " (จางระดับต่ำสุด)");
+                return;
+            }
+
             switch (e.key) {
+                // ... existing navigation cases ...
                 case 'ArrowDown':
                     e.preventDefault();
                     if (e.ctrlKey) {
@@ -494,63 +553,12 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet, onSheetsU
                     if (e.ctrlKey) {
                         e.preventDefault();
                         onPrevTask?.();
-                        // Old Duplicate Finder Logic (Commented out)
-                        /*
-                        const currentRoll = displayRoster[currentIndex]?.master_roll || displayRoster[currentIndex]?.sheet_roll;
-                        const searchRoll = currentRoll ? String(currentRoll) : null;
-                        const counterpartIndices = displayRoster.map((r, idx) => {
-                            const mr = r.master_roll ? String(r.master_roll) : null;
-                            const sr = r.sheet_roll ? String(r.sheet_roll) : null;
-                            return (searchRoll && (mr === searchRoll || sr === searchRoll)) ? idx : -1;
-                        }).filter(idx => idx !== -1);
-
-                        if (counterpartIndices.length > 1) {
-                            const prevIndices = counterpartIndices.filter(idx => idx < currentIndex);
-                            nextIndex = prevIndices.length > 0 ? prevIndices[prevIndices.length - 1] : counterpartIndices[counterpartIndices.length - 1];
-                        } else {
-                            let foundIndex = -1;
-                            for (let i = currentIndex - 1; i >= 0; i--) {
-                                if (displayRoster[i].row_status === 'DUPLICATE') { foundIndex = i; break; }
-                            }
-                            if (foundIndex === -1) {
-                                for (let i = displayRoster.length - 1; i > currentIndex; i--) {
-                                    if (displayRoster[i].row_status === 'DUPLICATE') { foundIndex = i; break; }
-                                }
-                            }
-                            if (foundIndex !== -1) nextIndex = foundIndex;
-                        }
-                        */
                     }
                     break;
                 case 'ArrowRight':
                     if (e.ctrlKey) {
                         e.preventDefault();
                         onNextTask?.();
-                        // Old Duplicate Finder Logic (Commented out)
-                        /*
-                        const currentRoll = displayRoster[currentIndex]?.master_roll || displayRoster[currentIndex]?.sheet_roll;
-                        const searchRoll = currentRoll ? String(currentRoll) : null;
-                        const counterpartIndices = displayRoster.map((r, idx) => {
-                            const mr = r.master_roll ? String(r.master_roll) : null;
-                            const sr = r.sheet_roll ? String(r.sheet_roll) : null;
-                            return (searchRoll && (mr === searchRoll || sr === searchRoll)) ? idx : -1;
-                        }).filter(idx => idx !== -1);
-                        if (counterpartIndices.length > 1) {
-                            const nextIndices = counterpartIndices.filter(idx => idx > currentIndex);
-                            nextIndex = nextIndices.length > 0 ? nextIndices[0] : counterpartIndices[0];
-                        } else {
-                            let foundIndex = -1;
-                            for (let i = currentIndex + 1; i < displayRoster.length; i++) {
-                                if (displayRoster[i].row_status === 'DUPLICATE') { foundIndex = i; break; }
-                            }
-                            if (foundIndex === -1) {
-                                for (let i = 0; i < currentIndex; i++) {
-                                    if (displayRoster[i].row_status === 'DUPLICATE') { foundIndex = i; break; }
-                                }
-                            }
-                            if (foundIndex !== -1) nextIndex = foundIndex;
-                        }
-                        */
                     }
                     break;
             }
@@ -559,14 +567,7 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet, onSheetsU
                 const nextItem = displayRoster[nextIndex];
                 if (nextItem.sheet_id) {
                     onSelectSheet(nextItem.sheet_id);
-                    // Update selection to just this item (Single Select on Nav) - mimicking Excel
-                    // Unless Shift held? (Standard excel does shift+arrow to extend).
-                    // User requirements didn't explicitly ask for Shift+Arrow, but said "Any navigation ... will deactivate select mode"
-                    // Wait, "Any navigation or click on other row will deactivate select mode."
-                    // This creates a misunderstanding. "Deactivate select mode" in previous context meant "Turn off the checkbox mode". 
-                    // In new context (Excel like), clicking another row (without modifiers) just selects THAT row (clearing previous multi-selection).
-                    // So we should just set selection to this single item.
-
+                    // Update selection to just this item (Single Select on Nav)
                     setSelectedSheetIds(new Set([nextItem.sheet_id]));
                     setLastClickedId(nextItem.sheet_id);
 
@@ -577,23 +578,13 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet, onSheetsU
         };
 
         const handleQuickActions = (e: KeyboardEvent) => {
-            // Quick Delete: Shift + Delete (Works on single focused item if no multi-selection, or multi-selection if exists)
-            // Actually existing logic was: (!isSelectionMode && shift+delete && slectedSheetId) -> delete single.
-            // Now logic should be: if selection exists, delete them.
-            // But wait, user might just have one item selected (focused).
-            // Let's keep Shift+Delete as "Delete Selected" (including current focused if it's in selection).
             // Quick Delete: Shift + Delete
             if (e.shiftKey && e.key === 'Delete') {
                 e.preventDefault();
-
-                // If we have a batch selection, we delete those.
                 if (selectedSheetIds.size > 0) {
                     setDeleteConfirmOpen(true);
                 }
-                // If no selection but we have a focused item (selectedSheetId), we treat that as the target.
                 else if (selectedSheetId) {
-                    // To handle this cleanly with the unified dialog (which looks at selectedSheetIds usually, or sheetToDelete fallback?)
-                    // Let's set the selection to this item so the dialog logic is uniform.
                     setSelectedSheetIds(new Set([selectedSheetId]));
                     setDeleteConfirmOpen(true);
                 }
@@ -601,7 +592,6 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet, onSheetsU
             // Quick Restore: Shift + Insert
             if (e.shiftKey && (e.key === 'Insert' || e.code === 'Insert') && selectedSheetId && viewMode === 'DELETED') {
                 e.preventDefault();
-                // Immediate restore without confirmation
                 restoreSheetsMutation.mutate([selectedSheetId]);
             }
         };
@@ -612,7 +602,7 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet, onSheetsU
             window.removeEventListener('keydown', handleKeyDown);
             window.removeEventListener('keydown', handleQuickActions);
         };
-    }, [displayRoster, selectedSheetId, onSelectSheet, rowVirtualizer, viewMode, queryClient, editingSheetId, deleteSheetsMutation, restoreSheetsMutation]);
+    }, [displayRoster, selectedSheetId, onSelectSheet, rowVirtualizer, viewMode, queryClient, editingSheetId, deleteSheetsMutation, restoreSheetsMutation, quickReprocessMutation]);
 
     // ... (Focus Retention and Auto-Scroll effects) ...
     const lastSelectedIdRef = useRef<string | undefined>();
@@ -1048,9 +1038,9 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet, onSheetsU
             </Dialog>
 
             <Dialog open={reprocessDialogOpen} onOpenChange={(open) => {
-                if (!open && (reprocessTaskId || reprocessProgress.isProcessing)) {
-                    // Prevent closing if processing
+                if (!open) {
                     if (reprocessProgress.isProcessing) return;
+                    setReprocessTaskId(null);
                 }
                 setReprocessDialogOpen(open);
             }}>
@@ -1203,7 +1193,10 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet, onSheetsU
                             </>
                         ) : (
                             <Button
-                                onClick={() => setReprocessDialogOpen(false)}
+                                onClick={() => {
+                                    setReprocessDialogOpen(false);
+                                    setReprocessTaskId(null);
+                                }}
                                 disabled={reprocessProgress.isProcessing} // Disable close while processing loop runs
                             >
                                 ปิด

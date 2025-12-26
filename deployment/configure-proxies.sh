@@ -390,9 +390,9 @@ EOF
 
     echo -e "${GREEN}✓ OpenResty configured at $OPENRESTY_CONF_D/omr-gateway.conf${NC}"
     
-    echo "Reloading OpenResty..."
-    openresty -t && systemctl reload openresty
-    echo -e "${GREEN}✓ OpenResty reloaded${NC}"
+    echo "Restarting OpenResty..."
+    openresty -t && systemctl restart openresty
+    echo -e "${GREEN}✓ OpenResty restarted${NC}"
 }
 
 # Main Execution
