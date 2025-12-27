@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/select';
 import type { ChunkUploadProgress, AlignmentMode } from '@/lib/types/batches';
 import { useDropzone } from 'react-dropzone';
-import { UploadCloud, X } from 'lucide-react';
+import { UploadCloud, X, AlertTriangle } from 'lucide-react';
 
 import { toast } from 'sonner';
 
@@ -35,9 +35,10 @@ const MAX_FILE_SIZE = 1.5 * 1024 * 1024; // 1.5MB
 interface ImageUploadFormProps {
     taskId?: string;
     onSuccess?: () => void;
+    isFinalized?: boolean;
 }
 
-export function ImageUploadForm({ taskId: propTaskId, onSuccess }: ImageUploadFormProps) {
+export function ImageUploadForm({ taskId: propTaskId, onSuccess, isFinalized }: ImageUploadFormProps) {
     const router = useRouter();
     const imagesUpload = useImagesUpload();
 
@@ -82,7 +83,7 @@ export function ImageUploadForm({ taskId: propTaskId, onSuccess }: ImageUploadFo
 
     // Validation
     const isValid = () => {
-        return files.length > 0 && /^\d{8}$/.test(taskId);
+        return files.length > 0 && /^\d{8}$/.test(taskId) && !isFinalized;
     };
 
 
@@ -113,6 +114,7 @@ export function ImageUploadForm({ taskId: propTaskId, onSuccess }: ImageUploadFo
 
     // Handle upload
     const handleUpload = async () => {
+        if (isFinalized) return;
         if (!isValid()) {
             setError('Please fill in all required fields');
             return;
@@ -187,6 +189,7 @@ export function ImageUploadForm({ taskId: propTaskId, onSuccess }: ImageUploadFo
     // React Dropzone
     const { getRootProps, getInputProps, isDragActive } = useDropzone({
         onDrop: (acceptedFiles) => {
+            if (isFinalized) return;
             const validFiles: File[] = [];
             let skippedCount = 0;
 
@@ -210,7 +213,7 @@ export function ImageUploadForm({ taskId: propTaskId, onSuccess }: ImageUploadFo
         accept: {
             'image/jpeg': ['.jpg', '.jpeg']
         },
-        disabled: uploading
+        disabled: uploading || isFinalized
     });
 
     const removeFile = (index: number) => {
@@ -224,26 +227,39 @@ export function ImageUploadForm({ taskId: propTaskId, onSuccess }: ImageUploadFo
                 {!propTaskId && <h3 className="mb-4 text-lg font-semibold">อัปโหลดรูปภาพ</h3>}
             </div>
 
+            {isFinalized && (
+                <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 mb-4">
+                    <div className="flex items-center gap-2 text-yellow-800 font-medium">
+                        <AlertTriangle className="h-4 w-4" />
+                        <span>ไม่สามารถอัปโหลดได้ เนื่องจาก Task นี้สรุปผลแล้ว (Finalized)</span>
+                    </div>
+                </div>
+            )}
+
             {/* File Upload Area */}
             <div className="space-y-2">
                 <Label>ไฟล์รูปภาพ</Label>
                 <div
                     {...getRootProps()}
                     className={`
-                        border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors
-                        ${isDragActive ? 'border-primary bg-primary/5' : 'border-slate-200 hover:border-primary/50 hover:bg-slate-50'}
-                        ${uploading ? 'opacity-50 cursor-not-allowed' : ''}
+                        border-2 border-dashed rounded-lg p-8 text-center transition-colors
+                        ${isDragActive ? 'border-primary bg-primary/5' : 'border-slate-200'}
+                        ${(uploading || isFinalized) ? 'opacity-50 cursor-not-allowed bg-slate-50' : 'cursor-pointer hover:border-primary/50 hover:bg-slate-50'}
                     `}
                 >
                     <input {...getInputProps()} />
                     <div className="flex flex-col items-center gap-2">
                         <UploadCloud className={`w-10 h-10 ${isDragActive ? 'text-primary' : 'text-slate-400'}`} />
                         <div className="text-sm font-medium text-slate-700">
-                            {isDragActive ? 'วางไฟล์ที่นี่' : 'ลากไฟล์มาวาง หรือคลิกเพื่อเลือกไฟล์'}
+                            {isFinalized
+                                ? 'ปิดการอัปโหลด (Finalized)'
+                                : isDragActive ? 'วางไฟล์ที่นี่' : 'ลากไฟล์มาวาง หรือคลิกเพื่อเลือกไฟล์'}
                         </div>
-                        <div className="text-xs text-slate-500">
-                            รองรับไฟล์ .jpg, .jpeg (ขนาด 500KB - 1.5MB)
-                        </div>
+                        {!isFinalized && (
+                            <div className="text-xs text-slate-500">
+                                รองรับไฟล์ .jpg, .jpeg (ขนาด 500KB - 1.5MB)
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -286,7 +302,7 @@ export function ImageUploadForm({ taskId: propTaskId, onSuccess }: ImageUploadFo
             {/* Profile Selection */}
             <div className="space-y-2">
                 <Label htmlFor="profile">Profile ตรวจใบตอบ</Label>
-                <Select value={profileId} onValueChange={setProfileId}>
+                <Select value={profileId} onValueChange={setProfileId} disabled={isFinalized || uploading}>
                     <SelectTrigger>
                         <SelectValue placeholder="Select a profile" />
                     </SelectTrigger>
@@ -304,7 +320,7 @@ export function ImageUploadForm({ taskId: propTaskId, onSuccess }: ImageUploadFo
             {isAdmin && (
                 <div className="space-y-2">
                     <Label htmlFor="alignment">วิธีปรับภาพให้ตรง (Advanced)</Label>
-                    <Select value={alignmentMode} onValueChange={(v) => setAlignmentMode(v as AlignmentMode)}>
+                    <Select value={alignmentMode} onValueChange={(v) => setAlignmentMode(v as AlignmentMode)} disabled={isFinalized || uploading}>
                         <SelectTrigger>
                             <SelectValue placeholder="Select strategy" />
                         </SelectTrigger>
@@ -338,7 +354,7 @@ export function ImageUploadForm({ taskId: propTaskId, onSuccess }: ImageUploadFo
                         placeholder="Task ID (เช่น 14900112 ตัวเลข 8 หลัก)"
                         value={taskId}
                         onChange={(e) => setTaskId(e.target.value)}
-                        disabled={uploading}
+                        disabled={uploading || isFinalized}
                         maxLength={8}
                         pattern="\d{8}"
                     />
@@ -380,7 +396,7 @@ export function ImageUploadForm({ taskId: propTaskId, onSuccess }: ImageUploadFo
 
             {/* Action Buttons */}
             <div className="flex gap-3">
-                <Button onClick={handleUpload} disabled={!isValid() || uploading} className="flex-1">
+                <Button onClick={handleUpload} disabled={!isValid() || uploading || isFinalized} className="flex-1">
                     {uploading ? 'กำลังอัปโหลด...' : 'อัปโหลด'}
                 </Button>
 

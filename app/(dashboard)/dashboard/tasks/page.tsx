@@ -93,6 +93,14 @@ export default function TasksPage() {
     (t) => selectedTaskIds.includes(t.task_id) && t.processing_status === 'assigned'
   );
 
+  // Check if any selected task is finalized
+  const hasFinalizedTask = useMemo(() => {
+    return selectedTaskIds.some(id => {
+      const task = tasks.find(t => t.task_id === id);
+      return task?.is_finalized;
+    });
+  }, [selectedTaskIds, tasks]);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-center gap-2">
@@ -127,6 +135,7 @@ export default function TasksPage() {
           queryClient.invalidateQueries({ queryKey: ['tasks-stats'] });
         }}
         selectedTaskIds={selectedTaskIds}
+        disableRecalculate={hasFinalizedTask}
       />
 
       <TaskList

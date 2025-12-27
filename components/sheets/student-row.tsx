@@ -24,117 +24,24 @@ interface StudentRowProps {
     taskId: string;
     onCorrect?: () => void;
     isBatchSelected: boolean;
+    isFinalized?: boolean;
 }
 
-function applyRosterUpdates(oldRoster: RosterEntry[], updatedRows: RosterEntry[]): RosterEntry[] {
-    const updates = [...updatedRows];
-    const updatesConsumed = new Set<number>(); // Index of consumed updates
+// ... (helper functions)
 
-    // Identify all sheet_ids involved in the update
-    const updatedSheetIds = new Set(updates.map(u => u.sheet_id ? String(u.sheet_id) : '').filter(Boolean));
-
-    // Pass 1: Map (Update Existing)
-    let newRoster = oldRoster.map(row => {
-        // Match logic
-        const updateIndex = updates.findIndex(u => {
-            if (row.source === 'master') {
-                return u.source === 'master' && String(u.master_roll) === String(row.master_roll);
-            } else { // ghost
-                return u.source === 'ghost' && String(u.sheet_id) === String(row.sheet_id);
-            }
-        });
-
-        if (updateIndex !== -1) {
-            updatesConsumed.add(updateIndex);
-            return updates[updateIndex];
+// Helper to apply updates to roster
+const applyRosterUpdates = (currentRoster: RosterEntry[], updates: RosterEntry[]) => {
+    if (!updates || updates.length === 0) return currentRoster;
+    return currentRoster.map(row => {
+        const update = updates.find(u => u.sheet_id === row.sheet_id);
+        if (update) {
+            return { ...row, ...update };
         }
-
-        // Check 2: Sheet Stealing (Did this row lose its sheet?)
-        // If this row has a sheet that is present in the updates (assigned to someone else since we didn't match above),
-        // then this row lost it.
-        if (row.sheet_id && updatedSheetIds.has(String(row.sheet_id))) {
-            if (row.source === 'master') {
-                // Reset Master Row to defaults
-                return {
-                    ...row,
-                    sheet_id: null,
-                    sheet_roll: null,
-                    error_flags: 0,
-                    corrected_flags: 0,
-                    effective_flags: 0,
-                    original_filename: null,
-                    row_status: 'MISSING' as const,
-                    error_message: null
-                };
-            } else {
-                // Delete Ghost Row (it lost its sheet)
-                return null;
-            }
-        }
-
         return row;
     });
+};
 
-    // Pass 2: Append (Add New)
-    updates.forEach((u, idx) => {
-        if (!updatesConsumed.has(idx)) {
-            newRoster.push(u);
-        }
-    });
-
-    // Pass 3: Cleanup (Deduplicate)
-    // Identify all sheet_ids strictly claimed by Master rows in the new roster
-    const masterSheetIds = new Set(
-        newRoster
-            .filter(r => r && r.source === 'master' && r.sheet_id)
-            .map(r => String(r!.sheet_id))
-    );
-
-    // Remove any Ghost rows whose sheet_id is now owned by a Master
-    newRoster = newRoster.filter(r => {
-        if (!r) return false;
-        // Strict check: If I am a GHOST and my sheet_id is in the set of Master sheet_ids, I am a duplicate/stale row. Goodbye.
-        if (r.source === 'ghost' && r.sheet_id && masterSheetIds.has(String(r.sheet_id))) {
-            return false;
-        }
-        return true;
-    });
-
-    // Pass 4: Final Safety Net (Strict Deduplication by sheet_id)
-    // Ensure no two rows share the same non-null sheet_id.
-    const uniqueSheetMap = new Map<string, RosterEntry>();
-    const rowsWithoutSheet: RosterEntry[] = [];
-
-    newRoster.forEach(r => {
-        if (!r) return;
-        if (!r.sheet_id) {
-            rowsWithoutSheet.push(r);
-        } else {
-            const sid = String(r.sheet_id);
-            if (uniqueSheetMap.has(sid)) {
-                // Conflict! Decided who stays.
-                const existing = uniqueSheetMap.get(sid)!;
-
-                // Rule 1: Master wins over Ghost
-                if (r.source === 'master' && existing.source !== 'master') {
-                    uniqueSheetMap.set(sid, r);
-                }
-                // Rule 2: If both master (shouldn't happen) or both ghost, prefer one with OK status or just keep existing
-                else if (r.source === existing.source) {
-                    // unexpected, just keep first one or use logic. 
-                    // Keep existing is safer for stability.
-                }
-                // (If existing is master and new is ghost, existing wins - do nothing)
-            } else {
-                uniqueSheetMap.set(sid, r);
-            }
-        }
-    });
-
-    return [...rowsWithoutSheet, ...Array.from(uniqueSheetMap.values())];
-}
-
-export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, onSelect, viewMode, fullRoster, classLevel, group, taskId, isOpen, onOpenChange, onCorrect, isBatchSelected, prevMasterRoll, nextMasterRoll }: StudentRowProps & { isOpen: boolean; onOpenChange: (open: boolean) => void; prevMasterRoll?: number; nextMasterRoll?: number }) => {
+export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, onSelect, viewMode, fullRoster, classLevel, group, taskId, isOpen, onOpenChange, onCorrect, isBatchSelected, prevMasterRoll, nextMasterRoll, isFinalized }: StudentRowProps & { isOpen: boolean; onOpenChange: (open: boolean) => void; prevMasterRoll?: number; nextMasterRoll?: number }) => {
     const queryClient = useQueryClient();
     const [search, setSearch] = useState("");
     const listRef = React.useRef<HTMLDivElement>(null);
@@ -424,13 +331,13 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
             className="p-0.5" // Reduced padding wrapper
         >
             <div
-                onClick={(e) => isClickable && onSelect(e)}
+                onClick={(e) => isClickable && !isFinalized && onSelect(e)} // Disable checking
                 className={cn(
                     "px-2 py-1 rounded-sm text-base flex items-center transition-colors h-full gap-2", // Increased text-base, reduced py-1
                     getRowStyle(entry.row_status),
                     isSelected ? "bg-blue-100 border-blue-200 ring-1 ring-blue-300" : "hover:bg-slate-100",
                     isCorrected && !isSelected && "bg-purple-50/50 border-l-4 border-l-purple-400", // Corrected theme
-                    isClickable ? "cursor-pointer" : "cursor-default",
+                    (isClickable && !isFinalized) ? "cursor-pointer" : "cursor-default",
                     !isClickable && !isSelected && !isCorrected && "border border-transparent"
                 )}
             >
@@ -469,21 +376,27 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
                     )}
 
                     {entry.sheet_id && viewMode !== 'DELETED' && (
-                        <Popover open={isOpen} onOpenChange={onOpenChange}>
+                        <Popover open={isOpen && !isFinalized} onOpenChange={onOpenChange}>
                             <PopoverTrigger asChild>
                                 <button
-                                    onClick={(e) => { e.stopPropagation(); onOpenChange(true); setSearch(""); }}
-                                    className="hover:bg-black/5 px-1 rounded flex items-center gap-1 transition-colors text-left w-full"
+                                    onClick={(e) => { e.stopPropagation(); if (!isFinalized) { onOpenChange(true); setSearch(""); } }}
+                                    disabled={isFinalized}
+                                    className={cn(
+                                        "hover:bg-black/5 px-1 rounded flex items-center gap-1 transition-colors text-left w-full",
+                                        isFinalized && "opacity-80 cursor-not-allowed hover:bg-transparent"
+                                    )}
                                 >
                                     <span className={cn(
                                         "font-mono text-lg font-bold", // Larger font
-                                        entry.sheet_roll !== entry.master_roll ? "text-orange-600" : "text-slate-900"
+                                        entry.sheet_roll !== entry.master_roll ? "text-orange-600" : "text-slate-900",
+                                        isFinalized && "text-slate-600"
                                     )}>
                                         {entry.sheet_roll || '-'}
                                     </span>
                                 </button>
                             </PopoverTrigger>
                             <PopoverContent className="w-[400px] p-0 bg-slate-900/95 border-slate-700 text-slate-100 backdrop-blur-sm" align="start">
+                                {/* ... Popover Content ... */}
                                 <Command shouldFilter={false} className="bg-transparent text-slate-100">
                                     <CommandInput
                                         placeholder="ใบตอบนี้เป็นของ..."
@@ -626,6 +539,7 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
                             variant="ghost"
                             className="h-7 px-2 text-xs bg-white/50 hover:bg-white text-green-700 border border-green-200 whitespace-nowrap"
                             onClick={(e) => handleQuickAction(e, 'present')}
+                            disabled={isFinalized}
                         >
                             มาสอบจริง
                         </Button>
@@ -636,6 +550,7 @@ export const StudentRow = React.memo(({ entry, style, isSelected, isClickable, o
                             variant="ghost"
                             className="h-7 px-2 text-xs bg-white/50 hover:bg-white text-orange-700 border border-orange-200 whitespace-nowrap"
                             onClick={(e) => handleQuickAction(e, 'too_few')}
+                            disabled={isFinalized}
                         >
                             ไม่ครบจริง
                         </Button>

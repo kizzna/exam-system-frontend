@@ -43,9 +43,10 @@ interface TaskFiltersProps {
     onFilterChange: (filters: TaskFiltersState) => void;
     onRefresh?: () => void;
     selectedTaskIds?: number[];
+    disableRecalculate?: boolean;
 }
 
-export function TaskFilters({ filters, onFilterChange, onRefresh, selectedTaskIds = [] }: TaskFiltersProps) {
+export function TaskFilters({ filters, onFilterChange, onRefresh, selectedTaskIds = [], disableRecalculate }: TaskFiltersProps) {
     const { user, isAdmin } = useAuth();
 
     // Fetch evaluation centers
@@ -87,6 +88,7 @@ export function TaskFilters({ filters, onFilterChange, onRefresh, selectedTaskId
 
     const handleRecalculateTasks = () => {
         if (selectedTaskIds.length === 0) return;
+        if (disableRecalculate) return;
         if (!confirm(`ต้องการคำนวณสถิติใหม่สำหรับ ${selectedTaskIds.length} งานที่เลือกไว้?`)) return;
         recalculateTasksMutation.mutate(selectedTaskIds);
     };
@@ -456,7 +458,8 @@ export function TaskFilters({ filters, onFilterChange, onRefresh, selectedTaskId
                         <Button
                             variant="outline"
                             onClick={handleRecalculateTasks}
-                            disabled={recalculateTasksMutation.isPending}
+                            disabled={recalculateTasksMutation.isPending || disableRecalculate}
+                            title={disableRecalculate ? "ไม่สามารถคำนวณใหม่ได้เนื่องจากมีงานที่ Finalized แล้ว" : "คำนวณสถิติใหม่"}
                         >
                             {recalculateTasksMutation.isPending ? (
                                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

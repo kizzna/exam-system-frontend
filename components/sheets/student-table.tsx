@@ -82,6 +82,8 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet, onSheetsU
         staleTime: Infinity, // Task details unlikely to change often
     });
 
+    const isFinalized = task?.is_finalized;
+
     const deleteSheetsMutation = useMutation({
         mutationFn: (sheetIds: string[]) => sheetsApi.batchDelete(sheetIds.map(id => parseInt(id))),
         onSuccess: (_data, variables) => {
@@ -444,6 +446,16 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet, onSheetsU
 
             if (['INPUT', 'TEXTAREA'].includes(tagName) || editingSheetId || deleteConfirmOpen) return;
 
+            // Block all modifications if finalized
+            if (isFinalized) {
+                // Allow navigation keys (Arrow, Page, Home/End) but block actions
+                if (['/', '?', 'Delete', 'Insert', 'Enter'].includes(e.key)) return;
+                // Note: Enter is used for navigation too (edit mode), so we need to be careful.
+                // Actually Enter opens edit mode or corrects. Both should be disabled?
+                // Opening edit mode (AnswerImageViewer) is fine if read-only, but existing AnswerImageViewer edit button is disabled.
+                // But "Correcting" (Ctrl+Enter) must be disabled.
+            }
+
 
             const currentIndex = displayRoster.findIndex(r => r.sheet_id === selectedSheetId);
             let nextIndex = currentIndex;
@@ -578,6 +590,7 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet, onSheetsU
         };
 
         const handleQuickActions = (e: KeyboardEvent) => {
+            if (isFinalized) return;
             // Quick Delete: Shift + Delete
             if (e.shiftKey && e.key === 'Delete') {
                 e.preventDefault();
@@ -716,6 +729,7 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet, onSheetsU
                             size="sm"
                             className="bg-yellow-50 text-yellow-700 border-yellow-200 hover:bg-yellow-100 ml-2"
                             onClick={() => setRelocateDialogOpen(true)}
+                            disabled={isFinalized}
                         >
                             <ArrowRightToLine className="w-4 h-4 mr-1" />
                             ย้ายใบตอบ
@@ -733,6 +747,7 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet, onSheetsU
                                 setReviewBitmask(task?.review_results || 0);
                                 setReviewDialogOpen(true);
                             }}
+                            disabled={isFinalized}
                         >
                             {((task?.review_results || 0) > 0) ? "เปลี่ยนการยืนยัน" : "ยืนยันไม่มีใบตอบ"}
                         </Button>
@@ -744,12 +759,12 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet, onSheetsU
                     <div className="flex items-center gap-2 px-2 border-l border-slate-200">
                         <span className="text-xs text-slate-500">{selectedSheetIds.size} selected</span>
                         {viewMode === 'SEQUENTIAL' && (
-                            <Button size="sm" variant="destructive" className="h-7 text-xs" onClick={handleBatchDelete}>
+                            <Button size="sm" variant="destructive" className="h-7 text-xs" onClick={handleBatchDelete} disabled={isFinalized}>
                                 ลบ
                             </Button>
                         )}
                         {viewMode === 'DELETED' && (
-                            <Button size="sm" variant="default" className="h-7 text-xs bg-green-600 hover:bg-green-700" onClick={handleBatchRestore}>
+                            <Button size="sm" variant="default" className="h-7 text-xs bg-green-600 hover:bg-green-700" onClick={handleBatchRestore} disabled={isFinalized}>
                                 กู้คืน
                             </Button>
                         )}
@@ -796,11 +811,13 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet, onSheetsU
                                     // Actually if we want to force default every time we open:
                                     setSelectedProfileId("");
 
+
                                     setReprocessMode("answers");
                                     setSelectedAlignmentMode("standard");
                                     setReprocessProgress({ processed: 0, total: selectedSheetIds.size, isProcessing: false });
                                 }}
                                 title="ประมวลผลใหม่ (Reprocess)"
+                                disabled={isFinalized}
                             >
                                 <RefreshCw className="w-4 h-4" />
                             </Button>
@@ -813,6 +830,7 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet, onSheetsU
                             className="h-7 w-7 p-0 text-slate-400 hover:text-blue-600 hover:bg-blue-50"
                             onClick={() => setUploadDialogOpen(true)}
                             title="อัปโหลดรูปภาพ"
+                            disabled={isFinalized}
                         >
                             <CloudUpload className="w-4 h-4" />
                         </Button>
@@ -824,6 +842,7 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet, onSheetsU
                             className="h-7 w-7 p-0 text-slate-400 hover:text-orange-600 hover:bg-orange-50"
                             onClick={() => setSwapDialogOpen(true)}
                             title="สลับใบตอบทั้งหมดกับสนาม..."
+                            disabled={isFinalized}
                         >
                             <ArrowLeftRight className="w-4 h-4" />
                         </Button>
@@ -905,6 +924,7 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet, onSheetsU
                                     }}
                                     prevMasterRoll={prevMasterRoll}
                                     nextMasterRoll={nextMasterRoll}
+                                    isFinalized={isFinalized}
                                 />
                             );
                         })}
@@ -1298,6 +1318,7 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet, onSheetsU
                         <ImageUploadForm
                             taskId={taskId}
                             onSuccess={handleUploadSuccess}
+                            isFinalized={isFinalized}
                         />
                     </div>
                 </DialogContent>

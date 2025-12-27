@@ -40,6 +40,7 @@ export interface Task {
   created_at: string;
   access_source?: string;
   review_results?: number;
+  is_finalized?: boolean;
 }
 
 export interface TaskStats {

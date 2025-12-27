@@ -70,6 +70,7 @@ configure_layer_1() {
 # Forwards to Layer 2 (Unified Gateway)
 
 upstream layer2_gateway {
+    ip_hash;
     server gt-omr-web-1.gt:80;
     server gt-omr-web-2.gt:80;
     server gt-omr-web-3.gt:80;
@@ -272,6 +273,7 @@ init_worker_by_lua_block {
 
 upstream fastapi_upstream {
     # Resolved IPv4 addresses to avoid 'Connection refused' on IPv6
+    ip_hash;
     server $API_NODE_1:8000;
     server $API_NODE_2:8000;
     keepalive 64;

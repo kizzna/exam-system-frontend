@@ -7,6 +7,7 @@ import { SmartImage, SmartImageItem } from './smart-image';
 import { Loader2, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AnswerEditor } from './answer-editor';
+// Removed duplicate useQueryClient import
 import { useQueryClient } from '@tanstack/react-query';
 
 interface AnswerItem {
@@ -28,6 +29,7 @@ interface AnswerImageViewerProps {
     sheetId?: string;
     overlayData?: SheetOverlayData;
     refreshKey?: number;
+    isFinalized?: boolean;
 }
 
 // Subject configuration: question ranges and colors
@@ -37,7 +39,7 @@ const SUBJECTS = [
     { name: 'subject3', label: 'วินัย', range: [101, 150], color: 'bg-orange-500', borderColor: 'border-orange-600' },
 ];
 
-export function AnswerImageViewer({ sheetId, taskId, overlayData, refreshKey }: AnswerImageViewerProps & { taskId: string }) {
+export function AnswerImageViewer({ sheetId, taskId, overlayData, refreshKey, isFinalized }: AnswerImageViewerProps & { taskId: string }) {
     const [showCorrectAnswers, setShowCorrectAnswers] = React.useState(true);
     const [showStudentMarks, setShowStudentMarks] = React.useState(true);
     const [showAllOverlays, setShowAllOverlays] = React.useState(true);
@@ -210,8 +212,8 @@ export function AnswerImageViewer({ sheetId, taskId, overlayData, refreshKey }: 
                                 id: `q_${qNum}_correct`,
                                 x,
                                 y,
-                                type: 'correct',
-                                color: 'rgba(0, 0, 255, 0.8)',
+                                type: 'correct', // 'circle' shape for correct answer
+                                color: 'rgba(0, 0, 255, 0.8)', // Blue
                             });
                         }
                     }
@@ -307,6 +309,7 @@ export function AnswerImageViewer({ sheetId, taskId, overlayData, refreshKey }: 
                             size="sm"
                             onClick={() => setIsEditorOpen(!isEditorOpen)}
                             className="w-full text-xs justify-start gap-2"
+                            disabled={isFinalized}
                         >
                             <Edit className="w-3 h-3" />
                             {isEditorOpen ? 'ปิด' : 'แก้ไข'}
