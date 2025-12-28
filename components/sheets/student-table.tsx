@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/dialog";
 import { ImageUploadForm } from '@/components/batches/ImageUploadForm';
 import { AlertCircle, CloudUpload } from 'lucide-react';
+import { StudentSearchModal } from '@/components/sheets/student-search-modal';
 
 interface StudentTableProps {
     taskId: string;
@@ -695,6 +696,7 @@ export function StudentTable({ taskId, selectedSheetId, onSelectSheet, onSheetsU
             {/* Header / View Toggle */}
             <div className="flex items-center justify-between p-2 border-b gap-2 bg-slate-50">
                 <div className="flex items-center gap-1">
+                    <StudentSearchModal />
                     <Button
                         variant="ghost"
                         size="sm"

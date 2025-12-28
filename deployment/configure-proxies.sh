@@ -273,9 +273,8 @@ init_worker_by_lua_block {
 
 upstream fastapi_upstream {
     # Resolved IPv4 addresses to avoid 'Connection refused' on IPv6
-    ip_hash;
-    server $API_NODE_1:8000;
-    server $API_NODE_2:8000;
+    server $API_NODE_1:8000;            # Primary
+    server $API_NODE_2:8000 backup;     # Backup
     keepalive 64;
 }
 

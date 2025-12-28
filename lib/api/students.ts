@@ -1,10 +1,10 @@
 import apiClient from './client';
-import { Student, StudentSearchParams } from '../types/students';
+import { Student, StudentSearchParams, StudentSearchResponse } from '../types/students';
 import { PaginatedResponse } from '../types/api';
 
 export const studentsApi = {
-  searchStudents: async (params: StudentSearchParams): Promise<PaginatedResponse<Student>> => {
-    const response = await apiClient.get<PaginatedResponse<Student>>('/students/search', { params });
+  searchStudents: async (params: StudentSearchParams): Promise<StudentSearchResponse> => {
+    const response = await apiClient.get<StudentSearchResponse>('/students/search', { params });
     return response.data;
   },
 
